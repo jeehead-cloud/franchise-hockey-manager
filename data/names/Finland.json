@@ -1,0 +1,18 @@
+{
+  "firstNames": [
+    "Aleksander", "Mikko", "Sebastian", "Patrik", "Teuvo", "Miro", "Eeli",
+    "Kaapo", "Jesperi", "Artturi", "Roope", "Esa", "Jussi", "Saku",
+    "Teemu", "Olli", "Janne", "Antti", "Ville", "Juuse", "Ukko-Pekka",
+    "Henri", "Markus", "Niko", "Petri", "Rasmus", "Sami", "Timo",
+    "Tuukka", "Valtteri", "Aapo", "Eero", "Ilari", "Joonas", "Kasperi",
+    "Lauri", "Mikael", "Otso"
+  ],
+  "surnames": [
+    "Barkov", "Rantanen", "Aho", "Laine", "Teravainen", "Heiskanen", "Tolvanen",
+    "Kakko", "Kotkaniemi", "Lehkonen", "Hintz", "Tikkanen", "Jokinen", "Koivu",
+    "Selanne", "Maatta", "Niemi", "Rinne", "Saros", "Luukkonen", "Korpisalo",
+    "Virtanen", "Nieminen", "Makinen", "Hamalainen", "Korhonen", "Heikkinen",
+    "Jarvinen", "Laine", "Salminen", "Lehtinen", "Koskinen", "Saarinen",
+    "Turunen", "Hiltunen", "Peltola", "Rasanen", "Toivonen"
+  ]
+}

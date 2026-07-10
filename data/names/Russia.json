@@ -1,0 +1,17 @@
+{
+  "firstNames": [
+    "Alexander", "Nikita", "Evgeni", "Sergei", "Ilya", "Andrei", "Vladimir",
+    "Dmitri", "Pavel", "Kirill", "Artemi", "Alexei", "Mikhail", "Ivan",
+    "Yuri", "Oleg", "Roman", "Viktor", "Denis", "Maxim", "Anton", "Igor",
+    "Fyodor", "Boris", "Gleb", "Timofei", "Matvei", "Daniil", "Yegor", "Artyom",
+    "Konstantin", "Nikolai", "Pyotr", "Semyon", "Vadim", "Valeri", "Vitaly", "Zakhar"
+  ],
+  "surnames": [
+    "Ovechkin", "Kucherov", "Malkin", "Bobrovsky", "Sorokin", "Vasilevskiy",
+    "Tarasenko", "Panarin", "Kaprizov", "Buchnevich", "Svechnikov", "Provorov",
+    "Orlov", "Zadorov", "Kuznetsov", "Namestnikov", "Gusev", "Shattenkirk",
+    "Petrov", "Ivanov", "Smirnov", "Volkov", "Sokolov", "Popov", "Lebedev",
+    "Kozlov", "Novikov", "Morozov", "Pavlov", "Semenov", "Golubev", "Vinogradov",
+    "Bogdanov", "Vorobyov", "Fedorov", "Mikhailov", "Alexeev", "Egorov"
+  ]
+}

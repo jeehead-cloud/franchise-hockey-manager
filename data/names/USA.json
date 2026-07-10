@@ -1,0 +1,17 @@
+{
+  "firstNames": [
+    "Jack", "Quinn", "Auston", "Patrick", "Chris", "Ryan", "Matthew", "Zach",
+    "Dylan", "Jake", "Brady", "Cole", "Adam", "Nick", "Alex", "Joe",
+    "Mike", "Tom", "Brian", "Kevin", "Justin", "Tyler", "Brandon", "Kyle",
+    "Derek", "Shane", "Blake", "Cameron", "Drew", "Evan", "Garrett", "Hunter",
+    "Ian", "Jordan", "Luke", "Nathan", "Owen", "Paul", "Sam", "Will"
+  ],
+  "surnames": [
+    "Eichel", "Hughes", "Matthews", "Kane", "Kreider", "Suter", "Tkachuk",
+    "Parise", "Ovechkin", "Backstrom", "Holtby", "Pavelski", "Gaudreau",
+    "Larkin", "Keller", "Thompson", "Miller", "Nelson", "Johnson", "Williams",
+    "Brown", "Davis", "Miller", "Wilson", "Moore", "Taylor", "Anderson",
+    "Thomas", "Jackson", "White", "Harris", "Martin", "Thompson", "Garcia",
+    "Martinez", "Robinson", "Clark", "Rodriguez", "Lewis", "Lee"
+  ]
+}

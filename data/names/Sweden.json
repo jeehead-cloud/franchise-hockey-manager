@@ -1,0 +1,18 @@
+{
+  "firstNames": [
+    "Erik", "William", "Victor", "Filip", "Elias", "Gabriel", "Oliver", "Rasmus",
+    "Alexander", "Mika", "Nils", "Isac", "Lucas", "Hugo", "Oscar", "Adam",
+    "Jakob", "Marcus", "Sebastian", "Anton", "Carl", "David", "Emil", "Fredrik",
+    "Gustav", "Henrik", "Johan", "Karl", "Lars", "Mats", "Niklas", "Olof",
+    "Per", "Robin", "Simon", "Tobias", "Ulf", "Viktor"
+  ],
+  "surnames": [
+    "Karlsson", "Nylander", "Hedman", "Forsberg", "Lindholm", "Landeskog",
+    "Zetterberg", "Sedin", "Lundqvist", "Dahlin", "Bratt", "Pettersson",
+    "Eriksson", "Andersson", "Johansson", "Nilsson", "Larsson", "Olsson",
+    "Persson", "Svensson", "Gustafsson", "Pettersson", "Jonsson", "Jansson",
+    "Hansson", "Bengtsson", "Jakobsson", "Magnusson", "Olofsson", "Lindberg",
+    "Bergstrom", "Lundberg", "Sandberg", "Holmberg", "Nyberg", "Stromberg",
+    "Wikstrom", "Aberg"
+  ]
+}

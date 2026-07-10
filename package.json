@@ -1,0 +1,25 @@
+{
+  "name": "franchise-hockey-manager",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Browser-based hockey franchise simulation",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=@fhm/server",
+    "dev:server": "npm run dev --workspace=@fhm/server",
+    "dev:client": "npm run dev --workspace=@fhm/client",
+    "build": "npm run build --workspaces --if-present",
+    "build:engine": "npm run build --workspace=@fhm/engine",
+    "build:server": "npm run build --workspace=@fhm/server",
+    "build:client": "npm run build --workspace=@fhm/client",
+    "db:generate": "npm run db:generate --workspace=@fhm/server",
+    "db:migrate": "npm run db:migrate --workspace=@fhm/server",
+    "db:seed": "npm run db:seed --workspace=@fhm/server",
+    "db:reset": "npm run db:reset --workspace=@fhm/server"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "firstNames": [
+    "David", "Tomas", "Pavel", "Jakub", "Martin", "Ondrej", "Filip", "Roman",
+    "Petr", "Jan", "Lukas", "Michal", "Jiri", "Vladimir", "Radek", "Milan",
+    "Patrik", "Dominik", "Jaromir", "Robert", "Adam", "Ales", "Boris", "Cenek",
+    "Daniel", "Eduard", "Frantisek", "Gustav", "Hynek", "Ivan", "Josef", "Karel",
+    "Libor", "Matej", "Norbert", "Otakar", "Pavel", "Radim"
+  ],
+  "surnames": [
+    "Pastrnak", "Hertl", "Zacha", "Vrana", "Necas", "Palat", "Hronek", "Jagr",
+    "Hasek", "Elias", "Prospal", "Hemsky", "Voracek", "Krejci", "Fleischmann",
+    "Novak", "Svoboda", "Dvorak", "Cerny", "Prochazka", "Kucera", "Vesely",
+    "Horak", "Nemec", "Pokorny", "Marek", "Benes", "Fiala", "Havel", "Jelinek",
+    "Kovar", "Liska", "Malik", "Urban", "Zeman", "Bilek", "Cermak", "Dudek"
+  ]
+}

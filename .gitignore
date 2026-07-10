@@ -1,0 +1,16 @@
+node_modules/
+dist/
+build/
+*.db
+*.db-journal
+.env
+.env.local
+.DS_Store
+Thumbs.db
+*.log
+.vite/
+coverage/
+.turbo/
+*.tsbuildinfo
+packages/server/prisma/dev.db
+packages/server/prisma/dev.db-journal
