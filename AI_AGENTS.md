@@ -235,28 +235,54 @@ Behavior
 Validation
 - build: PASS / FAIL / NOT RUN
 
-CURRENT_STATUS.md updated
-- yes — <one-line summary> / no changes needed — <why>
+Documentation maintenance
+- CURRENT_STATUS.md: updated / reviewed, no update required
+- Recent changes entry: added / not required
+- Significant changes entry: added / not required
+- Reason: <brief explanation>
 
 Commit
 - hash and message, or "Not committed"
 ```
 
+An iteration is **not complete** until the §13.1 review has been performed and the Documentation maintenance block above is filled in honestly.
+
 ---
 
 ## 13. Documentation Updates
 
-### 13.1. CURRENT_STATUS.md — mandatory after every task, no exceptions
+### 13.1. End-of-iteration CURRENT_STATUS.md workflow (mandatory after every prompt)
 
-Every implementation task, however small, must end with re-reading `CURRENT_STATUS.md` and updating whichever of the following apply:
+After **every** prompt/iteration — including documentation-only tasks and small fixes — and **before** writing the final completion summary, the agent must:
 
-- the relevant milestone's **Implemented** / **Not yet done** / known-gaps bullets;
-- the **Known Bugs / Limitations** section;
-- **Nearest Next Steps**.
+1. **Review the iteration's actual outcome** — what was completed, failed, deferred, blocked, or newly discovered.
+2. **Re-read `CURRENT_STATUS.md`** in full (snapshot sections and both history tracks).
+3. **Update the current-state snapshot** whenever repository-relevant facts changed: Current Development Phase, milestone Implemented / Not yet done / known-gaps bullets, Known Bugs / Limitations, and Nearest Next Steps.
+4. **Add a Recent changes entry** whenever the iteration changed the repository, documentation, implementation status, validation status, known limitations, decisions, or immediate next steps.
+5. **Independently decide significance** — if the iteration meets the Significant-changes criteria in §13.2 / `CURRENT_STATUS.md`, add a Significant changes entry. The owner does not need to request this; the agent must classify on its own.
+6. **Record failure and incompleteness honestly** when they change the known project state — do not document only successful work.
+7. **Skip history entries only when** the iteration caused no repository-relevant change and revealed no new fact worth preserving (still report `reviewed, no update required` in the final summary).
+8. **Report the maintenance result** in the final response using the Documentation maintenance block in §12.
+9. **Never claim the iteration is complete** before this review has been performed.
 
-If a task is aborted, blocked, or only partially done, `CURRENT_STATUS.md` must say so honestly rather than being left stale. There are no exceptions for "tiny" fixes, scaffolding, or documentation-only follow-ups that change what the app can actually do (or what is known-broken).
+There are no exceptions for "tiny" fixes, scaffolding, refactors, or documentation-only follow-ups.
 
-### 13.2. Other documents — update when the underlying thing changes
+### 13.2. Two change-history tracks in CURRENT_STATUS.md
+
+`CURRENT_STATUS.md` maintains two separate histories (both newest-first):
+
+| Track | Purpose | Retention |
+|---|---|---|
+| **Recent changes** | Ordinary implementation progress, fixes, documentation updates, validation results, incomplete/failed work, and other repository-relevant changes | Keep approximately the latest **3 months**; older ordinary entries may be pruned when they no longer help explain the current state |
+| **Significant changes** | Durable milestones, architectural decisions, important product/game-design decisions, major implementation milestones, important migrations, major incidents and root causes, and other facts future agents must know permanently | **Never** delete merely because of age |
+
+A significant change may also appear in Recent changes while it is recent; its permanent record must remain under Significant changes.
+
+**Agent responsibility:** decide independently whether a completed iteration belongs in Significant changes. When unsure, prefer recording a Significant entry for durable decisions/milestones rather than losing permanent context.
+
+Do **not** turn either history into low-level noise (every shell command, every trivial formatting-only edit). Prefer concise, repository-relevant entries.
+
+### 13.3. Other documents — update when the underlying thing changes
 
 Update the relevant document when:
 

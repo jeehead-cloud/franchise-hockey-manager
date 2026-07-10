@@ -5,15 +5,14 @@
 **Repository:** `https://github.com/jeehead-cloud/franchise-hockey-manager`
 **Local repository path:** `C:\Projects\franchise-hockey-manager`
 
-> This is the frequently updated implementation snapshot for Franchise Hockey Manager.
-> It records what's actually implemented (per milestone), what's known-broken or deliberately deferred, and the nearest next steps.
-> Update this after every task — see `AI_AGENTS.md` §13.1 and the maintenance rule at the end.
+> Snapshot of what the app can do now, plus maintained Recent / Significant history for future AI-agent sessions.
+> End-of-iteration maintenance is mandatory — see `AI_AGENTS.md` §13.1–§13.2 and §5–§7 below.
 
 ---
 
 ## 1. Current Development Phase
 
-**MVP scaffold running locally, not yet committed.** The monorepo (`packages/engine`, `packages/server`, `packages/client`) is scaffolded and verified end-to-end: Prisma seed creates one NHL league with 32 real teams and generated rosters (~674 players), Fastify serves `GET /api/teams` and `GET /api/teams/:id`, and the React client lists teams and shows per-team rosters. Working tree is dirty; nothing has been committed to git yet. Chemistry/tactics fit (M3) and game/season simulation (M4) are not started.
+**MVP scaffold running locally; core scaffold committed on `main`.** The monorepo (`packages/engine`, `packages/server`, `packages/client`) is scaffolded and verified end-to-end: Prisma seed creates one NHL league with 32 real teams and generated rosters (~674 players), Fastify serves `GET /api/teams` and `GET /api/teams/:id`, and the React client lists teams and shows per-team rosters. Chemistry/tactics fit (M3) and game/season simulation (M4) are not started. Several product docs (`PROJECT.md`, `ARCHITECTURE.md`, `PLAYER_MODEL.md`, `PRODUCT_RULES.md`, `DEPLOYMENT.md`) remain untracked in the working tree.
 
 ---
 
@@ -33,8 +32,8 @@ Implemented:
 
 Not yet done / known gaps:
 - No `Coach` entity on Team yet (needed before chemistry/tactics fit).
-- Scaffold not committed to git.
 - Prisma `package.json#prisma` seed config triggers a deprecation warning (Prisma 7 config migration pending).
+- Remaining product documentation files still untracked (see §1).
 
 ### M2 — Player Generation & Attributes (Active)
 
@@ -84,7 +83,6 @@ Not started. Hosting provider and domain are undecided — see `DEPLOYMENT.md`.
 
 ## 3. Known Bugs / Limitations Worth Remembering
 
-- **Nothing committed to git yet** — entire MVP scaffold (and docs) remain untracked/uncommitted on `main`.
 - **Goalie model** is a minimal distinct placeholder only (`PLAYER_MODEL.md` §7 item 5); not first-class.
 - **9 core attributes vs. Curr.Total**: MVP grows base rolls with age using the growth term; true scaling rule still open (`PLAYER_MODEL.md` §7 item 2).
 - **Role-rating weights** in `role-thresholds.json` are approximate, not verified against the full spreadsheet tables.
@@ -94,25 +92,76 @@ Not started. Hosting provider and domain are undecided — see `DEPLOYMENT.md`.
 - **No Coach entity** yet — required before M3 chemistry/tactics fit.
 - **Prisma seed config deprecation warning** (`package.json#prisma` → Prisma 7 config file).
 - Name pools are small starter lists, not production-scale national pools.
+- Several product docs remain untracked in the working tree (`PROJECT.md`, `ARCHITECTURE.md`, `PLAYER_MODEL.md`, `PRODUCT_RULES.md`, `DEPLOYMENT.md`).
 
 ---
 
 ## 4. Nearest Next Steps
 
-1. **Commit the MVP scaffold** to git (explicit owner request) so the runnable baseline is on `main`.
+1. Track/commit the remaining product documentation set when the owner requests it.
 2. Add a **Coach** entity (philosophy + tactics) on Team, matching player preferred-style fields.
 3. Begin **M3 — Chemistry & Tactics Fit** (line synergy, coach-style/tactics fit, config-driven weights).
 4. Resolve open M2 design questions as they block sim feel (attribute scaling, goalie model, role-rating weight fidelity) — do not block M3 on polishing every §7 item first.
 
 ---
 
-## 5. Maintenance Rule
+## 5. Recent Changes
 
-Update this document after **every** task (see `AI_AGENTS.md` §13.1), including when:
+> Ordinary repository-relevant history, newest first.
+> Keep approximately the latest 3 months. Older entries may be pruned when they are no longer needed to understand the current state.
+> This is **not** a commit-by-commit or command-by-command log — skip trivial formatting-only noise.
 
-- a milestone's status changes (Not started ↔ Active ↔ effectively done);
-- any feature ships, is partially done, aborted, or blocked;
-- a known bug/limitation is found or fixed;
-- a "not yet done" / known-gaps item in this file gets implemented or newly discovered.
+### 2026-07-10 — Mandatory end-of-iteration status maintenance + dual history tracks
 
-Don't turn this file into a commit-by-commit changelog — keep it at the level of "what can this app actually do right now," matching the milestone table in `PROJECT.md`.
+- Work completed: Expanded `AI_AGENTS.md` §12–§13 so every prompt ends with a CURRENT_STATUS review; restructured this file with Recent / Significant histories; recorded the policy as a Significant change.
+- Files/areas affected: `AI_AGENTS.md`, `CURRENT_STATUS.md`
+- Validation: documentation review for contradictions; `git diff --check` on the two files (see iteration summary)
+- Remaining limitations or follow-up: none for the workflow itself; M1–M8 implementation status unchanged by this docs-only change
+
+### 2026-07-10 — MVP scaffold committed (engine / server / client)
+
+- Work completed: Monorepo MVP with seeded NHL teams/rosters, Fastify team APIs, React teams/roster UI; committed as `c7fd064`
+- Files/areas affected: `packages/*`, `data/*`, root workspace config, `README.md`
+- Validation: prior iteration reported install/seed/API/client PASS
+- Remaining limitations or follow-up: see §3 (goalie placeholder, attr scaling, no Coach, etc.)
+
+---
+
+## 6. Significant Changes
+
+> Permanent history of durable milestones and decisions, newest first.
+> Entries in this section must **never** be removed merely because of age.
+> Agents decide independently whether an iteration belongs here; the owner need not request it.
+
+### 2026-07-10 — Mandatory end-of-iteration CURRENT_STATUS maintenance
+
+- Significance: Permanently changes how every future Cursor/AI-agent iteration is closed out
+- Decision or milestone: After every prompt, agents must review and (when needed) update `CURRENT_STATUS.md`, maintain newest-first **Recent** (~3 months) and **Significant** (permanent) histories, classify significance themselves, and report the maintenance result before claiming completion
+- Lasting impact: Future sessions inherit an honest snapshot + durable decision log; failed/incomplete work must be recorded when it changes known state
+- Related files/areas: `AI_AGENTS.md` §12–§13, `CURRENT_STATUS.md` §5–§7
+
+### 2026-07-10 — MVP monorepo scaffold (M1/M2 Active)
+
+- Significance: First runnable end-to-end product loop in the repository
+- Decision or milestone: Client-server monorepo with pure engine generator, Prisma/SQLite seed of 32 NHL teams, roster UI; randomness frozen at generation (vs spreadsheet live recalc)
+- Lasting impact: Baseline architecture and data model for all later milestones; open M2 design gaps carried forward in §3
+- Related files/areas: `packages/engine`, `packages/server`, `packages/client`, `data/`, commit `c7fd064`
+
+---
+
+## 7. Maintenance Policy
+
+This document must be reviewed after **every** agent iteration (`AI_AGENTS.md` §13.1), including documentation-only tasks and small fixes.
+
+Required practices:
+
+- **Review every iteration** before writing the final completion summary; never claim completion before this review.
+- **Synchronize the snapshot** (§1–§4) with actual repository behavior whenever facts changed.
+- **Recent changes** (§5): newest-first; approximately **3-month** retention; prune older ordinary entries only when they no longer help explain the current state.
+- **Significant changes** (§6): newest-first; **permanent** retention — never delete merely because of age.
+- **Independent significance classification** by the agent (durable milestones, architecture, product/game-design decisions, major migrations, major incidents/root causes, etc.).
+- A significant change may also appear under Recent while recent; its Significant entry remains permanent.
+- **No low-level noise**: do not log every command run or trivial formatting-only edit.
+- **Honest failure recording**: failed validation, incomplete implementation, aborted/blocked work, and newly discovered limitations must be recorded when they affect future work.
+
+The snapshot (§1–§4) stays at the level of "what can this app actually do right now." The histories (§5–§6) carry the narrative future agents need — without becoming a commit-by-commit changelog.

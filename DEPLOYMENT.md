@@ -1,0 +1,103 @@
+# Franchise Hockey Manager — Deployment and Operations
+
+**Status:** Not deployed yet (local development only)
+**Last updated:** 2026-07-10
+**Repository:** `https://github.com/jeehead-cloud/franchise-hockey-manager`
+**Local repository path:** `C:\Projects\franchise-hockey-manager`
+
+> This document is the operational source of truth for running and (eventually) deploying Franchise Hockey Manager.
+> As of this writing, there is **no production deployment** — everything runs locally. This document records the current local workflow and the open questions that need answers before shipping anywhere public.
+
+---
+
+## 1. Current State: Local-Only
+
+The intended local workflow (once scaffolded):
+
+```powershell
+cd C:\Projects\franchise-hockey-manager
+npm install
+npm run dev --workspace=packages/server
+npm run dev --workspace=packages/client
+```
+
+The server prints a local API URL (e.g. `http://localhost:3000/`); the client prints a local Vite URL (e.g. `http://localhost:5173/`) to open in a browser. SQLite is a local file (`packages/server/prisma/dev.db` or similar) — no external database service is needed to run locally.
+
+There is no staging environment, no production environment, and no CI/CD pipeline yet.
+
+---
+
+## 2. Why This Project Is Already Deploy-Ready in Shape (Even If Not Deployed)
+
+Unlike a purely client-side hobby project, Franchise Hockey Manager has a real backend (Fastify + Prisma + SQLite) from day one — see `ARCHITECTURE.md` §6 for why. This means:
+
+- `npm run build` in `packages/client` produces a static `dist/` folder;
+- `packages/server` is a standard Node.js process that can run anywhere Node runs;
+- deploying later is "run the Node server somewhere, serve the built client somewhere (possibly the same place)" — not an architectural rewrite.
+
+This is **conditional on staying single-player, single-instance**. If a future milestone (M8) adds real multiplayer or requires a heavier database, this document (and possibly the "SQLite is enough" decision in `ARCHITECTURE.md`) will need to be revisited — e.g. migrating from SQLite to Postgres via Prisma's migration tooling.
+
+---
+
+## 3. Open Decisions (TBD)
+
+The following have **not** been decided yet and are recorded here specifically so the owner can pick a stack-compatible hosting option later, rather than the choice being made ad hoc by whichever AI agent happens to be asked:
+
+- **Hosting provider for the server**: not chosen. Needs a Node-process-capable host (e.g. Railway, Render, Fly.io, a VPS) — not a purely static host, since this project (unlike some hobby projects) has a real backend.
+- **Hosting for the client**: not chosen. Any static host works (Vercel, Netlify, GitHub Pages, Cloudflare Pages), or it could be served by the same host as the API.
+- **Database**: staying on SQLite vs. migrating to Postgres for the production deployment — not decided.
+- **Custom domain**: not decided.
+
+**Do not pick a hosting provider, add deployment configuration files, or migrate the database engine without explicit instruction from the owner.**
+
+---
+
+## 4. Build Verification (Do This Before Any Future Deploy)
+
+```powershell
+cd C:\Projects\franchise-hockey-manager
+npm run build --workspace=packages/server
+npm run build --workspace=packages/client
+```
+
+Sanity-check the production build locally before ever deploying it.
+
+---
+
+## 5. Repository / Git
+
+```text
+Repository: franchise-hockey-manager
+Remote: https://github.com/jeehead-cloud/franchise-hockey-manager.git
+Main branch: main
+Local path: C:\Projects\franchise-hockey-manager
+```
+
+Standard flow for pushing changes (no deployment step attached yet):
+
+```powershell
+git add .
+git commit -m "<descriptive message>"
+git push origin main
+```
+
+There are no branch protection rules, no required reviews, and no deployment triggers tied to pushes at this time.
+
+---
+
+## 6. When This Document Needs a Rewrite
+
+Update this document as soon as any of the following becomes true:
+
+- a hosting provider is chosen for the server and/or client (record the provider, the production URL, build/start commands, and any environment variables);
+- a custom domain is configured;
+- a CI/CD workflow is added;
+- the database engine changes (SQLite → Postgres or otherwise) — this will also require updates to `ARCHITECTURE.md`.
+
+Until then, this document intentionally stays short.
+
+---
+
+## Guiding Rule
+
+**Don't invent deployment infrastructure the project doesn't have yet. Keep this document honest about the current (local-only) state, and let the owner make the hosting decision explicitly when they're ready.**
