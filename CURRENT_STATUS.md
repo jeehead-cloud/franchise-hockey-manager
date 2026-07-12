@@ -12,11 +12,11 @@
 
 ## 1. Current Development Phase
 
-**F5 — Player Model Foundation: implemented locally (not committed).** Separate skater/goalie attribute models, development-profile persistence, deterministic config-driven ratings and roles in `@fhm/engine`, dataset **schemaVersion 2**, public APIs that derive ratings/roles on read without exposing hidden potential, and read-only Player Profile tabs.
+**F6 — Commissioner Editing: implemented locally (not committed).** Runtime-only Commissioner Mode (defaults off), confirmation to enable, persistent banner, player editor at `/players/:id/edit`, Commissioner-gated APIs with header safety boundary, optimistic concurrency, transactional attribute-model swaps, and append-only `CommissionerAuditLog`.
 
-**Next milestone: F6 — Commissioner Mode / editing** (do not start until requested).
+**Next milestone: F7 — Coaches, Tactics, and Team Setup** (do not start until requested).
 
-F1–F4 remain complete on `main` (`bf1d0ab`, `3e6f343`, `58adfc0`, `c50ce83`).
+F1–F5 remain complete on `main` (`bf1d0ab`, `3e6f343`, `58adfc0`, `c50ce83`, `f2e8ec5`).
 
 ---
 
@@ -32,54 +32,56 @@ Committed/pushed: `3e6f343`.
 
 ### F3 — World Initialization and Real Data Import (Done)
 
-Committed/pushed: `58adfc0` — local dataset import + Setup World. F5 bumps import contract to **schemaVersion 2**.
+Committed/pushed: `58adfc0`.
 
 ### F4 — World Dashboard and Browsers (Done)
 
 Committed/pushed: `c50ce83`.
 
-### F5 — Player Model Foundation (Done locally)
+### F5 — Player Model Foundation (Done)
+
+Committed/pushed: `f2e8ec5`.
+
+### F6 — Commissioner Editing (Done locally)
 
 Implemented:
-- Engine: skater/goalie types, validation, ratings, role derivation, config JSON (`player-model`, `rating-weights`, `skater-roles`, `goalie-roles`)
-- Prisma: nullable F5 profile fields on `Player`; `SkaterAttributes` / `GoalieAttributes` 1:1; migration `20260712221000_f5_player_model`
-- Import: schemaVersion 2 required; v1 rejected with migration message; complete player-model validation via engine
-- APIs: list compact F5 fields; detail `playerModel` (no hidden floor/ceiling/risk); team roster compact F5 fields
-- UI: Players list CA/role/potential/model; Player Profile tabs; Team Overview roster CA/role/model
-- Legacy: structural players without attributes → `modelStatus: INCOMPLETE`
-- Tests: 20 engine + 62 server (incl. migrations through F5)
+- Client Commissioner Mode (runtime-only, confirm enable, banner/badge, Settings controls)
+- `GET/PATCH /api/commissioner/players/:id`, `GET .../audit`, `GET /api/commissioner/status`
+- Header gate `X-FHM-Commissioner-Mode: enabled` + env `FHM_COMMISSIONER_WRITES_ENABLED`
+- Full editable snapshot PATCH; engine derives ratings/roles; role/CA not client-editable
+- Position conversion skater↔goalie atomic; incomplete model completion
+- `CommissionerAuditLog` migration; optimistic `expectedUpdatedAt` → 409
+- Player editor route + Commissioner History tab; list Edit affordance when enabled
 
-Not in F5:
-- Commissioner editing (F6+)
-- Annual development / aging ops (F24)
-- Role/currentAbility DB filters/sorts (deferred — derive-on-read)
-- Chemistry, tactics fit, lineups, match sim, scouting actions
+Not in F6:
+- Authentication / accounts / real authorization
+- Coach/tactics/lineup editing
+- Team entity editing beyond player assignment
+- Chemistry, matches, development ops, transactions (F7+)
 
 ### M1–M8
 
-Unchanged (gameplay product milestones not started).
+Unchanged.
 
 ---
 
 ## 3. Known Bugs / Limitations Worth Remembering
 
-- Default dataset remains the fictional F3/F5 fixture — not real NHL data.
-- No owner-prepared production snapshot under `data/world/` yet.
-- Role-rating supporting-attribute weights are an **F5 foundation balance approximation** (winning pair + two supports at 3/3/2/2); full spreadsheet branch table was not in the repo.
-- Hidden `potentialFloor` / `potentialCeiling` / `developmentRisk` are persisted but never on ordinary public player JSON.
-- Public potential is only `publicPotentialEstimate` bands (`LOW`…`ELITE`/`UNKNOWN`) — no scouting noise yet.
-- Derived role/CA filtering & sorting deferred to keep pagination DB-backed.
-- Team Overview Roster/Lines/Tactics tabs remain disabled placeholders.
-- F5 changes not yet committed/pushed.
+- Default dataset remains the fictional fixture — not real NHL data.
+- Commissioner header is a **local safety boundary**, not security.
+- Manual UI verification for F6 was **NOT RUN** in the implementing agent session (API/tests covered).
+- Role-rating weights remain F5 foundation approximations.
+- Hidden potential still absent from ordinary public player DTOs; Commissioner detail exposes it.
+- F6 changes not yet committed/pushed.
 - SQLite `contains` search is case-sensitive depending on collation.
 
 ---
 
 ## 4. Nearest Next Steps
 
-1. Commit/push F5 when the owner requests.
-2. **F6** — Commissioner Mode / structural editing (when requested).
-3. Replace fictional fixture with owner-prepared `data/world/` (schemaVersion 2) when available.
+1. Commit/push F6 when the owner requests.
+2. Manual UI pass on a disposable initialized DB.
+3. **F7** — Coaches, Tactics, and Team Setup (when requested).
 
 ---
 
@@ -87,29 +89,24 @@ Unchanged (gameplay product milestones not started).
 
 > Ordinary repository-relevant history, newest first.
 
+### 2026-07-13 — F6 Commissioner Editing
+
+- Work completed: Commissioner Mode UI; player editor; gated PATCH/detail/audit APIs; audit log migration; concurrency + conversion + completion tests; docs
+- Files/areas affected: Prisma `CommissionerAuditLog`, `packages/server/src/commissioner/**`, commissioner player service/routes, client commissioner context/editor/settings, docs
+- Validation: 20 engine + 82 server tests; typecheck/build; prisma migrate empty+F6; setup validate
+- Remaining limitations or follow-up: F6 not committed; manual UI NOT RUN
+
 ### 2026-07-13 — F5 Player Model Foundation
 
-- Work completed: engine skater/goalie model; Prisma attribute relations; schemaVersion 2 import; public derived ratings/roles; Player Profile UI; engine+server tests; docs
-- Files/areas affected: `packages/engine/src/{players,goalies,config}`, Prisma F5 migration, initialization schemas/importer, `player-model` service, client players/team pages, fixture, docs
-- Validation: prisma format/validate/generate; empty→F5 migrations; 20 engine + 62 server tests; builds/typechecks; setup CLI; API smoke (see iteration report)
-- Remaining limitations or follow-up: F5 not committed; role-weight table is foundation approximation; F6 not started
+- Work completed: committed/pushed `f2e8ec5`
 
 ### 2026-07-12 — F4 World Dashboard and Browsers
 
-- Work completed: world summary API; paginated browsers; committed/pushed `c50ce83`
-- Remaining limitations or follow-up: was next F5
+- Work completed: committed/pushed `c50ce83`
 
 ### 2026-07-12 — F3 World Initialization committed
 
-- Work completed: F3 import boundary committed/pushed `58adfc0`
-
-### 2026-07-12 — F2 foundational schema committed
-
-- Work completed: `3e6f343`
-
-### 2026-07-12 — F1 shell committed
-
-- Work completed: `bf1d0ab`
+- Work completed: `58adfc0`
 
 ---
 
@@ -117,21 +114,23 @@ Unchanged (gameplay product milestones not started).
 
 > Permanent history, newest first.
 
+### 2026-07-13 — F6 Commissioner Mode (sandbox editing + audit)
+
+- Significance: First write path into the living world; auditability; explicit non-auth safety boundary
+- Decision: Runtime client mode + header gate; full editable snapshot PATCH; engine authority for derived values; append-only audit; hidden potential only on Commissioner endpoints
+- Lasting impact: Later gameplay must not treat Commissioner corrections as normal transactions
+- Related files/areas: `/api/commissioner/*`, `CommissionerAuditLog`, `/players/:id/edit`
+
 ### 2026-07-13 — F5 player-model foundation (skater/goalie split)
 
-- Significance: First simulation-ready attribute/role/rating model; import contract schemaVersion 2; hidden vs public potential boundary
-- Decision or milestone: Persist attributes + development profile; derive ratings/roles in engine on read; 1–20 attributes / 0–100 ratings; goalies never use skater attrs; roles from config pairs/profiles; incomplete legacy players stay readable
-- Lasting impact: Later development, chemistry, scouting, and sim must consume this model rather than invent parallel overalls
-- Related files/areas: `@fhm/engine` players/goalies/config; Prisma `SkaterAttributes`/`GoalieAttributes`; dataset schemaVersion 2
+- Related files/areas: commit `f2e8ec5`
 
 ### 2026-07-12 — F4 read-only world browsers
 
-- Significance: First usable inspection UI for the living hockey world after initialization
 - Related files/areas: commit `c50ce83`
 
 ### 2026-07-12 — F3 one-time local world initialization boundary
 
-- Significance: Empty DB → living world snapshot path
 - Related files/areas: commit `58adfc0`
 
 ### 2026-07-12 — F2 foundational world schema + read APIs

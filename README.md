@@ -17,7 +17,7 @@ npm run db:generate --workspace=@fhm/server
 npm run db:migrate --workspace=@fhm/server
 ```
 
-`db:migrate` applies Prisma migrations to local SQLite (`packages/server/prisma/dev.db`). F1 AppMeta → F2 domain → F3 source metadata → **F5 player model**. Do not commit `*.db` files.
+`db:migrate` applies Prisma migrations to local SQLite (`packages/server/prisma/dev.db`). F1 → F2 → F3 → F5 player model → **F6 Commissioner audit**. Do not commit `*.db` files.
 
 ## Run locally
 
@@ -38,6 +38,14 @@ npm run dev:client
 - UI: http://localhost:5173 (Vite proxies `/health` and `/api`)
 - Setup World: http://localhost:5173/setup
 - Browsers: `/world`, `/teams`, `/players`, `/competitions` (+ detail routes)
+- Commissioner editor: `/players/:playerId/edit` (requires Commissioner Mode)
+- Settings: enable/disable Commissioner Mode (defaults off; confirm to enable)
+
+### Commissioner Mode (local sandbox)
+
+- Header on write/detail/audit calls: `X-FHM-Commissioner-Mode: enabled`
+- Optional server gate: `FHM_COMMISSIONER_WRITES_ENABLED=true|false` (default enabled when unset)
+- Not authentication — safety boundary for local single-user editing only
 
 ### World dataset
 

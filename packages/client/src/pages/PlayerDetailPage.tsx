@@ -1,23 +1,34 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { PageHeader } from '../components/layout/PageHeader';
 import { Badge } from '../components/ui/Badge';
+import { Button } from '../components/ui/Button';
 import { EmptyState, ErrorState, LoadingState } from '../components/ui/EmptyState';
 import { Panel } from '../components/ui/Panel';
 import { BackLink, RecordNotFound } from '../components/ui/RecordStates';
 import { Tabs } from '../components/ui/Tabs';
-import { getPlayer, type PlayerDetail } from '../lib/api';
+import {
+  getPlayer,
+  getPlayerAuditLog,
+  type PlayerAuditItem,
+  type PlayerDetail,
+} from '../lib/api';
+import { useCommissioner } from '../lib/commissioner';
 import { playerLabel } from '../lib/listQuery';
 
-type TabId = 'profile' | 'attributes' | 'preferences' | 'development';
+type TabId = 'profile' | 'attributes' | 'preferences' | 'development' | 'history';
 
 export function PlayerDetailPage() {
   const { playerId = '' } = useParams();
+  const navigate = useNavigate();
+  const { enabled } = useCommissioner();
   const [player, setPlayer] = useState<PlayerDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notFound, setNotFound] = useState(false);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<TabId>('profile');
+  const [audits, setAudits] = useState<PlayerAuditItem[]>([]);
+  const [auditError, setAuditError] = useState<string | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -39,6 +50,25 @@ export function PlayerDetailPage() {
       });
     return () => controller.abort();
   }, [playerId]);
+
+  useEffect(() => {
+    if (!enabled || tab !== 'history') return;
+    const controller = new AbortController();
+    getPlayerAuditLog(playerId, { page: 1, pageSize: 25 }, controller.signal)
+      .then((res) => {
+        setAudits(res.items);
+        setAuditError(null);
+      })
+      .catch((err: unknown) => {
+        if (controller.signal.aborted) return;
+        setAuditError(err instanceof Error ? err.message : 'Failed to load audit history');
+      });
+    return () => controller.abort();
+  }, [enabled, tab, playerId]);
+
+  useEffect(() => {
+    if (!enabled && tab === 'history') setTab('profile');
+  }, [enabled, tab]);
 
   if (loading) {
     return (
@@ -85,9 +115,16 @@ export function PlayerDetailPage() {
           .join(' · ')}
         badge={player.rosterStatus}
         actions={
-          <Badge tone={complete ? 'success' : 'warning'}>
-            {complete ? 'Model complete' : 'Model incomplete'}
-          </Badge>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <Badge tone={complete ? 'success' : 'warning'}>
+              {complete ? 'Model complete' : 'Model incomplete'}
+            </Badge>
+            {enabled ? (
+              <Button size="sm" onClick={() => navigate(`/players/${player.id}/edit`)}>
+                Edit Player
+              </Button>
+            ) : null}
+          </div>
         }
       />
 
@@ -97,6 +134,7 @@ export function PlayerDetailPage() {
           { value: 'attributes', label: 'Attributes' },
           { value: 'preferences', label: 'Preferences & Personality' },
           { value: 'development', label: 'Development' },
+          ...(enabled ? [{ value: 'history', label: 'Commissioner History' }] : []),
         ]}
         value={tab}
         onChange={(v) => setTab(v as TabId)}
@@ -228,6 +266,40 @@ export function PlayerDetailPage() {
             title="Annual development starts in F24"
             description="Exact hidden potential floor/ceiling and development risk are not shown on this public profile. Scouting fog of war arrives in F26."
           />
+        </Panel>
+      ) : null}
+
+      {tab === 'history' && enabled ? (
+        <Panel title="Commissioner History">
+          {auditError ? <ErrorState description={auditError} /> : null}
+          {!auditError && audits.length === 0 ? (
+            <EmptyState title="No audit entries" description="No Commissioner edits recorded yet." />
+          ) : null}
+          {audits.map((a) => (
+            <div
+              key={a.id}
+              style={{
+                padding: '10px 0',
+                borderBottom: '1px solid var(--border-subtle)',
+                font: 'var(--text-body-sm)',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+                <strong style={{ color: 'var(--text-primary)' }}>{a.action}</strong>
+                <span style={{ color: 'var(--text-tertiary)' }}>
+                  {new Date(a.createdAt).toLocaleString()}
+                </span>
+              </div>
+              <div style={{ color: 'var(--text-secondary)', marginTop: 4 }}>{a.reason}</div>
+              <div style={{ color: 'var(--text-tertiary)', marginTop: 4 }}>
+                Changed: {a.changedFields.join(', ') || '—'}
+              </div>
+              <div style={{ color: 'var(--text-tertiary)', marginTop: 4 }}>
+                Role {a.summary.beforeRole ?? '—'} → {a.summary.afterRole ?? '—'} · CA{' '}
+                {a.summary.beforeAbility ?? '—'} → {a.summary.afterAbility ?? '—'}
+              </div>
+            </div>
+          ))}
         </Panel>
       ) : null}
     </div>

@@ -114,7 +114,7 @@ export function Sidebar({
           style={{ font: 'var(--text-data-sm)', color: 'var(--text-tertiary)' }}
           className="max-md:hidden"
         >
-          Local · F1 shell
+          Local · F6
         </div>
       </div>
     </aside>

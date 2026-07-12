@@ -48,7 +48,8 @@ See `PLAYER_MODEL.md` for the complete field list and formulas. Key invariants:
 
 - Every generated player has a hidden **true potential** and a currently-known **current ability** — the owner (and any in-game scouting UI) should generally see the current/estimated value, not the ground-truth potential, except where a feature explicitly reveals it (e.g. a very high scouting investment).
 - Randomized generation values (dev-state draw, stability-state draw, initial 9 attributes, offense/defense split) are rolled **once, at generation time, and persisted** — they must never be re-rolled on subsequent reads. This is a deliberate change from the original spreadsheet prototype, which recalculated on every view.
-- A player's **archetype/role** is *derived* from their attribute profile (see the role-mapping tables in `PLAYER_MODEL.md` §5) — it is not a manually-assigned field, and must be recomputed whenever the underlying attributes change materially (e.g. after a development step).
+- A player's **archetype/role** is *derived* from their attribute profile (see the role-mapping tables in `PLAYER_MODEL.md` §5) — it is not a manually-assigned field, and must be recomputed whenever the underlying attributes change materially (e.g. after a development step or Commissioner attribute edit). Commissioner Mode must never offer direct role editing.
+- **Commissioner Mode (F6)** is an explicit administrative sandbox for correcting the current world. It is not normal gameplay, not multiplayer permissions, and not authentication. Ordinary browsing stays read-only; successful Commissioner writes are audited.
 - **Goalies use a different model than skaters**: F5 implements a dedicated nine-attribute goalie model and goalie role profiles. Never apply skater attributes, offense/defense splits, or skater pair-role tables to goalies.
 
 ---

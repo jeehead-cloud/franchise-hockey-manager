@@ -23,6 +23,7 @@ describe('Migrations', () => {
       expect(names).toContain('CompetitionEdition');
       expect(names).toContain('SkaterAttributes');
       expect(names).toContain('GoalieAttributes');
+      expect(names).toContain('CommissionerAuditLog');
       const cols = await prisma.$queryRaw<Array<{ name: string }>>`
         PRAGMA table_info('AppMeta')
       `;
@@ -38,7 +39,7 @@ describe('Migrations', () => {
     }
   });
 
-  it('records F1–F5 migrations in history', async () => {
+  it('records F1–F6 migrations in history', async () => {
     const { url, dir } = createTempDatabaseUrl();
     try {
       migrateTempDatabase(url);
@@ -51,6 +52,7 @@ describe('Migrations', () => {
       expect(names.some((n) => n.includes('f2_core_domain'))).toBe(true);
       expect(names.some((n) => n.includes('f3_source_metadata_and_init'))).toBe(true);
       expect(names.some((n) => n.includes('f5_player_model'))).toBe(true);
+      expect(names.some((n) => n.includes('f6_commissioner_audit'))).toBe(true);
       await prisma.$disconnect();
     } finally {
       cleanupTempDir(dir);

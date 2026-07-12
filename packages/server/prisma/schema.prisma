@@ -130,6 +130,22 @@ enum PublicPotentialEstimate {
   UNKNOWN
 }
 
+enum CommissionerAuditEntityType {
+  PLAYER
+}
+
+enum CommissionerAuditAction {
+  UPDATE
+  MODEL_COMPLETED
+  POSITION_MODEL_CONVERTED
+  TEAM_ASSIGNMENT_CHANGED
+}
+
+enum CommissionerAuditSource {
+  COMMISSIONER_UI
+  COMMISSIONER_API
+}
+
 // ---------------------------------------------------------------------------
 // Domain entities (F2 + F3 source metadata)
 // ---------------------------------------------------------------------------
@@ -347,4 +363,22 @@ model CompetitionEdition {
 
   @@unique([competitionId, worldSeasonId])
   @@index([worldSeasonId])
+}
+
+/// Append-only Commissioner edit history (F6). Exposed only via Commissioner-gated APIs.
+model CommissionerAuditLog {
+  id                String                      @id @default(cuid())
+  entityType        CommissionerAuditEntityType
+  entityId          String
+  action            CommissionerAuditAction
+  reason            String
+  beforeJson        String
+  afterJson         String
+  changedFieldsJson String
+  source            CommissionerAuditSource
+  schemaVersion     Int                         @default(1)
+  createdAt         DateTime                    @default(now())
+
+  @@index([entityType, entityId, createdAt])
+  @@index([createdAt])
 }

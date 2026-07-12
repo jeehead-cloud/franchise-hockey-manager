@@ -4,6 +4,7 @@ import { prisma } from './db/client.js';
 import { registerHealthRoute } from './routes/health.js';
 import { registerDomainRoutes } from './routes/domain.js';
 import { registerSetupRoutes } from './routes/setup.js';
+import { registerCommissionerRoutes } from './routes/commissioner.js';
 
 export async function buildApp(options?: { logger?: boolean }) {
   const app = Fastify({ logger: options?.logger ?? true });
@@ -25,6 +26,7 @@ export async function buildApp(options?: { logger?: boolean }) {
   await registerHealthRoute(app);
   await registerDomainRoutes(app);
   await registerSetupRoutes(app);
+  await registerCommissionerRoutes(app);
 
   return app;
 }

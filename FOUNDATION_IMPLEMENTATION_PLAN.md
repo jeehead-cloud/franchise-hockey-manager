@@ -554,6 +554,10 @@ STA
 
 Allow safe manual editing of the world.
 
+## Status
+
+**Implemented locally (2026-07-13)** — see `CURRENT_STATUS.md` and `ARCHITECTURE.md` (Commissioner Mode). Not committed until the owner requests.
+
 ## Scope
 
 Commissioner Mode:

@@ -425,3 +425,161 @@ export async function getLeagues(signal?: AbortSignal): Promise<{ items: LeagueI
 export async function getWorldSeasons(signal?: AbortSignal): Promise<{ items: WorldSeasonItem[] }> {
   return getJson('/api/world-seasons', signal);
 }
+
+const COMMISSIONER_HEADER = 'X-FHM-Commissioner-Mode';
+
+export interface CommissionerStatus {
+  writesEnabled: boolean;
+  header: string;
+  requiredValue: string;
+  note: string;
+}
+
+export interface CommissionerPlayerDetail extends PlayerDetail {
+  updatedAt: string;
+  hiddenPotential: {
+    potentialFloor: number | null;
+    potentialCeiling: number | null;
+    developmentRisk: number | null;
+  };
+  editable: {
+    identity: {
+      firstName: string;
+      lastName: string;
+      dateOfBirth: string;
+      nationalityCountryId: string;
+      currentTeamId: string | null;
+      primaryPosition: string;
+      rosterStatus: string;
+      sourceType: string;
+    };
+    profile: {
+      preferredCoachingStyle: string | null;
+      preferredTactics: string | null;
+      personality: string | null;
+      heroRating: number | null;
+      stability: number | null;
+      developmentRate: number | null;
+      developmentRisk: number | null;
+      potentialFloor: number | null;
+      potentialCeiling: number | null;
+      publicPotentialEstimate: string | null;
+    };
+    skaterAttributes: Record<string, number> | null;
+    goalieAttributes: Record<string, number> | null;
+    modelStatus: PlayerModelStatus;
+  };
+}
+
+export interface CommissionerPlayerEditPayload {
+  expectedUpdatedAt: string;
+  reason: string;
+  identity: {
+    firstName: string;
+    lastName: string;
+    dateOfBirth: string;
+    nationalityCountryId: string;
+    currentTeamId: string | null;
+    primaryPosition: string;
+    rosterStatus: string;
+  };
+  profile: {
+    preferredCoachingStyle: string;
+    preferredTactics: string;
+    personality: string;
+    heroRating: number;
+    stability: number;
+    developmentRate: number;
+    developmentRisk: number;
+    potentialFloor: number;
+    potentialCeiling: number;
+    publicPotentialEstimate: string;
+  };
+  skaterAttributes: Record<string, number> | null;
+  goalieAttributes: Record<string, number> | null;
+}
+
+export interface PlayerAuditItem {
+  id: string;
+  action: string;
+  reason: string;
+  source: string;
+  createdAt: string;
+  changedFields: string[];
+  summary: {
+    beforePosition?: string;
+    afterPosition?: string;
+    beforeRole: string | null;
+    afterRole: string | null;
+    beforeAbility: number | null;
+    afterAbility: number | null;
+  };
+}
+
+async function commissionerGetJson<T>(path: string, signal?: AbortSignal): Promise<T> {
+  const res = await fetch(`${apiBase()}${path}`, {
+    signal,
+    headers: { [COMMISSIONER_HEADER]: 'enabled' },
+  });
+  if (!res.ok) {
+    const err = new Error(await readError(res)) as Error & { status?: number; body?: unknown };
+    err.status = res.status;
+    try {
+      err.body = await res.clone().json();
+    } catch {
+      /* ignore */
+    }
+    throw err;
+  }
+  return res.json() as Promise<T>;
+}
+
+export async function getCommissionerStatus(signal?: AbortSignal): Promise<CommissionerStatus> {
+  return getJson('/api/commissioner/status', signal);
+}
+
+export async function getCommissionerPlayer(
+  id: string,
+  signal?: AbortSignal,
+): Promise<{ item: CommissionerPlayerDetail }> {
+  return commissionerGetJson(`/api/commissioner/players/${id}`, signal);
+}
+
+export async function updateCommissionerPlayer(
+  id: string,
+  payload: CommissionerPlayerEditPayload,
+): Promise<{ item: CommissionerPlayerDetail; warnings?: string[] }> {
+  const res = await fetch(`${apiBase()}/api/commissioner/players/${id}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      [COMMISSIONER_HEADER]: 'enabled',
+      'X-FHM-Commissioner-Source': 'ui',
+    },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    let message = `Request failed: ${res.status}`;
+    let details: unknown;
+    try {
+      const body = (await res.json()) as { message?: string; error?: string; details?: unknown };
+      message = body.message || body.error || message;
+      details = body.details;
+    } catch {
+      /* ignore */
+    }
+    const err = new Error(message) as Error & { status?: number; details?: unknown };
+    err.status = res.status;
+    err.details = details;
+    throw err;
+  }
+  return res.json() as Promise<{ item: CommissionerPlayerDetail; warnings?: string[] }>;
+}
+
+export async function getPlayerAuditLog(
+  id: string,
+  params: Record<string, string | number | undefined | null> = {},
+  signal?: AbortSignal,
+): Promise<Paginated<PlayerAuditItem>> {
+  return commissionerGetJson(`/api/commissioner/players/${id}/audit${qs(params)}`, signal);
+}

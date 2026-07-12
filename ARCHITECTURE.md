@@ -195,6 +195,17 @@ Routes:
 
 **Player model (F5):** Prisma stores attributes + development profile. Server maps rows into `@fhm/engine` `derivePlayerModel()` for ratings/roles. Public APIs never expose `potentialFloor`, `potentialCeiling`, or `developmentRisk`. Filtering/sorting by derived role/CA is deferred (pagination stays DB-backed).
 
+### Commissioner Mode (F6)
+
+Local administrative sandbox (not authentication):
+
+- Client mode is runtime-only, defaults **off** on every load; enable requires confirmation; persistent banner while active.
+- Write/detail/audit routes under `/api/commissioner/*` require header `X-FHM-Commissioner-Mode: enabled`.
+- Optional server gate `FHM_COMMISSIONER_WRITES_ENABLED` (default enabled in local dev; set `false` to disable).
+- `PATCH /api/commissioner/players/:id` accepts a **full editable snapshot** (identity, profile including hidden potential, position-specific attributes) plus `expectedUpdatedAt` and `reason`.
+- Server validates, persists transactionally, derives ratings/role via engine, appends `CommissionerAuditLog`.
+- Ordinary `GET /api/players/:id` remains public-safe (no hidden potential, no audit).
+
 Pagination defaults: `page=1`, `pageSize=25`, max `pageSize=100`. Sort fields are allowlisted per entity.
 
 ### Setup World (F3)
@@ -224,7 +235,7 @@ F4 browsers (URL query state for list filters):
 - `/players`, `/players/:playerId`
 - `/competitions`, `/competitions/:competitionId`
 
-Vite proxies `/health` and `/api` to `127.0.0.1:3000`. No client Prisma. F5 Player Profile shows attributes, ratings, role, preferences, and public potential estimate.
+Vite proxies `/health` and `/api` to `127.0.0.1:3000`. No client Prisma. F5 Player Profile shows attributes, ratings, role, preferences, and public potential estimate. F6 adds `/players/:playerId/edit` and Commissioner Mode controls under Settings.
 
 ---
 
@@ -242,6 +253,7 @@ Milestone M8 (public deployment) remains an explicit goal. See `DEPLOYMENT.md`.
 - F3 imports are one-shot local snapshots — never live sync or browser uploads.
 - F4 list filters live in the URL; pagination stays on the server.
 - F5 derives ratings/roles in the engine on read; do not duplicate formulas in mappers or UI.
+- F6 Commissioner Mode is a local sandbox header gate — not production auth.
 
 ---
 

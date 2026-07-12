@@ -1,5 +1,6 @@
 import { Outlet, useLocation } from 'react-router-dom';
 import { useServerHealth } from '../../lib/useServerHealth';
+import { CommissionerBanner } from '../ui/CommissionerBanner';
 import { MAIN_NAV, Sidebar } from './Sidebar';
 import { TopBar } from './TopBar';
 
@@ -33,6 +34,7 @@ export function AppShell() {
         }}
       >
         <TopBar title={titleForPath(location.pathname)} />
+        <CommissionerBanner />
         <main style={{ flex: 1, overflow: 'auto' }}>
           <Outlet />
         </main>

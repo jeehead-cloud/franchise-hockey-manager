@@ -24,10 +24,12 @@ import {
   type PlayerListItem,
   type TeamListItem,
 } from '../lib/api';
+import { useCommissioner } from '../lib/commissioner';
 import { playerLabel, useListQueryState } from '../lib/listQuery';
 
 export function PlayersPage() {
   const navigate = useNavigate();
+  const { enabled } = useCommissioner();
   const { state, setMany, clearFilters } = useListQueryState({
     sort: 'lastName',
     direction: 'asc',
@@ -195,6 +197,7 @@ export function PlayersPage() {
               { key: 'rr', label: 'Role rating' },
               { key: 'pot', label: 'Potential' },
               { key: 'model', label: 'Model' },
+              ...(enabled ? [{ key: 'edit', label: 'Edit' }] : []),
             ]}
           >
             {data.items.map((p) => (
@@ -211,6 +214,20 @@ export function PlayersPage() {
                     {p.modelStatus}
                   </Badge>
                 </Td>
+                {enabled ? (
+                  <Td>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/players/${p.id}/edit`);
+                      }}
+                    >
+                      Edit
+                    </Button>
+                  </Td>
+                ) : null}
               </DataRow>
             ))}
           </DataTable>
