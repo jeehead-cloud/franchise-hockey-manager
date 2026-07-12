@@ -173,20 +173,27 @@ Entity-specific services under `packages/server/src/services/*`; thin list/detai
 
 Envelope:
 
-- List: `{ "items": [...] }`
+- Simple lists (countries, leagues, coaches, world-seasons, editions): `{ "items": [...] }`
+- Paginated browsers (teams, players, competitions): `{ items, page, pageSize, total, totalPages }`
 - Detail: `{ "item": {...} }`
 - Missing: `404` `{ "error": "NotFound", "message": "..." }`
+- Bad query: `400` `{ "error": "BadRequest", "message": "..." }`
 
 Routes:
 
+- `GET /api/world` — F4 world dashboard summary (counts, structure, warnings, editions, next action)
 - `GET /api/world-seasons` · `GET /api/world-seasons/:id`
 - `GET /api/countries` · `GET /api/countries/:id`
 - `GET /api/leagues` · `GET /api/leagues/:id`
-- `GET /api/teams` · `GET /api/teams/:id`
-- `GET /api/players` · `GET /api/players/:id`
+- `GET /api/teams` · `GET /api/teams/:id` — search/filter/sort/pagination; detail includes roster
+- `GET /api/players` · `GET /api/players/:id` — search/filter/sort/pagination; derived age
 - `GET /api/coaches` · `GET /api/coaches/:id`
-- `GET /api/competitions` · `GET /api/competitions/:id`
+- `GET /api/competitions` · `GET /api/competitions/:id` — search/filter/sort/pagination; editions on detail
 - `GET /api/competition-editions` · `GET /api/competition-editions/:id`
+
+**Age derivation (F4):** years of age as of **1 July of the active WorldSeason.startYear** (`july1_of_world_season_start_year`). Not wall-clock. If no season, age fields are omitted/null.
+
+Pagination defaults: `page=1`, `pageSize=25`, max `pageSize=100`. Sort fields are allowlisted per entity.
 
 ### Setup World (F3)
 
@@ -206,7 +213,16 @@ Empty-world rule: allow only when `AppMeta.worldInitialized` is false **and** al
 
 ## 7. Client application shell
 
-F3: `/setup` is the functional Setup World page; `/world` shows empty vs initialized status with a Setup link. Entity browsers remain F4. Vite proxies `/health` and `/api` to `127.0.0.1:3000`.
+F3: `/setup` is the functional Setup World page.
+
+F4 browsers (URL query state for list filters):
+
+- `/world` — World Dashboard
+- `/teams`, `/teams/:teamId`
+- `/players`, `/players/:playerId`
+- `/competitions`, `/competitions/:competitionId`
+
+Vite proxies `/health` and `/api` to `127.0.0.1:3000`. No client Prisma. Attributes/ratings remain F5.
 
 ---
 
@@ -222,6 +238,7 @@ Milestone M8 (public deployment) remains an explicit goal. See `DEPLOYMENT.md`.
 - Prefer `127.0.0.1` for local API bind/proxy on Windows.
 - F2 keeps Prisma types server-local; engine stays Prisma-free.
 - F3 imports are one-shot local snapshots — never live sync or browser uploads.
+- F4 list filters live in the URL; pagination stays on the server.
 
 ---
 

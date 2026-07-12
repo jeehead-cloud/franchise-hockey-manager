@@ -1,4 +1,5 @@
 import type { FastifyInstance } from 'fastify';
+import { detailResponse, notFound, paginatedResponse } from '../http.js';
 import { registerListDetailRoutes } from './register-list-detail.js';
 import * as worldSeasons from '../services/world-seasons.js';
 import * as countries from '../services/countries.js';
@@ -8,8 +9,18 @@ import * as players from '../services/players.js';
 import * as coaches from '../services/coaches.js';
 import * as competitions from '../services/competitions.js';
 import * as competitionEditions from '../services/competition-editions.js';
+import * as world from '../services/world.js';
+
+function asQuery(raw: unknown): Record<string, unknown> {
+  return (raw ?? {}) as Record<string, unknown>;
+}
 
 export async function registerDomainRoutes(app: FastifyInstance) {
+  app.get('/api/world', async (_request, reply) => {
+    const summary = await world.getWorldSummary();
+    return reply.send(summary);
+  });
+
   registerListDetailRoutes(app, {
     basePath: '/api/world-seasons',
     entityName: 'WorldSeason',
@@ -31,18 +42,32 @@ export async function registerDomainRoutes(app: FastifyInstance) {
     getById: leagues.getLeagueById,
   });
 
-  registerListDetailRoutes(app, {
-    basePath: '/api/teams',
-    entityName: 'Team',
-    list: teams.listTeams,
-    getById: teams.getTeamById,
+  app.get('/api/teams', async (request, reply) => {
+    const result = await teams.listTeams(asQuery(request.query));
+    if ('error' in result) {
+      return reply.status(400).send({ error: 'BadRequest', message: result.error });
+    }
+    return reply.send(paginatedResponse(result));
   });
 
-  registerListDetailRoutes(app, {
-    basePath: '/api/players',
-    entityName: 'Player',
-    list: players.listPlayers,
-    getById: players.getPlayerById,
+  app.get<{ Params: { id: string } }>('/api/teams/:id', async (request, reply) => {
+    const item = await teams.getTeamById(request.params.id);
+    if (!item) return reply.status(404).send(notFound('Team'));
+    return reply.send(detailResponse(item));
+  });
+
+  app.get('/api/players', async (request, reply) => {
+    const result = await players.listPlayers(asQuery(request.query));
+    if ('error' in result) {
+      return reply.status(400).send({ error: 'BadRequest', message: result.error });
+    }
+    return reply.send(paginatedResponse(result));
+  });
+
+  app.get<{ Params: { id: string } }>('/api/players/:id', async (request, reply) => {
+    const item = await players.getPlayerById(request.params.id);
+    if (!item) return reply.status(404).send(notFound('Player'));
+    return reply.send(detailResponse(item));
   });
 
   registerListDetailRoutes(app, {
@@ -52,11 +77,18 @@ export async function registerDomainRoutes(app: FastifyInstance) {
     getById: coaches.getCoachById,
   });
 
-  registerListDetailRoutes(app, {
-    basePath: '/api/competitions',
-    entityName: 'Competition',
-    list: competitions.listCompetitions,
-    getById: competitions.getCompetitionById,
+  app.get('/api/competitions', async (request, reply) => {
+    const result = await competitions.listCompetitions(asQuery(request.query));
+    if ('error' in result) {
+      return reply.status(400).send({ error: 'BadRequest', message: result.error });
+    }
+    return reply.send(paginatedResponse(result));
+  });
+
+  app.get<{ Params: { id: string } }>('/api/competitions/:id', async (request, reply) => {
+    const item = await competitions.getCompetitionById(request.params.id);
+    if (!item) return reply.status(404).send(notFound('Competition'));
+    return reply.send(detailResponse(item));
   });
 
   registerListDetailRoutes(app, {

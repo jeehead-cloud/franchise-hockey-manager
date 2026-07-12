@@ -34,9 +34,10 @@ npm run dev:server
 npm run dev:client
 ```
 
-- API: http://127.0.0.1:3000 (`GET /health`, read `GET /api/...`, setup `GET|POST /api/setup/*`)
+- API: http://127.0.0.1:3000 (`GET /health`, read `GET /api/...`, setup `GET|POST /api/setup/*`, world summary `GET /api/world`)
 - UI: http://localhost:5173 (Vite proxies `/health` and `/api`)
 - Setup World: http://localhost:5173/setup
+- Browsers: `/world`, `/teams`, `/players`, `/competitions` (+ detail routes)
 
 ### World dataset
 

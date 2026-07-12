@@ -131,9 +131,21 @@ describe('F2 read APIs', () => {
   it.each(endpoints)('GET /api/%s returns items', async (segment) => {
     const res = await app.inject({ method: 'GET', url: `/api/${segment}` });
     expect(res.statusCode).toBe(200);
-    const body = res.json() as { items: unknown[] };
+    const body = res.json() as {
+      items: unknown[];
+      page?: number;
+      pageSize?: number;
+      total?: number;
+      totalPages?: number;
+    };
     expect(Array.isArray(body.items)).toBe(true);
     expect(body.items.length).toBeGreaterThan(0);
+    if (segment === 'teams' || segment === 'players' || segment === 'competitions') {
+      expect(body.page).toBe(1);
+      expect(body.pageSize).toBe(25);
+      expect(body.total).toBeGreaterThan(0);
+      expect(body.totalPages).toBeGreaterThan(0);
+    }
   });
 
   it('returns detail envelopes for representative records', async () => {
