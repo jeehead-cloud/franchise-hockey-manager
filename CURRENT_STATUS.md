@@ -12,11 +12,11 @@
 
 ## 1. Current Development Phase
 
-**F2 — Core Database Model: complete.** Prisma domain entities (`WorldSeason`, `Country`, `League`, `Team`, `Player`, `Coach`, `Competition`, `CompetitionEdition`) plus retained F1 `AppMeta`. Read-only list/detail APIs under `/api/*`. Vitest covers migrations, constraints/relations, and API envelopes. Client pages remain F1 placeholders (no F4 browsers). No world initialization / real import (F3).
+**F3 — World Initialization and Real Data Import: implemented locally (not committed in this iteration).** Setup World pipeline loads a local JSON dataset, validates (Zod + cross-file refs), previews without writes, and atomically initializes an empty database. Duplicate init is blocked (`409`). `/setup` UI and minimal `/world` empty/initialized states are functional. Default dataset is the **fictional** fixture `data/fixtures/f3-minimal-world/` — no owner-prepared real NHL snapshot is in-repo yet (`data/world/` is a placeholder for that).
 
-**Authoritative product docs restored** at repo root: `PRODUCT_STRUCTURE.md`, `FOUNDATION_IMPLEMENTATION_PLAN.md`.
+**Next milestone: F4 — World Dashboard and Browsers.**
 
-**Next milestone: F3 — World Initialization and Real Data Import.**
+F1 (`bf1d0ab`) and F2 (`3e6f343`) remain complete on `main`.
 
 ---
 
@@ -24,58 +24,54 @@
 
 ### F1 — Monorepo and Application Shell (Done)
 
-Committed/pushed: `bf1d0ab` — workspace, health, Atlas shell, placeholders.
+Committed/pushed: `bf1d0ab`.
 
 ### F2 — Core Database Model (Done)
 
+Committed/pushed: `3e6f343` — eight entities + read APIs.
+
+### F3 — World Initialization and Real Data Import (Done locally)
+
 Implemented:
-- Prisma enums + eight foundational entities; `cuid` IDs; `createdAt`/`updatedAt`
-- Player age via `dateOfBirth` (age derived later)
-- Relations, uniqueness, Restrict/SetNull referential actions as documented in `ARCHITECTURE.md`
-- Migration `f2_core_domain` after `f1_bootstrap`
-- Entity services + `GET /api/...` list/detail DTOs (`{ items }` / `{ item }` / 404)
-- Vitest: `npm run test:server` (migrations, schema, API)
-- Engine unchanged / Prisma-free; client unchanged functionally (proxy already covers `/api`)
+- Local dataset layout + manifest schemaVersion 1
+- Source metadata on imported entities + AppMeta init fields (migration `f3_source_metadata_and_init`)
+- Loader / validator / transactional importer / status gate
+- `GET /api/setup/status`, `GET /api/setup/preview`, `POST /api/setup/initialize`
+- CLI: `npm run setup:preview` / `setup:validate` / `setup:status`
+- Setup World UI + World empty/initialized cues
+- Fictional development fixture (labeled in UI)
+- Vitest coverage for load/validate/preview/init/idempotency/API
 
-Not in F2:
-- World init / Setup / real NHL seeds (F3)
-- Attribute models, ratings, roles, chemistry, matches (later)
-- Browser data pages (F4)
-- Write APIs
+Not in F3:
+- Owner-prepared real NHL/world snapshot (still missing — replace fixture via `FHM_DATASET_DIR` / `data/world/`)
+- Balance presets (F10)
+- Destructive reset / Database Maintenance UI
+- F4 browsers, F5 attributes, simulation, contracts, draft, scouting
 
-### M1 — Leagues, Teams & Rosters (Not started as gameplay product)
+### M1–M8
 
-Structural Team/League/Player tables exist for the living world; product workflows and real data are not started.
-
-### M2 — Player Generation & Attributes (Not started)
-
-Structural Player only — no attributes/generation.
-
-### M3 — Chemistry & Tactics Fit (Not started)
-
-Coach style enums exist structurally; no fit calculations.
-
-### M4–M8
-
-Unchanged (not started / queued).
+Unchanged (gameplay product milestones not started).
 
 ---
 
 ## 3. Known Bugs / Limitations Worth Remembering
 
-- No production seed data — APIs return empty lists until F3/test inserts.
-- `WorldSeason.startYear < endYear` is a documented service-level invariant, not a SQLite CHECK.
-- SQLite unique constraints treat NULLs as distinct (e.g. multiple national teams with `leagueId = null` and same name would not collide — avoid in F3 data rules).
+- Default dataset is fictional — do not treat fixture names as real NHL data.
+- No production owner snapshot under `data/world/` yet.
+- `WorldSeason.startYear < endYear` remains a service/validation invariant, not a SQLite CHECK.
+- SQLite unique `(sourceDataset, externalId)` treats NULL pairs as distinct.
 - Design extras (National Teams/Transfers/History nav) still not routed.
-- Leftover `data/` JSON unused by runtime.
+- Leftover `data/names/` and `data/nhl-teams.json` are **not** F3 import format.
+- F3 changes not yet committed/pushed.
 
 ---
 
 ## 4. Nearest Next Steps
 
-1. **F3 — World initialization / real-data import** (Setup World, seeds) — do not invent production seeds ahead of F3.
-2. **F4 — Browsers** wiring Teams/Players/Competitions/World pages to `/api/*`.
-3. Continue following `FOUNDATION_IMPLEMENTATION_PLAN.md` (F1–F33).
+1. Commit/push F3 when the owner requests.
+2. Provide/replace with owner-prepared real snapshot under `data/world/` when available.
+3. **F4 — World Dashboard and Browsers** wiring list/detail pages to `/api/*`.
+4. Continue `FOUNDATION_IMPLEMENTATION_PLAN.md` (F5+).
 
 ---
 
@@ -84,31 +80,21 @@ Unchanged (not started / queued).
 > Ordinary repository-relevant history, newest first.
 > Keep approximately the latest 3 months.
 
+### 2026-07-12 — F3 World Initialization and Real Data Import
+
+- Work completed: local JSON import boundary; AppMeta init + source metadata migration; setup APIs/CLI; Setup World UI; fictional fixture; Vitest F3 suite
+- Files/areas affected: `packages/server/src/initialization/**`, `routes/setup.ts`, Prisma migration, `data/fixtures/**`, client Setup/World, docs
+- Validation: see this iteration’s validation report (prisma/tests/builds/setup CLI/API)
+- Remaining limitations or follow-up: no real owner dataset; F3 not committed; F4 not started
+
 ### 2026-07-12 — F2 reviewed, docs restored, committed
 
-- Work completed: F2 review/validation; restored owner-approved `PRODUCT_STRUCTURE.md` and `FOUNDATION_IMPLEMENTATION_PLAN.md`; committed/pushed F2
-- Files/areas affected: F2 server/prisma/tests, root docs, package scripts
-- Validation: prisma format/validate/generate; tests; typecheck/build; migration empty-DB; health/list/detail/404; `git diff --check`
-- Remaining limitations or follow-up: F3 not started
-
-### 2026-07-12 — F2 Core Database Model
-
-- Work completed: Prisma domain schema + `f2_core_domain` migration; read-only `/api` list/detail APIs; Vitest migration/schema/API suite; ARCHITECTURE/CURRENT_STATUS updated
-- Files/areas affected: `packages/server/prisma/**`, `packages/server/src/**`, `packages/server/tests/**`, docs, root scripts
-- Validation: prisma format/validate/generate/migrate PASS; typecheck/build PASS; 21 vitest PASS; `/health` PASS; empty list + 404 smoke PASS; `git diff --check` PASS
-- Remaining limitations or follow-up: superseded by commit entry above
+- Work completed: F2 review/validation; restored PRODUCT_STRUCTURE + FOUNDATION_IMPLEMENTATION_PLAN; committed/pushed `3e6f343`
+- Remaining limitations or follow-up: next was F3
 
 ### 2026-07-12 — F1 reviewed and validated for main
 
 - Work completed: F1 review/validation; committed/pushed `bf1d0ab`
-- Files/areas affected: F1 packages, `design/`, docs
-- Validation: typecheck/build/health/proxy PASS
-- Remaining limitations or follow-up: next was F2
-
-### 2026-07-12 — F1 Monorepo and Application Shell
-
-- Work completed: Atlas shell monorepo; stripped premature gameplay seed
-- Remaining limitations or follow-up: superseded operationally by F2 domain work for data layer
 
 ### 2026-07-10 — Mandatory end-of-iteration status maintenance + dual history tracks
 
@@ -120,34 +106,32 @@ Unchanged (not started / queued).
 
 > Permanent history, newest first. Never delete merely for age.
 
+### 2026-07-12 — F3 one-time local world initialization boundary
+
+- Significance: Establishes the only path from empty DB → living world snapshot; freezes import as non-syncing starting point
+- Decision or milestone: Manifest + Zod validation; empty-world multi-table gate; single-transaction persist; AppMeta init flags; no scraping/upload/reset
+- Lasting impact: Later milestones extend imported structural world; real roster replacement must come as a new owner snapshot before first init, not live sync
+- Related files/areas: `packages/server/src/initialization/**`, `data/fixtures/f3-minimal-world/**`, migration `f3_source_metadata_and_init`
+
 ### 2026-07-12 — Restored PRODUCT_STRUCTURE + FOUNDATION_IMPLEMENTATION_PLAN
 
-- Significance: Authoritative product structure and F1–F33 foundation plan now live in-repo; required before F3
-- Decision or milestone: Restored from owner Drive copies (`FHM_PRODUCT_STRUCTURE.md`, `FHM_FOUNDATION_IMPLEMENTATION_PLAN.md`); not invented substitutes
-- Lasting impact: Agents must follow these for navigation, single-world sandbox scope, simulation principles, and milestone sequence
+- Significance: Authoritative product/plan docs in-repo
 - Related files/areas: `PRODUCT_STRUCTURE.md`, `FOUNDATION_IMPLEMENTATION_PLAN.md`
 
 ### 2026-07-12 — F2 foundational world schema + read APIs
 
-- Significance: First durable domain data model for the living hockey world; establishes entity boundaries and API envelope for F3–F4
-- Decision or milestone: Eight entities + enums; `dateOfBirth` age strategy; Restrict/SetNull map; read-only `/api` without write/seed surface
-- Lasting impact: Later milestones extend this schema rather than inventing parallel models; engine remains Prisma-free
-- Related files/areas: `packages/server/prisma/schema.prisma`, migration `f2_core_domain`, `packages/server/src/services/*`, `ARCHITECTURE.md`
+- Significance: First durable domain data model; read API envelope for F3–F4
+- Related files/areas: commit `3e6f343`
 
 ### 2026-07-12 — F1 foundation: shell without gameplay
 
-- Significance: Monorepo + Atlas shell baseline; deferred gameplay
+- Significance: Monorepo + Atlas shell baseline
 - Related files/areas: commit `bf1d0ab`
 
 ### 2026-07-10 — Mandatory end-of-iteration CURRENT_STATUS maintenance
 
 - Significance: Dual history + mandatory end-of-prompt status workflow
 - Related files/areas: `AI_AGENTS.md` §12–§13
-
-### 2026-07-10 — First monorepo commit on main (historical)
-
-- Significance: Initial packages layout; later realigned by F1
-- Related files/areas: commit `c7fd064`
 
 ---
 

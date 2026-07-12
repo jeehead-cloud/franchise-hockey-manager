@@ -1,0 +1,68 @@
+[
+  {
+    "externalId": "player-kai-winters",
+    "firstName": "Kai",
+    "lastName": "Winters",
+    "dateOfBirth": "1998-03-12",
+    "nationalityExternalId": "NAV",
+    "currentTeamExternalId": "team-frostbite",
+    "primaryPosition": "C",
+    "sourceType": "REAL_INITIAL_DATA",
+    "rosterStatus": "ACTIVE"
+  },
+  {
+    "externalId": "player-mira-frost",
+    "firstName": "Mira",
+    "lastName": "Frost",
+    "dateOfBirth": "2001-07-04",
+    "nationalityExternalId": "NAV",
+    "currentTeamExternalId": "team-frostbite",
+    "primaryPosition": "LW",
+    "sourceType": "REAL_INITIAL_DATA",
+    "rosterStatus": "ACTIVE"
+  },
+  {
+    "externalId": "player-jon-quarry",
+    "firstName": "Jon",
+    "lastName": "Quarry",
+    "dateOfBirth": "1995-11-21",
+    "nationalityExternalId": "NAV",
+    "currentTeamExternalId": "team-cedar",
+    "primaryPosition": "RD",
+    "sourceType": "REAL_INITIAL_DATA",
+    "rosterStatus": "ACTIVE"
+  },
+  {
+    "externalId": "player-elena-drift",
+    "firstName": "Elena",
+    "lastName": "Drift",
+    "dateOfBirth": "1999-01-30",
+    "nationalityExternalId": "SGL",
+    "currentTeamExternalId": "team-owls",
+    "primaryPosition": "G",
+    "sourceType": "REAL_INITIAL_DATA",
+    "rosterStatus": "ACTIVE"
+  },
+  {
+    "externalId": "player-tomas-reed",
+    "firstName": "Tomas",
+    "lastName": "Reed",
+    "dateOfBirth": "2000-05-18",
+    "nationalityExternalId": "SGL",
+    "currentTeamExternalId": "team-owls",
+    "primaryPosition": "RW",
+    "sourceType": "REAL_INITIAL_DATA",
+    "rosterStatus": "ACTIVE"
+  },
+  {
+    "externalId": "player-noah-vale",
+    "firstName": "Noah",
+    "lastName": "Vale",
+    "dateOfBirth": "2002-09-09",
+    "nationalityExternalId": "NAV",
+    "currentTeamExternalId": null,
+    "primaryPosition": "LD",
+    "sourceType": "REAL_INITIAL_DATA",
+    "rosterStatus": "PROSPECT"
+  }
+]

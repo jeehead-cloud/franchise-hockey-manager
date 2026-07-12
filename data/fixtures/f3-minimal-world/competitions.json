@@ -1,0 +1,9 @@
+[
+  {
+    "externalId": "comp-fhl-rs",
+    "name": "FHL Regular Season",
+    "shortName": "FHL RS",
+    "type": "LEAGUE",
+    "simulationLevel": "DETAILED"
+  }
+]

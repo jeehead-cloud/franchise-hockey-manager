@@ -7,11 +7,16 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-/// F1 bootstrap metadata — retained for migration continuity and app wiring checks.
+/// F1 bootstrap metadata + F3 world initialization state.
 model AppMeta {
-  id        String   @id @default("default")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                 String    @id @default("default")
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  /// True after a successful one-time world initialization.
+  worldInitialized   Boolean   @default(false)
+  worldDatasetId     String?
+  worldInitializedAt DateTime?
+  worldSchemaVersion Int?
 }
 
 // ---------------------------------------------------------------------------
@@ -110,34 +115,40 @@ enum CompetitionStatus {
 }
 
 // ---------------------------------------------------------------------------
-// Domain entities (F2)
+// Domain entities (F2 + F3 source metadata)
 // ---------------------------------------------------------------------------
 
 /// Global season of the single living hockey world.
 model WorldSeason {
-  id        String            @id @default(cuid())
-  label     String            @unique
-  startYear Int
-  endYear   Int
-  phase     WorldSeasonPhase
-  status    WorldSeasonStatus
-  createdAt DateTime          @default(now())
-  updatedAt DateTime          @updatedAt
+  id            String            @id @default(cuid())
+  label         String            @unique
+  startYear     Int
+  endYear       Int
+  phase         WorldSeasonPhase
+  status        WorldSeasonStatus
+  sourceDataset String?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
 
   competitionEditions CompetitionEdition[]
 }
 
 model Country {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  code      String   @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id              String    @id @default(cuid())
+  name            String    @unique
+  code            String    @unique
+  externalId      String?
+  sourceDataset   String?
+  sourceUpdatedAt DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   leagues League[]
   teams   Team[]
   players Player[] @relation("PlayerNationality")
   coaches Coach[]  @relation("CoachNationality")
+
+  @@unique([sourceDataset, externalId])
 }
 
 model League {
@@ -146,6 +157,9 @@ model League {
   shortName       String?
   countryId       String?
   simulationLevel LeagueSimulationLevel
+  externalId      String?
+  sourceDataset   String?
+  sourceUpdatedAt DateTime?
   createdAt       DateTime              @default(now())
   updatedAt       DateTime              @updatedAt
 
@@ -153,19 +167,23 @@ model League {
   teams   Team[]
 
   @@unique([countryId, name])
+  @@unique([sourceDataset, externalId])
   @@index([countryId])
 }
 
 model Team {
-  id        String   @id @default(cuid())
-  name      String
-  shortName String?
-  city      String?
-  teamType  TeamType
-  countryId String
-  leagueId  String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id              String    @id @default(cuid())
+  name            String
+  shortName       String?
+  city            String?
+  teamType        TeamType
+  countryId       String
+  leagueId        String?
+  externalId      String?
+  sourceDataset   String?
+  sourceUpdatedAt DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   country Country @relation(fields: [countryId], references: [id], onDelete: Restrict)
   league  League? @relation(fields: [leagueId], references: [id], onDelete: Restrict)
@@ -175,6 +193,7 @@ model Team {
   coach   Coach?
 
   @@unique([leagueId, name])
+  @@unique([sourceDataset, externalId])
   @@index([countryId])
   @@index([leagueId])
 }
@@ -191,12 +210,16 @@ model Player {
   primaryPosition      PlayerPosition
   sourceType           PlayerSource
   rosterStatus         RosterStatus
+  externalId           String?
+  sourceDataset        String?
+  sourceUpdatedAt      DateTime?
   createdAt            DateTime       @default(now())
   updatedAt            DateTime       @updatedAt
 
   nationality Country @relation("PlayerNationality", fields: [nationalityCountryId], references: [id], onDelete: Restrict)
   currentTeam Team?   @relation(fields: [currentTeamId], references: [id], onDelete: SetNull)
 
+  @@unique([sourceDataset, externalId])
   @@index([nationalityCountryId])
   @@index([currentTeamId])
   @@index([primaryPosition])
@@ -211,12 +234,16 @@ model Coach {
   currentTeamId        String?       @unique
   coachingStyle        CoachingStyle
   tacticalStyle        TacticalStyle
+  externalId           String?
+  sourceDataset        String?
+  sourceUpdatedAt      DateTime?
   createdAt            DateTime      @default(now())
   updatedAt            DateTime      @updatedAt
 
   nationality Country? @relation("CoachNationality", fields: [nationalityCountryId], references: [id], onDelete: Restrict)
   currentTeam Team?    @relation(fields: [currentTeamId], references: [id], onDelete: SetNull)
 
+  @@unique([sourceDataset, externalId])
   @@index([nationalityCountryId])
 }
 
@@ -226,12 +253,16 @@ model Competition {
   shortName       String?
   type            CompetitionType
   simulationLevel CompetitionSimulationLevel?
+  externalId      String?
+  sourceDataset   String?
+  sourceUpdatedAt DateTime?
   createdAt       DateTime                    @default(now())
   updatedAt       DateTime                    @updatedAt
 
   editions CompetitionEdition[]
 
   @@unique([name, type])
+  @@unique([sourceDataset, externalId])
 }
 
 model CompetitionEdition {

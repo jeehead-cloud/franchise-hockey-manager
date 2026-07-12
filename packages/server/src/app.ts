@@ -3,6 +3,7 @@ import cors from '@fastify/cors';
 import { prisma } from './db/client.js';
 import { registerHealthRoute } from './routes/health.js';
 import { registerDomainRoutes } from './routes/domain.js';
+import { registerSetupRoutes } from './routes/setup.js';
 
 export async function buildApp(options?: { logger?: boolean }) {
   const app = Fastify({ logger: options?.logger ?? true });
@@ -23,6 +24,7 @@ export async function buildApp(options?: { logger?: boolean }) {
 
   await registerHealthRoute(app);
   await registerDomainRoutes(app);
+  await registerSetupRoutes(app);
 
   return app;
 }
@@ -30,7 +32,7 @@ export async function buildApp(options?: { logger?: boolean }) {
 export async function ensureAppMeta() {
   await prisma.appMeta.upsert({
     where: { id: 'default' },
-    create: { id: 'default' },
+    create: { id: 'default', worldInitialized: false },
     update: {},
   });
 }

@@ -2,6 +2,18 @@ function iso(d: Date): string {
   return d.toISOString();
 }
 
+function sourceMeta(row: {
+  externalId?: string | null;
+  sourceDataset?: string | null;
+  sourceUpdatedAt?: Date | null;
+}) {
+  return {
+    externalId: row.externalId ?? null,
+    sourceDataset: row.sourceDataset ?? null,
+    sourceUpdatedAt: row.sourceUpdatedAt ? iso(row.sourceUpdatedAt) : null,
+  };
+}
+
 export function mapWorldSeason(row: {
   id: string;
   label: string;
@@ -9,6 +21,7 @@ export function mapWorldSeason(row: {
   endYear: number;
   phase: string;
   status: string;
+  sourceDataset?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }) {
@@ -19,6 +32,7 @@ export function mapWorldSeason(row: {
     endYear: row.endYear,
     phase: row.phase,
     status: row.status,
+    sourceDataset: row.sourceDataset ?? null,
     createdAt: iso(row.createdAt),
     updatedAt: iso(row.updatedAt),
   };
@@ -28,6 +42,9 @@ export function mapCountry(row: {
   id: string;
   name: string;
   code: string;
+  externalId?: string | null;
+  sourceDataset?: string | null;
+  sourceUpdatedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }) {
@@ -35,6 +52,7 @@ export function mapCountry(row: {
     id: row.id,
     name: row.name,
     code: row.code,
+    ...sourceMeta(row),
     createdAt: iso(row.createdAt),
     updatedAt: iso(row.updatedAt),
   };
@@ -46,6 +64,9 @@ export function mapLeague(row: {
   shortName: string | null;
   countryId: string | null;
   simulationLevel: string;
+  externalId?: string | null;
+  sourceDataset?: string | null;
+  sourceUpdatedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
   country?: { id: string; name: string; code: string } | null;
@@ -56,6 +77,7 @@ export function mapLeague(row: {
     shortName: row.shortName,
     countryId: row.countryId,
     simulationLevel: row.simulationLevel,
+    ...sourceMeta(row),
     createdAt: iso(row.createdAt),
     updatedAt: iso(row.updatedAt),
     country: row.country
@@ -72,6 +94,9 @@ export function mapTeam(row: {
   teamType: string;
   countryId: string;
   leagueId: string | null;
+  externalId?: string | null;
+  sourceDataset?: string | null;
+  sourceUpdatedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
   country?: { id: string; name: string; code: string };
@@ -86,6 +111,7 @@ export function mapTeam(row: {
     teamType: row.teamType,
     countryId: row.countryId,
     leagueId: row.leagueId,
+    ...sourceMeta(row),
     createdAt: iso(row.createdAt),
     updatedAt: iso(row.updatedAt),
     country: row.country
@@ -118,6 +144,9 @@ export function mapPlayer(row: {
   primaryPosition: string;
   sourceType: string;
   rosterStatus: string;
+  externalId?: string | null;
+  sourceDataset?: string | null;
+  sourceUpdatedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
   nationality?: { id: string; name: string; code: string };
@@ -133,6 +162,7 @@ export function mapPlayer(row: {
     primaryPosition: row.primaryPosition,
     sourceType: row.sourceType,
     rosterStatus: row.rosterStatus,
+    ...sourceMeta(row),
     createdAt: iso(row.createdAt),
     updatedAt: iso(row.updatedAt),
     nationality: row.nationality
@@ -158,6 +188,9 @@ export function mapCoach(row: {
   currentTeamId: string | null;
   coachingStyle: string;
   tacticalStyle: string;
+  externalId?: string | null;
+  sourceDataset?: string | null;
+  sourceUpdatedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
   nationality?: { id: string; name: string; code: string } | null;
@@ -171,6 +204,7 @@ export function mapCoach(row: {
     currentTeamId: row.currentTeamId,
     coachingStyle: row.coachingStyle,
     tacticalStyle: row.tacticalStyle,
+    ...sourceMeta(row),
     createdAt: iso(row.createdAt),
     updatedAt: iso(row.updatedAt),
     nationality: row.nationality
@@ -196,6 +230,9 @@ export function mapCompetition(row: {
   shortName: string | null;
   type: string;
   simulationLevel: string | null;
+  externalId?: string | null;
+  sourceDataset?: string | null;
+  sourceUpdatedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }) {
@@ -205,6 +242,7 @@ export function mapCompetition(row: {
     shortName: row.shortName,
     type: row.type,
     simulationLevel: row.simulationLevel,
+    ...sourceMeta(row),
     createdAt: iso(row.createdAt),
     updatedAt: iso(row.updatedAt),
   };

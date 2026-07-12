@@ -7,7 +7,7 @@ import {
   validatePrismaSchema,
 } from './helpers/db.js';
 
-describe('F2 migrations', () => {
+describe('Migrations', () => {
   it('applies all migrations to a fully empty SQLite database', async () => {
     const { url, dir } = createTempDatabaseUrl();
     try {
@@ -21,13 +21,17 @@ describe('F2 migrations', () => {
       expect(names).toContain('WorldSeason');
       expect(names).toContain('Player');
       expect(names).toContain('CompetitionEdition');
+      const cols = await prisma.$queryRaw<Array<{ name: string }>>`
+        PRAGMA table_info('AppMeta')
+      `;
+      expect(cols.map((c) => c.name)).toContain('worldInitialized');
       await prisma.$disconnect();
     } finally {
       cleanupTempDir(dir);
     }
   });
 
-  it('records F1 then F2 migrations in history', async () => {
+  it('records F1, F2, then F3 migrations in history', async () => {
     const { url, dir } = createTempDatabaseUrl();
     try {
       migrateTempDatabase(url);
@@ -38,6 +42,7 @@ describe('F2 migrations', () => {
       const names = rows.map((r) => r.migration_name);
       expect(names.some((n) => n.includes('f1_bootstrap'))).toBe(true);
       expect(names.some((n) => n.includes('f2_core_domain'))).toBe(true);
+      expect(names.some((n) => n.includes('f3_source_metadata_and_init'))).toBe(true);
       await prisma.$disconnect();
     } finally {
       cleanupTempDir(dir);

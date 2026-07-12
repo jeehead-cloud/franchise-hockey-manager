@@ -1,0 +1,29 @@
+[
+  {
+    "externalId": "team-frostbite",
+    "name": "Frostbite FC",
+    "shortName": "FRO",
+    "city": "Frostbite Bay",
+    "teamType": "CLUB",
+    "countryExternalId": "NAV",
+    "leagueExternalId": "league-fhl"
+  },
+  {
+    "externalId": "team-cedar",
+    "name": "Cedar Rapids Mythicals",
+    "shortName": "CRM",
+    "city": "Cedar Rapids",
+    "teamType": "CLUB",
+    "countryExternalId": "NAV",
+    "leagueExternalId": "league-fhl"
+  },
+  {
+    "externalId": "team-owls",
+    "name": "Glacier City Owls",
+    "shortName": "GCO",
+    "city": "Glacier City",
+    "teamType": "CLUB",
+    "countryExternalId": "SGL",
+    "leagueExternalId": "league-fhl"
+  }
+]

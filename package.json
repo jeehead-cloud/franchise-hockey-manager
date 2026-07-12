@@ -19,6 +19,9 @@
     "db:migrate": "npm run db:migrate --workspace=@fhm/server",
     "db:push": "npm run db:push --workspace=@fhm/server",
     "db:validate": "npm run db:validate --workspace=@fhm/server",
+    "setup:status": "npm run setup:status --workspace=@fhm/server",
+    "setup:preview": "npm run setup:preview --workspace=@fhm/server",
+    "setup:validate": "npm run setup:validate --workspace=@fhm/server",
     "test": "npm run test --workspace=@fhm/server",
     "test:server": "npm run test --workspace=@fhm/server"
   },

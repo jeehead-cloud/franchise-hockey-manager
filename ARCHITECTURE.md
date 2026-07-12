@@ -20,7 +20,8 @@
 | Styling | Tailwind CSS + Atlas design tokens | utilities + approved visual language |
 | Icons | `lucide-react` | matches Atlas (Lucide) without CDN coupling |
 | Simulation logic | Plain TypeScript in `packages/engine` | testable; no Fastify/Prisma/React |
-| Server tests | Vitest + temp SQLite | schema/API/migration checks (F2+) |
+| Server tests | Vitest + temp SQLite | schema/API/migration/setup checks (F2+) |
+| Validation | Zod (server) | F3 dataset manifest + row schemas |
 | Balance data | JSON under `packages/engine/src/config` (later) | tune without rewriting logic |
 
 There is **no backend-less/client-only mode** — client-server from day one (see §7).
@@ -36,25 +37,28 @@ franchise-hockey-manager/
 │   ├── server/                  # Fastify + Prisma + SQLite
 │   │   ├── src/
 │   │   │   ├── app.ts           # Fastify factory (tests + runtime)
-│   │   │   ├── routes/          # /health + /api/* read routes
+│   │   │   ├── initialization/  # F3 load → validate → persist
+│   │   │   ├── routes/          # /health, /api/* reads, /api/setup/*
 │   │   │   ├── services/        # entity-specific list/detail readers
 │   │   │   ├── mappers.ts       # Prisma → JSON DTOs
 │   │   │   └── db/client.ts
 │   │   ├── prisma/
-│   │   │   ├── schema.prisma    # AppMeta + F2 domain entities
+│   │   │   ├── schema.prisma    # AppMeta + domain + F3 source metadata
 │   │   │   └── migrations/
-│   │   └── tests/               # Vitest: migrations, schema, API
-│   └── client/                  # React shell (placeholders until F4)
+│   │   └── tests/               # Vitest: migrations, schema, API, setup
+│   └── client/                  # React shell; Setup World functional (F3)
 ├── design/                      # Atlas references (not runtime)
-├── data/                        # reserved for later world seed (F3+)
+├── data/
+│   ├── world/                   # intended owner-prepared production snapshot
+│   └── fixtures/f3-minimal-world/  # fictional default fixture
 └── package.json
 ```
 
 Rules:
 
 - `packages/engine` must never import from server/client and must not import Prisma types.
-- Only `packages/server` accesses the database.
-- `packages/client` talks to the server over HTTP only.
+- Only `packages/server` accesses the database **and** local dataset files.
+- `packages/client` talks to the server over HTTP only (no direct filesystem reads).
 - Do not edit `design/**` unless technically unavoidable.
 
 ---
@@ -62,11 +66,12 @@ Rules:
 ## 3. Data Flow
 
 ```text
-Client (React shell — placeholders in F2)
-   │  HTTP  GET /health, GET /api/...
+Client (React shell — Setup World in F3; browsers in F4)
+   │  HTTP  GET /health, GET /api/..., GET|POST /api/setup/*
    ▼
 Server (Fastify)
-   │  thin routes → entity services → Prisma
+   │  thin routes → services / initialization pipeline → Prisma
+   │  dataset files read only by server (FHM_DATASET_DIR)
    │  DTO mappers at the API boundary
    ▼
 Engine (pure TS)                 SQLite (via Prisma)
@@ -88,7 +93,7 @@ Prisma source of truth: `packages/server/prisma/schema.prisma`.
 
 - Domain IDs: `String @id @default(cuid())`
 - Mutable records: `createdAt` + `updatedAt`
-- `AppMeta` retained from F1 (`id = "default"`) for migration continuity / boot checks
+- `AppMeta` retained from F1 (`id = "default"`) plus F3 init fields: `worldInitialized`, `worldDatasetId`, `worldInitializedAt`, `worldSchemaVersion`
 
 ### Age representation (Player)
 
@@ -98,7 +103,7 @@ Prisma source of truth: `packages/server/prisma/schema.prisma`.
 
 | Entity | Role |
 |---|---|
-| **AppMeta** | F1 bootstrap metadata |
+| **AppMeta** | Bootstrap + one-time world initialization metadata |
 | **WorldSeason** | Global season of the single living world (`label`, years, `phase`, `status`) |
 | **Country** | Shared geography/nationality source (`name`, unique `code`) |
 | **League** | Competition-organizing league (`simulationLevel` DETAILED/AGGREGATED) |
@@ -107,6 +112,8 @@ Prisma source of truth: `packages/server/prisma/schema.prisma`.
 | **Coach** | Head coach styles; optional assignment |
 | **Competition** | Competition definition (`type`, optional simulation level) |
 | **CompetitionEdition** | Competition instance within a WorldSeason |
+
+Imported snapshot entities (Country, League, Team, Player, Coach, Competition) carry optional `externalId`, `sourceDataset`, `sourceUpdatedAt` with `@@unique([sourceDataset, externalId])`. CompetitionEdition uses local competition + WorldSeason links (no external ID required). BalancePreset deferred to F10.
 
 ### Key relationships
 
@@ -144,6 +151,7 @@ No application-level delete APIs in F2.
 
 1. `f1_bootstrap` — AppMeta
 2. `f2_core_domain` — eight foundational entities + enums
+3. `f3_source_metadata_and_init` — source metadata columns + AppMeta init fields
 
 Commands (from repo root):
 
@@ -151,6 +159,7 @@ Commands (from repo root):
 npm run db:generate
 npm run db:migrate
 npm run db:validate
+npm run setup:preview
 npm run test:server
 ```
 
@@ -158,7 +167,7 @@ Do not commit `*.db` files.
 
 ---
 
-## 6. Server read API (F2)
+## 6. Server read API (F2) + Setup API (F3)
 
 Entity-specific services under `packages/server/src/services/*`; thin list/detail registration.
 
@@ -179,13 +188,25 @@ Routes:
 - `GET /api/competitions` · `GET /api/competitions/:id`
 - `GET /api/competition-editions` · `GET /api/competition-editions/:id`
 
-Detail responses may include shallow related summaries (e.g. team country/league/coach). No POST/PATCH/PUT/DELETE in F2. No production seeds — F3 owns initialization.
+### Setup World (F3)
+
+Pipeline: locate dataset → load manifest/files → parse (Zod) → validate structure + cross-refs → preview → empty-world gate → single transaction persist → AppMeta init flags.
+
+Dataset path: default `data/fixtures/f3-minimal-world` (repo-relative); override with `FHM_DATASET_DIR`. Client never sends entity payloads or filesystem paths.
+
+| Method | Path | Behavior |
+|---|---|---|
+| GET | `/api/setup/status` | initialized / canInitialize / counts / dataset summary |
+| GET | `/api/setup/preview` | validation report; **no writes** |
+| POST | `/api/setup/initialize` | atomic init; `409` already initialized / not empty; `422` validation |
+
+Empty-world rule: allow only when `AppMeta.worldInitialized` is false **and** all domain tables are empty. AppMeta-only F1 rows do not block. Duplicate init is idempotent at the API boundary (no duplicate rows). No destructive reset in F3.
 
 ---
 
 ## 7. Client application shell
 
-Unchanged for F2: placeholder pages only. Vite proxies `/health` and `/api` to `127.0.0.1:3000`. F4 will wire browsers to these APIs.
+F3: `/setup` is the functional Setup World page; `/world` shows empty vs initialized status with a Setup link. Entity browsers remain F4. Vite proxies `/health` and `/api` to `127.0.0.1:3000`.
 
 ---
 
@@ -200,6 +221,7 @@ Milestone M8 (public deployment) remains an explicit goal. See `DEPLOYMENT.md`.
 - Premature gameplay seed conflicted with F1 and was removed.
 - Prefer `127.0.0.1` for local API bind/proxy on Windows.
 - F2 keeps Prisma types server-local; engine stays Prisma-free.
+- F3 imports are one-shot local snapshots — never live sync or browser uploads.
 
 ---
 

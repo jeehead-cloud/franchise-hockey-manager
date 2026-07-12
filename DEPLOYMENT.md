@@ -12,7 +12,7 @@
 
 ## 1. Current State: Local-Only
 
-Local workflow (F1):
+Local workflow:
 
 ```powershell
 cd C:\Projects\franchise-hockey-manager
@@ -20,6 +20,7 @@ npm install
 npm run build --workspace=@fhm/engine
 npm run db:generate --workspace=@fhm/server
 npm run db:migrate --workspace=@fhm/server
+npm run setup:preview
 npm run dev
 ```
 
@@ -30,9 +31,10 @@ npm run dev:server
 npm run dev:client
 ```
 
-- API: `http://127.0.0.1:3000` — health check `GET /health`
-- UI: `http://localhost:5173` — Vite proxies `/health` to the API
+- API: `http://127.0.0.1:3000` — health `GET /health`; domain reads `GET /api/...`; setup `GET|POST /api/setup/*`
+- UI: `http://localhost:5173` — Vite proxies `/health` and `/api`
 - SQLite: `packages/server/prisma/dev.db` (no external DB service)
+- Dataset: default `data/fixtures/f3-minimal-world/`; override with `FHM_DATASET_DIR`
 - Optional: `packages/client/.env` with `VITE_API_URL` if not using the proxy
 
 Also useful:
@@ -42,6 +44,8 @@ npm run build
 npm run typecheck
 npm run test:server
 npm run db:validate
+npm run setup:validate
+npm run setup:status
 ```
 
 There is no staging environment, no production environment, and no CI/CD pipeline yet.

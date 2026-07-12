@@ -1,0 +1,21 @@
+{
+  "datasetId": "fhm-f3-minimal-fixture-v1",
+  "datasetName": "FHM F3 Minimal Development Fixture",
+  "schemaVersion": 1,
+  "sourceName": "fictional-development-fixture",
+  "sourceUpdatedAt": "2026-07-12T00:00:00.000Z",
+  "worldSeasonLabel": "2026/27",
+  "worldSeasonStartYear": 2026,
+  "worldSeasonEndYear": 2027,
+  "fictional": true,
+  "notes": "Fictional development/testing only. Not real NHL data. Replace with an owner-prepared snapshot under data/world/ for the real initial world.",
+  "files": {
+    "countries": "countries.json",
+    "leagues": "leagues.json",
+    "teams": "teams.json",
+    "players": "players.json",
+    "coaches": "coaches.json",
+    "competitions": "competitions.json",
+    "competitionEditions": "competition-editions.json"
+  }
+}
