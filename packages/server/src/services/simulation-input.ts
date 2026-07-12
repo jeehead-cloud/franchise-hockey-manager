@@ -1,11 +1,11 @@
 import { createHash } from 'node:crypto';
 import {
   FHM_ENGINE_VERSION,
-  F11_SIMULATION_MODE,
+  F12_SIMULATION_MODE,
   PERIOD_DURATION_SECONDS,
   REGULATION_PERIODS,
   canonicalizeSimulationInput,
-  isF11CompatibleBalanceConfig,
+  isF12CompatibleBalanceConfig,
   validateSimulationInput,
   type SimulationInput,
   type SimulationPlayerProfile,
@@ -73,6 +73,7 @@ function toPlayerProfile(row: LineupPlayerRow, slot: string): SimulationPlayerPr
       role: detail.role,
       roleRating: detail.roleRating,
       effectivePerformance: null,
+      skaterAttributes: detail.attributes,
     };
   }
   return {
@@ -87,6 +88,7 @@ function toPlayerProfile(row: LineupPlayerRow, slot: string): SimulationPlayerPr
     role: detail.role,
     roleRating: detail.roleRating,
     effectivePerformance: null,
+    goalieAttributes: detail.attributes,
   };
 }
 
@@ -116,7 +118,7 @@ async function assertTeamSimulationReady(teamId: string): Promise<void> {
   });
 
   if (readiness.status !== 'READY' || validation.status !== 'VALID') {
-    throw new SimulationHttpError(409, 'TeamNotSimulationReady', 'Team is not ready for F11 simulation', {
+    throw new SimulationHttpError(409, 'TeamNotSimulationReady', 'Team is not ready for F12 simulation', {
       teamId,
       readinessStatus: readiness.status,
       lineupStatus: validation.status,
@@ -243,11 +245,11 @@ export async function buildSimulationInput(opts: {
   await assertTeamSimulationReady(opts.awayTeamId);
 
   const snapshot = await getActiveBalanceSnapshot();
-  if (!isF11CompatibleBalanceConfig(snapshot.config)) {
+  if (!isF12CompatibleBalanceConfig(snapshot.config)) {
     throw new SimulationHttpError(
       409,
       'IncompatibleBalanceConfiguration',
-      'Active balance configuration is not F11-compatible (requires schemaVersion >= 2 with active match section)',
+      'Active balance configuration is not F12-compatible (requires schemaVersion >= 3 with active match/shots/goalies sections)',
       { schemaVersion: snapshot.version.schemaVersion },
     );
   }
@@ -266,7 +268,7 @@ export async function buildSimulationInput(opts: {
   const draft: Omit<SimulationInput, 'inputFingerprint'> = {
     matchId: opts.matchId ?? `debug-${opts.homeTeamId}-${opts.awayTeamId}`,
     engineVersion: FHM_ENGINE_VERSION,
-    simulationMode: F11_SIMULATION_MODE,
+    simulationMode: F12_SIMULATION_MODE,
     seed: opts.seed,
     balance: {
       presetId: snapshot.preset.id,

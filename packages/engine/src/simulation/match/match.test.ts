@@ -17,12 +17,16 @@ import {
   InvalidSimulationInputError,
   InvalidSnapshotError,
   SafetyLimitExceededError,
-  FORBIDDEN_F11_EVENT_TYPES,
+  FORBIDDEN_F13_EVENT_TYPES,
+  FHM_ENGINE_VERSION,
+  F12_SIMULATION_MODE,
   getStandardBalanceConfig,
+  reduceStatistics,
+  reconcileStatistics,
 } from '../../index.js';
 import { buildTestSimulationInput } from './fixture.js';
 
-describe('F11 match engine RNG', () => {
+describe('F12 match engine RNG', () => {
   it('same seed yields same sequence', () => {
     const a = createRng('seed-a');
     const b = createRng('seed-a');
@@ -51,8 +55,7 @@ describe('F11 match engine RNG', () => {
   });
 
   it('weighted pick is deterministic', () => {
-    const rng = createRng('weights');
-    const first = weightedPick(rng, { F1: 0.3, F2: 0.7 });
+    const first = weightedPick(createRng('weights'), { F1: 0.3, F2: 0.7 });
     const second = weightedPick(createRng('weights'), { F1: 0.3, F2: 0.7 });
     expect(first.value).toBe(second.value);
   });
@@ -64,9 +67,12 @@ describe('F11 match engine RNG', () => {
   });
 });
 
-describe('F11 simulation input', () => {
+describe('F12 simulation input', () => {
   it('accepts valid fixture input', () => {
-    expect(() => validateSimulationInput(buildTestSimulationInput())).not.toThrow();
+    const input = buildTestSimulationInput();
+    expect(input.engineVersion).toBe(FHM_ENGINE_VERSION);
+    expect(input.simulationMode).toBe(F12_SIMULATION_MODE);
+    expect(() => validateSimulationInput(input)).not.toThrow();
   });
 
   it('rejects same team and incompatible balance', () => {
@@ -89,20 +95,39 @@ describe('F11 simulation input', () => {
   });
 });
 
-describe('F11 regulation simulation', () => {
-  it('runs three periods and ends 0-0 with allowed events only', () => {
-    const input = buildTestSimulationInput('f11-reg-001');
+describe('F12 regulation simulation', () => {
+  it('runs three periods with score derived from GOAL events', () => {
+    const input = buildTestSimulationInput('f12-reg-001');
     const result = simulateRegulation(input);
     expect(result.finalState.simulationStatus).toBe('REGULATION_COMPLETE');
-    expect(result.finalState.score).toEqual({ home: 0, away: 0 });
     expect(result.events[0]?.type).toBe('MATCH_START');
     expect(result.events.at(-1)?.type).toBe('REGULATION_END');
     expect(result.events.filter((e) => e.type === 'PERIOD_START')).toHaveLength(3);
     expect(result.events.filter((e) => e.type === 'PERIOD_END')).toHaveLength(3);
     for (const ev of result.events) {
-      expect(FORBIDDEN_F11_EVENT_TYPES as readonly string[]).not.toContain(ev.type);
+      expect(FORBIDDEN_F13_EVENT_TYPES as readonly string[]).not.toContain(ev.type);
     }
     expect(result.diagnostics.safetyLimitHit).toBe(false);
+    expect(result.reconciliation.ok).toBe(true);
+    const goals = result.events.filter((e) => e.type === 'GOAL');
+    expect(result.finalState.score.home).toBe(goals.filter((g) => g.teamId === input.homeTeam.teamId).length);
+    expect(result.finalState.score.away).toBe(goals.filter((g) => g.teamId === input.awayTeam.teamId).length);
+    expect(result.statistics.home.goals).toBe(result.finalState.score.home);
+    expect(result.statistics.away.goals).toBe(result.finalState.score.away);
+  });
+
+  it('resolves every SHOT exactly once', () => {
+    const result = simulateRegulation(buildTestSimulationInput('f12-shot-resolve'));
+    const shots = result.events.filter((e) => e.type === 'SHOT');
+    const resolutions = result.events.filter((e) =>
+      ['SHOT_BLOCKED', 'SHOT_MISSED', 'SAVE', 'GOAL'].includes(e.type),
+    );
+    expect(resolutions.length).toBe(shots.length);
+    for (const shot of shots) {
+      const seq = shot.details.shotSequenceId;
+      const matches = resolutions.filter((r) => r.details.shotSequenceId === seq);
+      expect(matches).toHaveLength(1);
+    }
   });
 
   it('is deterministic for same seed', () => {
@@ -110,6 +135,8 @@ describe('F11 regulation simulation', () => {
     const b = simulateRegulation(buildTestSimulationInput('det-001'));
     expect(a.diagnostics.traceHash).toBe(b.diagnostics.traceHash);
     expect(a.events.length).toBe(b.events.length);
+    expect(a.finalState.score).toEqual(b.finalState.score);
+    expect(a.statistics.home.goals).toBe(b.statistics.home.goals);
   });
 
   it('differs by seed', () => {
@@ -132,6 +159,34 @@ describe('F11 regulation simulation', () => {
     }
     expect(events.length).toBe(full.events.length);
     expect(computeTraceHash(events)).toBe(full.diagnostics.traceHash);
+    expect(reduceStatistics(input, events, full.finalState).home.goals).toBe(full.statistics.home.goals);
+  });
+
+  it('pause after SHOT matches uninterrupted resolution', () => {
+    const input = buildTestSimulationInput('shot-pause-001');
+    const full = simulateRegulation(input);
+    let snap = null;
+    let events: typeof full.events = [];
+    let pausedAtShot = false;
+    while (!pausedAtShot) {
+      const step = simulateStep(input, snap, 'NEXT_EVENT');
+      events = [...events, ...step.events];
+      snap = step.snapshot;
+      if (step.events.some((e) => e.type === 'SHOT')) {
+        pausedAtShot = true;
+        break;
+      }
+      if (step.completed) break;
+    }
+    expect(pausedAtShot).toBe(true);
+    let completed = false;
+    while (!completed) {
+      const step = simulateStep(input, snap, 'NEXT_EVENT');
+      events = [...events, ...step.events];
+      snap = step.snapshot;
+      completed = step.completed;
+    }
+    expect(computeTraceHash(events)).toBe(full.diagnostics.traceHash);
   });
 
   it('rejects incompatible snapshot metadata', () => {
@@ -139,6 +194,9 @@ describe('F11 regulation simulation', () => {
     const state = createInitialMatchState(input);
     const snap = serializeMatchSnapshot(input, state, []);
     expect(() => restoreMatchSnapshot({ ...snap, balanceHash: 'wrong' }, input)).toThrow(InvalidSnapshotError);
+    expect(() => restoreMatchSnapshot({ ...snap, engineVersion: 'f11.1' as never }, input)).toThrow(
+      InvalidSnapshotError,
+    );
   });
 
   it('clock stays within period bounds', () => {
@@ -149,27 +207,88 @@ describe('F11 regulation simulation', () => {
       expect(Number.isInteger(ev.elapsedSeconds)).toBe(true);
     }
   });
-});
 
-describe('F11 invariant batch', () => {
-  it('terminates for 100 seeded runs without forbidden events', () => {
-    for (let i = 0; i < 100; i += 1) {
-      const result = simulateRegulation(buildTestSimulationInput(`batch-${i}`));
-      expect(result.finalState.simulationStatus).toBe('REGULATION_COMPLETE');
-      expect(result.diagnostics.safetyLimitHit).toBe(false);
-      for (const ev of result.events) {
-        expect(FORBIDDEN_F11_EVENT_TYPES as readonly string[]).not.toContain(ev.type);
+  it('goal assists follow pass-chain rules', () => {
+    const result = simulateRegulation(buildTestSimulationInput('assist-rules'));
+    for (const goal of result.events.filter((e) => e.type === 'GOAL')) {
+      const scorer = String(goal.details.scorerId ?? goal.playerIds[0]);
+      const primary = goal.details.primaryAssistId as string | null | undefined;
+      const secondary = goal.details.secondaryAssistId as string | null | undefined;
+      if (primary) {
+        expect(primary).not.toBe(scorer);
+        expect(secondary).not.toBe(primary);
       }
+      if (secondary) expect(secondary).not.toBe(scorer);
+      const assistCount = [primary, secondary].filter(Boolean).length;
+      expect(assistCount).toBeLessThanOrEqual(2);
     }
   });
 });
 
-describe('F11 safety limit', () => {
+describe('F12 invariant batch', () => {
+  it('terminates for 100 seeded runs with reconciliation', () => {
+    for (let i = 0; i < 100; i += 1) {
+      const result = simulateRegulation(buildTestSimulationInput(`batch-${i}`));
+      expect(result.finalState.simulationStatus).toBe('REGULATION_COMPLETE');
+      expect(result.diagnostics.safetyLimitHit).toBe(false);
+      expect(result.reconciliation.ok).toBe(true);
+      for (const ev of result.events) {
+        expect(FORBIDDEN_F13_EVENT_TYPES as readonly string[]).not.toContain(ev.type);
+      }
+    }
+  });
+
+  it('stronger home offense scores more on average over batch', () => {
+    let homeGoals = 0;
+    let awayGoals = 0;
+    for (let i = 0; i < 80; i += 1) {
+      const result = simulateRegulation(buildTestSimulationInput(`offense-${i}`));
+      homeGoals += result.finalState.score.home;
+      awayGoals += result.finalState.score.away;
+    }
+    expect(homeGoals).toBeGreaterThan(awayGoals);
+  });
+});
+
+describe('F12 safety limit', () => {
   it('fails when safety limit is tiny', () => {
     const input = buildTestSimulationInput('unsafe');
     if (input.balance.snapshot.match.active) {
       input.balance.snapshot.match.eventSafetyLimit = 5;
     }
     expect(() => simulateRegulation(input)).toThrow(SafetyLimitExceededError);
+  });
+});
+
+describe('F12 statistics reducer', () => {
+  it('reconciles independently from simulateRegulation output', () => {
+    const input = buildTestSimulationInput('reducer-001');
+    const result = simulateRegulation(input);
+    const stats = reduceStatistics(input, result.events, result.finalState);
+    const recon = reconcileStatistics(input, result.events, result.finalState, stats);
+    expect(recon.ok).toBe(true);
+    expect(stats.home.goals).toBe(result.statistics.home.goals);
+    expect(stats.away.shotsOnGoal).toBe(result.statistics.away.shotsOnGoal);
+  });
+});
+
+describe('F12 step pending shot', () => {
+  it('exposes pending shot between SHOT and resolution', () => {
+    const input = buildTestSimulationInput('pending-shot');
+    let state = createInitialMatchState(input);
+    let events: ReturnType<typeof simulateRegulation>['events'] = [];
+    let foundPending = false;
+    for (let i = 0; i < 5000; i += 1) {
+      const step = simulateNextEvent(input, state, events);
+      state = step.state;
+      events = step.events;
+      if (events.at(-1)?.type === 'SHOT' && state.pendingShot) {
+        foundPending = true;
+        expect(state.pendingShot.shooterId).toBeTruthy();
+        break;
+      }
+      if (step.completed) break;
+    }
+    expect(foundPending).toBe(true);
   });
 });

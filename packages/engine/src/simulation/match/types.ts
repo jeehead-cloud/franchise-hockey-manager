@@ -1,8 +1,13 @@
 import type { BalanceConfig } from '../../balance/types.js';
-import type { FHM_ENGINE_VERSION, F11_SIMULATION_MODE } from './constants.js';
+import type { GoalieAttributes, SkaterAttributes } from '../../players/types.js';
+import type { FHM_ENGINE_VERSION, F12_SIMULATION_MODE, SNAPSHOT_SCHEMA_VERSION } from './constants.js';
 import type { RngState } from './rng.js';
+import type { ShotType } from './shot-types.js';
 
-export type SimulationMode = typeof F11_SIMULATION_MODE;
+export type { ShotType } from './shot-types.js';
+export { SHOT_TYPES } from './shot-types.js';
+
+export type SimulationMode = typeof F12_SIMULATION_MODE;
 
 export type SimulationStatus =
   | 'NOT_STARTED'
@@ -31,7 +36,12 @@ export type MatchEventType =
   | 'STOPPAGE'
   | 'SHIFT_END'
   | 'PERIOD_END'
-  | 'REGULATION_END';
+  | 'REGULATION_END'
+  | 'SHOT'
+  | 'SHOT_BLOCKED'
+  | 'SHOT_MISSED'
+  | 'SAVE'
+  | 'GOAL';
 
 export type EventVisibility = 'PUBLIC' | 'TECHNICAL';
 
@@ -45,6 +55,10 @@ export type MatchPhase =
   | 'AWAITING_REGULATION_END'
   | 'COMPLETE'
   | 'FAILED';
+
+export type ReboundOutcome = 'CONTROLLED' | 'REBOUND' | 'FROZEN';
+
+export type MissReason = 'WIDE' | 'HIGH' | 'POST';
 
 export interface RegulationRules {
   regulationPeriods: number;
@@ -73,6 +87,10 @@ export interface SimulationPlayerProfile {
   role: string;
   roleRating: number;
   effectivePerformance: number | null;
+  /** Required for skaters in F12; null/undefined for goalies. */
+  skaterAttributes?: SkaterAttributes | null;
+  /** Required for goalies in F12; null/undefined for skaters. */
+  goalieAttributes?: GoalieAttributes | null;
 }
 
 export interface SimulationUnitRef {
@@ -137,6 +155,27 @@ export interface MatchScore {
   away: number;
 }
 
+export interface PendingShot {
+  shotSequenceId: number;
+  shotEventIndex: number;
+  shooterId: string;
+  goalieId: string;
+  shotType: ShotType;
+  shotQuality: number;
+  defensivePressure: number;
+  screenFactor: number;
+  passChain: string[];
+  attackingSide: Exclude<PossessionSide, 'NONE'>;
+  attackingTeamId: string;
+  defendingTeamId: string;
+  blockProbability: number;
+  missProbability: number;
+  onTargetProbability: number;
+  goalProbability: number;
+  /** Original shot/pass source when tip/deflection; optional. */
+  attemptCreatorId: string | null;
+}
+
 export interface MatchState {
   engineVersion: typeof FHM_ENGINE_VERSION;
   simulationStatus: SimulationStatus;
@@ -153,6 +192,10 @@ export interface MatchState {
   eventIndex: number;
   rng: RngState;
   safetyEventsEmitted: number;
+  /** Recent attacking pass participants (max 2), excluding current shooter when shot starts. */
+  passChainPlayerIds: string[];
+  pendingShot: PendingShot | null;
+  shotSequenceId: number;
 }
 
 export interface MatchEvent {
@@ -172,7 +215,7 @@ export interface MatchEvent {
 }
 
 export interface MatchSnapshot {
-  schemaVersion: 1;
+  schemaVersion: typeof SNAPSHOT_SCHEMA_VERSION;
   engineVersion: typeof FHM_ENGINE_VERSION;
   simulationMode: SimulationMode;
   inputFingerprint: string;
@@ -182,6 +225,80 @@ export interface MatchSnapshot {
   state: MatchState;
   events: MatchEvent[];
   traceHash: string;
+}
+
+export interface PlayerSkaterStats {
+  playerId: string;
+  teamId: string;
+  side: 'HOME' | 'AWAY';
+  lineupSlot: string;
+  primaryPosition: SimulationPlayerProfile['primaryPosition'];
+  goals: number;
+  primaryAssists: number;
+  secondaryAssists: number;
+  assists: number;
+  points: number;
+  shots: number;
+  shotAttempts: number;
+  blockedAttempts: number;
+  missedAttempts: number;
+  shotsOnGoal: number;
+  blocks: number;
+  timeOnIceSeconds: number;
+}
+
+export interface PlayerGoalieStats {
+  playerId: string;
+  teamId: string;
+  side: 'HOME' | 'AWAY';
+  lineupSlot: string;
+  shotsAgainst: number;
+  saves: number;
+  goalsAgainst: number;
+  savePercentage: number;
+  timeOnIceSeconds: number;
+}
+
+export interface TeamStats {
+  teamId: string;
+  side: 'HOME' | 'AWAY';
+  goals: number;
+  shotAttempts: number;
+  shotsOnGoal: number;
+  blockedShotsAgainst: number;
+  missedShots: number;
+  saves: number;
+  shootingPercentage: number;
+  faceoffWins: number;
+  possessionSeconds: number;
+  offensiveZoneSeconds: number;
+  defensiveZoneSeconds: number;
+}
+
+export interface PeriodScore {
+  period: number;
+  home: number;
+  away: number;
+}
+
+export interface MatchStatistics {
+  home: TeamStats;
+  away: TeamStats;
+  skaters: PlayerSkaterStats[];
+  goalies: PlayerGoalieStats[];
+  periodScores: PeriodScore[];
+}
+
+export interface ReconciliationCheck {
+  code: string;
+  ok: boolean;
+  message: string;
+}
+
+export interface ReconciliationResult {
+  ok: boolean;
+  checks: ReconciliationCheck[];
+  failures: string[];
 }
 
 export interface SimulationDiagnostics {
@@ -196,6 +313,27 @@ export interface SimulationDiagnostics {
   regulationDurationSeconds: number;
   safetyLimitHit: boolean;
   traceHash: string;
+  shotAttempts: number;
+  shotsBlocked: number;
+  shotsMissed: number;
+  shotsOnGoal: number;
+  saves: number;
+  goals: number;
+  shootingPercentage: number;
+  savePercentage: number;
+  shotsByPeriod: Record<number, number>;
+  goalsByPeriod: Record<number, number>;
+  shotTypes: Record<string, number>;
+  averageShotQuality: number;
+  topShooters: Array<{ playerId: string; shotsOnGoal: number; goals: number }>;
+  goalieSummaries: Array<{
+    playerId: string;
+    shotsAgainst: number;
+    saves: number;
+    goalsAgainst: number;
+    savePercentage: number;
+  }>;
+  reconciliationOk: boolean | null;
 }
 
 export interface SimulationResult {
@@ -212,6 +350,9 @@ export interface SimulationResult {
   finalState: MatchState;
   events: MatchEvent[];
   diagnostics: SimulationDiagnostics;
+  statistics: MatchStatistics;
+  reconciliation: ReconciliationResult;
+  periodScores: PeriodScore[];
 }
 
 export type StepMode = 'NEXT_EVENT' | 'NEXT_SHIFT' | 'END_PERIOD' | 'END_REGULATION';
@@ -225,3 +366,15 @@ export interface StepResult {
 }
 
 export type EventDetailLevel = 'NONE' | 'SUMMARY' | 'FULL';
+
+export type ShotResolutionType = 'SHOT_BLOCKED' | 'SHOT_MISSED' | 'SAVE' | 'GOAL';
+
+export interface ShotResolutionDetails {
+  type: ShotResolutionType;
+  blockerId?: string;
+  missReason?: MissReason;
+  reboundOutcome?: ReboundOutcome;
+  primaryAssistId?: string | null;
+  secondaryAssistId?: string | null;
+  scoreAfter?: MatchScore;
+}

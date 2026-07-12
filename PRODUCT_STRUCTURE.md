@@ -2068,7 +2068,7 @@ Past events are not recalculated.
 
 The Simulation Lab is a first-class product area.
 
-**F11 partial implementation (2026-07-13):** `/simulation-lab` currently hosts the **Technical Match Engine (F11)** only — single regulation runs, step/resume, diagnostics. Batch counts (10/100/1000) and full Lab analytics remain future (F16).
+**F12 partial implementation (2026-07-13):** `/simulation-lab` hosts **Technical Match Simulation (F12)** — regulation scoring debug with scoreboard, stats, and step/resume. Batch counts (10/100/1000) and full Lab analytics remain future (F16).
 
 Inputs:
 

@@ -26,7 +26,8 @@
     "test": "npm run test --workspace=@fhm/engine && npm run test --workspace=@fhm/server",
     "test:engine": "npm run test --workspace=@fhm/engine",
     "test:server": "npm run test --workspace=@fhm/server",
-    "verify:event-engine": "npm run verify:event-engine --workspace=@fhm/engine"
+    "verify:event-engine": "npm run verify:event-engine --workspace=@fhm/engine",
+    "verify:scoring-engine": "npm run verify:scoring-engine --workspace=@fhm/engine"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

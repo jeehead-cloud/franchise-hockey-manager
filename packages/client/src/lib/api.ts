@@ -1199,6 +1199,81 @@ export interface TechnicalSimulationDiagnostics {
   faceoffWins: { home: number; away: number };
   possessionSecondsByTeam: { home: number; away: number; none: number };
   safetyLimitHit: boolean;
+  shotAttempts?: number;
+  shotsBlocked?: number;
+  shotsMissed?: number;
+  shotsOnGoal?: number;
+  saves?: number;
+  goals?: number;
+  shootingPercentage?: number;
+  savePercentage?: number;
+  averageShotQuality?: number;
+  reconciliationOk?: boolean | null;
+}
+
+export interface TechnicalPeriodScore {
+  period: number;
+  home: number;
+  away: number;
+}
+
+export interface TechnicalTeamStats {
+  teamId: string;
+  side: 'HOME' | 'AWAY';
+  goals: number;
+  shotAttempts: number;
+  shotsOnGoal: number;
+  blockedShotsAgainst: number;
+  missedShots: number;
+  saves: number;
+  shootingPercentage: number;
+  faceoffWins: number;
+  possessionSeconds: number;
+  offensiveZoneSeconds: number;
+  defensiveZoneSeconds: number;
+}
+
+export interface TechnicalSkaterStats {
+  playerId: string;
+  teamId: string;
+  side: 'HOME' | 'AWAY';
+  lineupSlot: string;
+  primaryPosition: string;
+  goals: number;
+  assists: number;
+  points: number;
+  shotsOnGoal: number;
+  shotAttempts: number;
+}
+
+export interface TechnicalGoalieStats {
+  playerId: string;
+  teamId: string;
+  side: 'HOME' | 'AWAY';
+  lineupSlot: string;
+  shotsAgainst: number;
+  saves: number;
+  goalsAgainst: number;
+  savePercentage: number;
+}
+
+export interface TechnicalMatchStatistics {
+  home: TechnicalTeamStats;
+  away: TechnicalTeamStats;
+  skaters: TechnicalSkaterStats[];
+  goalies: TechnicalGoalieStats[];
+  periodScores: TechnicalPeriodScore[];
+}
+
+export interface TechnicalReconciliation {
+  ok: boolean;
+  checks: Array<{ code: string; ok: boolean; message: string }>;
+}
+
+export interface TechnicalPlayerDirectoryEntry {
+  firstName: string;
+  lastName: string;
+  teamId: string;
 }
 
 export interface TechnicalMatchSnapshot {
@@ -1240,8 +1315,14 @@ export async function simulateTechnicalRegulation(
     metadata: TechnicalSimulationMetadata;
     finalState: Record<string, unknown>;
     diagnostics: TechnicalSimulationDiagnostics;
+    statistics: TechnicalMatchStatistics;
+    reconciliation: TechnicalReconciliation;
+    periodScores: TechnicalPeriodScore[];
+    playerDirectory: Record<string, TechnicalPlayerDirectoryEntry>;
     events?: TechnicalMatchEvent[];
     eventSummary?: { total: number; byType: Record<string, number> };
+    eventsTruncated?: boolean;
+    totalEventCount?: number;
     notice: string;
   };
 }> {
@@ -1264,6 +1345,7 @@ export async function stepTechnicalSimulation(
     state: Record<string, unknown>;
     snapshot: TechnicalMatchSnapshot;
     diagnostics: TechnicalSimulationDiagnostics;
+    playerDirectory: Record<string, TechnicalPlayerDirectoryEntry>;
     events?: TechnicalMatchEvent[];
     completed: boolean;
     notice: string;

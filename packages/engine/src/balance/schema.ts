@@ -1,16 +1,61 @@
 import { z } from 'zod';
 import {
   BALANCE_SCHEMA_VERSION,
+  SHOT_TYPES,
   type BalanceConfig,
   type BalanceValidationIssue,
   type BalanceValidationResult,
+  type GoaliesBalanceSection,
   type MatchBalanceSection,
   type RuntimeSimulationSettings,
+  type ShotsBalanceSection,
 } from './types.js';
 
 const finite = z.number().finite();
 const unit01 = finite.min(0).max(1);
 const styleNeg1To1 = finite.min(-1).max(1);
+const positiveFinite = finite.positive();
+
+const SKATER_ROLE_KEYS = [
+  'ROCKET',
+  'POSSESSION_MASTER',
+  'POWER_FORWARD',
+  'DUMP_IN_FORWARD',
+  'SCREENER',
+  'DEEP_FORECHECKER',
+  'PUCK_MOVER',
+  'GARBAGE_COLLECTOR',
+  'POINT_SHOOTER',
+  'PLAYMAKER',
+  'DEFLECTOR',
+  'INTERCEPTOR',
+  'GRINDER',
+  'ENFORCER',
+  'CHAOS_MAKER',
+  'CA_FORWARD',
+  'BACKCHECKER',
+  'NZ_FORECHECKER',
+  'TWO_WAY_FORWARD',
+  'SHADOW',
+  'QUARTERBACK',
+  'SUPPORT_D',
+  'DEFENSIVE_D',
+  'ATTACKING_D',
+] as const;
+
+const GOALIE_ATTRIBUTE_KEYS = [
+  'reflexes',
+  'positioning',
+  'reboundControl',
+  'glove',
+  'blocker',
+  'movement',
+  'puckHandling',
+  'consistency',
+  'stamina',
+] as const;
+
+const shotTypeEnum = z.enum(SHOT_TYPES);
 
 const inactiveSectionSchema = z
   .object({
@@ -105,12 +150,105 @@ const activeMatchSectionSchema = z
         offensiveStoppage: unit01,
       })
       .strict(),
+    offensiveZoneShotOpportunityProbability: unit01.optional(),
+    offensiveZoneContinuedPossessionProbability: unit01.optional(),
+  })
+  .strict();
+
+const activeShotsSectionSchema = z
+  .object({
+    active: z.literal(true),
+    shotTypeWeights: z.record(shotTypeEnum, positiveFinite),
+    roleShotTendencyMultipliers: z
+      .object({
+        high: positiveFinite,
+        medium: positiveFinite,
+        low: positiveFinite,
+      })
+      .strict(),
+    roleShotTendencies: z.record(z.string(), z.enum(['high', 'medium', 'low'])),
+    shooterAttributeWeights: z
+      .object({
+        shooting: positiveFinite,
+        offensiveAwareness: positiveFinite,
+        currentAbility: positiveFinite,
+      })
+      .strict(),
+    shotQualityWeights: z
+      .object({
+        shooting: finite,
+        offensiveAwareness: finite,
+        stickhandling: finite,
+        attackingUnitEffectivePerformance: finite,
+        defensivePressure: finite,
+      })
+      .strict(),
+    passQualityContribution: unit01,
+    screenContribution: unit01,
+    deflectionContribution: unit01,
+    defensivePressureWeights: z
+      .object({
+        defensiveAwareness: positiveFinite,
+        strength: positiveFinite,
+        balance: positiveFinite,
+        defendingUnitEffectivePerformance: positiveFinite,
+      })
+      .strict(),
+    blockProbability: unit01,
+    missProbability: unit01,
+    onTargetFloor: unit01,
+    onTargetCeiling: unit01,
+    goalProbabilityFloor: unit01,
+    goalProbabilityCeiling: unit01,
+    shotQualityVariance: unit01,
+  })
+  .strict();
+
+const goalieAttributeWeightSchema = z
+  .object({
+    reflexes: positiveFinite.optional(),
+    positioning: positiveFinite.optional(),
+    reboundControl: positiveFinite.optional(),
+    glove: positiveFinite.optional(),
+    blocker: positiveFinite.optional(),
+    movement: positiveFinite.optional(),
+    puckHandling: positiveFinite.optional(),
+    consistency: positiveFinite.optional(),
+    stamina: positiveFinite.optional(),
+  })
+  .strict();
+
+const activeGoaliesSectionSchema = z
+  .object({
+    active: z.literal(true),
+    attributeWeightsByShotType: z.record(shotTypeEnum, goalieAttributeWeightSchema),
+    saveProbabilityCurve: z
+      .object({
+        intercept: finite,
+        shotQualitySlope: finite,
+      })
+      .strict(),
+    consistencyVarianceEffect: unit01,
+    reboundOutcomeWeights: z
+      .object({
+        controlled: positiveFinite,
+        rebound: positiveFinite,
+        frozen: positiveFinite,
+      })
+      .strict(),
+    screenPenalty: unit01,
+    lateralMovementEffect: unit01,
   })
   .strict();
 
 export const balanceConfigSchema = z
   .object({
-    schemaVersion: z.union([z.literal(1), z.literal(2), z.literal(BALANCE_SCHEMA_VERSION)]),
+    schemaVersion: z.union([
+      z.literal(1),
+      z.literal(2),
+      z.literal(3),
+      z.literal(BALANCE_SCHEMA_VERSION),
+    ]),
     presetKey: z.string().min(1).max(64),
     name: z.string().min(1).max(120),
     description: z.string().max(2000).nullable(),
@@ -167,8 +305,8 @@ export const balanceConfigSchema = z
       })
       .strict(),
     match: z.union([inactiveSectionSchema, activeMatchSectionSchema]),
-    shots: inactiveSectionSchema,
-    goalies: inactiveSectionSchema,
+    shots: z.union([inactiveSectionSchema, activeShotsSectionSchema]),
+    goalies: z.union([inactiveSectionSchema, activeGoaliesSectionSchema]),
     penalties: inactiveSectionSchema,
     development: inactiveSectionSchema,
     scouting: inactiveSectionSchema,
@@ -326,6 +464,163 @@ function matchSemanticErrors(config: BalanceConfig): BalanceValidationIssue[] {
   const defTotal = Object.values(m.defensePairUsageWeights).reduce((s, n) => s + n, 0);
   if (!(fwdTotal > 0)) errors.push({ path: 'match.forwardLineUsageWeights', message: 'Must sum > 0' });
   if (!(defTotal > 0)) errors.push({ path: 'match.defensePairUsageWeights', message: 'Must sum > 0' });
+
+  if (config.schemaVersion >= 3) {
+    if (typeof m.offensiveZoneShotOpportunityProbability !== 'number') {
+      errors.push({
+        path: 'match.offensiveZoneShotOpportunityProbability',
+        message: 'F12 requires offensiveZoneShotOpportunityProbability',
+      });
+    }
+    if (typeof m.offensiveZoneContinuedPossessionProbability !== 'number') {
+      errors.push({
+        path: 'match.offensiveZoneContinuedPossessionProbability',
+        message: 'F12 requires offensiveZoneContinuedPossessionProbability',
+      });
+    }
+  }
+
+  return errors;
+}
+
+function shotsSemanticErrors(config: BalanceConfig): BalanceValidationIssue[] {
+  const errors: BalanceValidationIssue[] = [];
+  if (config.shots.active !== true) {
+    if (config.schemaVersion >= 3) {
+      errors.push({ path: 'shots.active', message: 'F12 requires active shots section' });
+    }
+    return errors;
+  }
+
+  const shots = config.shots as ShotsBalanceSection;
+  for (const shotType of SHOT_TYPES) {
+    const weight = shots.shotTypeWeights[shotType];
+    if (!(typeof weight === 'number' && Number.isFinite(weight) && weight > 0)) {
+      errors.push({
+        path: `shots.shotTypeWeights.${shotType}`,
+        message: 'Shot type weight must be a positive finite number',
+      });
+    }
+  }
+
+  for (const role of SKATER_ROLE_KEYS) {
+    if (!(role in shots.roleShotTendencies)) {
+      errors.push({
+        path: `shots.roleShotTendencies.${role}`,
+        message: 'Missing skater role shot tendency',
+      });
+    }
+  }
+
+  for (const [role, tier] of Object.entries(shots.roleShotTendencies)) {
+    if (!(SKATER_ROLE_KEYS as readonly string[]).includes(role)) {
+      errors.push({
+        path: `shots.roleShotTendencies.${role}`,
+        message: 'Unknown skater role key',
+      });
+    }
+    if (!(tier in shots.roleShotTendencyMultipliers)) {
+      errors.push({
+        path: `shots.roleShotTendencies.${role}`,
+        message: `Unknown tendency tier ${tier}`,
+      });
+    }
+  }
+
+  if (!(shots.onTargetFloor <= shots.onTargetCeiling)) {
+    errors.push({
+      path: 'shots.onTargetFloor',
+      message: 'onTargetFloor must be <= onTargetCeiling',
+    });
+  }
+  if (!(shots.goalProbabilityFloor <= shots.goalProbabilityCeiling)) {
+    errors.push({
+      path: 'shots.goalProbabilityFloor',
+      message: 'goalProbabilityFloor must be <= goalProbabilityCeiling',
+    });
+  }
+
+  const shooterTotal =
+    shots.shooterAttributeWeights.shooting +
+    shots.shooterAttributeWeights.offensiveAwareness +
+    shots.shooterAttributeWeights.currentAbility;
+  if (!(shooterTotal > 0)) {
+    errors.push({
+      path: 'shots.shooterAttributeWeights',
+      message: 'Shooter attribute weights must sum > 0',
+    });
+  }
+
+  const pressureTotal =
+    shots.defensivePressureWeights.defensiveAwareness +
+    shots.defensivePressureWeights.strength +
+    shots.defensivePressureWeights.balance +
+    shots.defensivePressureWeights.defendingUnitEffectivePerformance;
+  if (!(pressureTotal > 0)) {
+    errors.push({
+      path: 'shots.defensivePressureWeights',
+      message: 'Defensive pressure weights must sum > 0',
+    });
+  }
+
+  return errors;
+}
+
+function goaliesSemanticErrors(config: BalanceConfig): BalanceValidationIssue[] {
+  const errors: BalanceValidationIssue[] = [];
+  if (config.goalies.active !== true) {
+    if (config.schemaVersion >= 3) {
+      errors.push({ path: 'goalies.active', message: 'F12 requires active goalies section' });
+    }
+    return errors;
+  }
+
+  const goalies = config.goalies as GoaliesBalanceSection;
+  for (const shotType of SHOT_TYPES) {
+    const weights = goalies.attributeWeightsByShotType[shotType];
+    if (!weights) {
+      errors.push({
+        path: `goalies.attributeWeightsByShotType.${shotType}`,
+        message: 'Missing goalie attribute weights for shot type',
+      });
+      continue;
+    }
+    let total = 0;
+    for (const [key, value] of Object.entries(weights)) {
+      if (!(GOALIE_ATTRIBUTE_KEYS as readonly string[]).includes(key)) {
+        errors.push({
+          path: `goalies.attributeWeightsByShotType.${shotType}.${key}`,
+          message: 'Unknown goalie attribute key',
+        });
+      }
+      if (!(typeof value === 'number' && Number.isFinite(value) && value > 0)) {
+        errors.push({
+          path: `goalies.attributeWeightsByShotType.${shotType}.${key}`,
+          message: 'Goalie attribute weight must be positive and finite',
+        });
+      } else {
+        total += value;
+      }
+    }
+    if (!(total > 0)) {
+      errors.push({
+        path: `goalies.attributeWeightsByShotType.${shotType}`,
+        message: 'Goalie attribute weights must sum > 0',
+      });
+    }
+  }
+
+  const reboundTotal =
+    goalies.reboundOutcomeWeights.controlled +
+    goalies.reboundOutcomeWeights.rebound +
+    goalies.reboundOutcomeWeights.frozen;
+  if (!(reboundTotal > 0)) {
+    errors.push({
+      path: 'goalies.reboundOutcomeWeights',
+      message: 'Rebound outcome weights must sum > 0',
+    });
+  }
+
   return errors;
 }
 
@@ -335,14 +630,35 @@ export function isF11CompatibleBalanceConfig(
   return config.match.active === true && config.schemaVersion >= 2;
 }
 
+export function isF12CompatibleBalanceConfig(
+  config: BalanceConfig,
+): config is BalanceConfig & {
+  match: MatchBalanceSection;
+  shots: ShotsBalanceSection;
+  goalies: GoaliesBalanceSection;
+} {
+  return (
+    config.schemaVersion >= 3 &&
+    config.match.active === true &&
+    config.shots.active === true &&
+    config.goalies.active === true
+  );
+}
+
 export function validateBalanceConfig(input: unknown): BalanceValidationResult {
   const parsed = balanceConfigSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, errors: zodIssues(parsed.error) };
   }
-  const semantic = [...chemistrySemanticErrors(parsed.data as BalanceConfig), ...matchSemanticErrors(parsed.data as BalanceConfig)];
+  const config = parsed.data as BalanceConfig;
+  const semantic = [
+    ...chemistrySemanticErrors(config),
+    ...matchSemanticErrors(config),
+    ...shotsSemanticErrors(config),
+    ...goaliesSemanticErrors(config),
+  ];
   if (semantic.length) return { ok: false, errors: semantic };
-  return { ok: true, config: parsed.data as BalanceConfig };
+  return { ok: true, config };
 }
 
 export function parseBalanceConfig(input: unknown): BalanceConfig {

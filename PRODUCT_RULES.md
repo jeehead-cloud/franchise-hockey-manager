@@ -39,7 +39,18 @@ F9 implements the first foundation layer in `packages/engine/src/chemistry` with
 
 F10: the active balance preset chemistry section is the runtime source for Team Lines / chemistry APIs. Repository JSON remains the Standard default and bootstrap source. Changing an active preset does not rewrite historical `BalancePresetVersion` rows.
 
-F11: regulation technical simulation is pure engine code — no Prisma/Fastify/React inside `packages/engine/src/simulation`. Same immutable input + active balance snapshot + seed must reproduce identical event traces. F11 emits technical events only; regulation score remains 0–0 until F12. Zone is relative to the possession team. Snapshots must match engine version, input fingerprint, balance hash, and seed on resume.
+F11–F12: regulation simulation is pure engine code — no Prisma/Fastify/React inside `packages/engine/src/simulation`. Same immutable input + active balance snapshot + seed must reproduce identical event traces, score, and statistics. Zone is relative to the possession team. Snapshots must match engine version, input fingerprint, balance hash, and seed on resume. F11 snapshots cannot restore as F12 state.
+
+F12 scoring invariants:
+
+- Final regulation score is the count of emitted **GOAL** events only — never choose a final score first.
+- Every **SHOT** resolves exactly once to SHOT_BLOCKED, SHOT_MISSED, SAVE, or GOAL.
+- Blocked and missed shots are not shots on goal; every on-target non-goal is a SAVE.
+- Team/player goals, shots on goal, saves, and goals against must reconcile (see engine `reconcileStatistics`).
+- Primary/secondary assists derive from the actual offensive pass chain (0–2); scorer cannot assist their own goal.
+- F9 effective performance is applied once via unit context — not double-counted in shot resolution.
+- Outcome probabilities are config-driven from balance schemaVersion 3 `shots` / `goalies` sections.
+- F12 remains regulation EVEN_5V5 only; no penalty/special-team events until F13.
 
 Invariants in force:
 

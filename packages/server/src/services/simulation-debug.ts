@@ -4,6 +4,9 @@ import {
   type EventDetailLevel,
   type MatchEvent,
   type MatchSnapshot,
+  type MatchStatistics,
+  type ReconciliationResult,
+  type SimulationInput,
   type StepMode,
   InvalidSnapshotError,
   InvalidSimulationInputError,
@@ -11,6 +14,7 @@ import {
   SafetyLimitExceededError,
   IllegalStateTransitionError,
   SimulationError,
+  StatisticsReconciliationError,
 } from '@fhm/engine';
 import { buildSimulationInput, SimulationHttpError } from './simulation-input.js';
 
@@ -33,6 +37,9 @@ function mapSimulationError(err: unknown): SimulationHttpError {
   if (err instanceof IncompatibleBalanceConfigError) {
     return new SimulationHttpError(409, 'IncompatibleBalanceConfiguration', err.message);
   }
+  if (err instanceof StatisticsReconciliationError) {
+    return new SimulationHttpError(500, 'StatisticsReconciliationFailed', err.message);
+  }
   if (err instanceof SafetyLimitExceededError || err instanceof IllegalStateTransitionError) {
     return new SimulationHttpError(500, 'SimulationFailed', err.message);
   }
@@ -43,6 +50,20 @@ function mapSimulationError(err: unknown): SimulationHttpError {
 }
 
 const MAX_FULL_EVENTS = 5000;
+
+function buildPlayerDirectory(input: SimulationInput) {
+  const directory: Record<string, { firstName: string; lastName: string; teamId: string }> = {};
+  for (const team of [input.homeTeam, input.awayTeam]) {
+    for (const p of team.players) {
+      directory[p.playerId] = {
+        firstName: p.firstName,
+        lastName: p.lastName,
+        teamId: team.teamId,
+      };
+    }
+  }
+  return directory;
+}
 
 function summarizeEvents(events: MatchEvent[]) {
   return {
@@ -55,9 +76,24 @@ function summarizeEvents(events: MatchEvent[]) {
   };
 }
 
-function filterEvents(events: MatchEvent[], detail: EventDetailLevel): MatchEvent[] | undefined {
+function filterEvents(events: MatchEvent[], detail: EventDetailLevel) {
   if (detail === 'NONE') return undefined;
-  if (detail === 'SUMMARY') return events.slice(-50);
+  if (detail === 'SUMMARY') {
+    const scoring = events.filter((e) =>
+      ['GOAL', 'SAVE', 'SHOT', 'SHOT_BLOCKED', 'SHOT_MISSED'].includes(e.type),
+    );
+    const head = events.slice(0, 10);
+    const tail = events.slice(-40);
+    const merged = [...head, ...scoring.slice(-20), ...tail];
+    const seen = new Set<number>();
+    const unique = merged.filter((e) => {
+      if (seen.has(e.index)) return false;
+      seen.add(e.index);
+      return true;
+    });
+    unique.sort((a, b) => a.index - b.index);
+    return unique;
+  }
   if (events.length > MAX_FULL_EVENTS) {
     throw new SimulationHttpError(400, 'InvalidSimulationRequest', `FULL event detail exceeds ${MAX_FULL_EVENTS} events`);
   }
@@ -78,9 +114,16 @@ export async function runTechnicalRegulation(opts: {
       metadata: result.metadata,
       finalState: result.finalState,
       diagnostics: result.diagnostics,
+      statistics: result.statistics,
+      reconciliation: result.reconciliation,
+      periodScores: result.periodScores,
+      playerDirectory: buildPlayerDirectory(input),
       events: filterEvents(result.events, detail),
       eventSummary: detail === 'NONE' ? summarizeEvents(result.events) : undefined,
-      notice: 'Technical F11 simulation complete. Scoring is not implemented; regulation score remains 0-0.',
+      eventsTruncated: detail === 'SUMMARY' && result.events.length > 50,
+      totalEventCount: result.events.length,
+      notice:
+        'Technical F12 regulation scoring simulation. Penalties, overtime, shootout, and persistence are not implemented.',
     };
   } catch (err) {
     throw mapSimulationError(err);
@@ -113,9 +156,10 @@ export async function runTechnicalStep(opts: {
       state: step.state,
       snapshot: step.snapshot,
       diagnostics: step.diagnostics,
+      playerDirectory: buildPlayerDirectory(input),
       events: filterEvents(step.events, detail),
       completed: step.completed,
-      notice: 'Technical F11 step simulation. Scoring is not implemented.',
+      notice: 'Technical F12 step simulation with regulation scoring.',
     };
   } catch (err) {
     throw mapSimulationError(err);

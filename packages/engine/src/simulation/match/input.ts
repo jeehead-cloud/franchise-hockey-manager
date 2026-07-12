@@ -1,10 +1,29 @@
-import { isF11CompatibleBalanceConfig, type MatchBalanceSection } from '../../balance/index.js';
-import { FHM_ENGINE_VERSION, F11_SIMULATION_MODE, REGULATION_PERIODS, PERIOD_DURATION_SECONDS } from './constants.js';
+import { isF12CompatibleBalanceConfig, type MatchBalanceSection } from '../../balance/index.js';
+import { GOALIE_ATTRIBUTE_KEYS, SKATER_ATTRIBUTE_KEYS } from '../../players/types.js';
+import { FHM_ENGINE_VERSION, F12_SIMULATION_MODE, REGULATION_PERIODS, PERIOD_DURATION_SECONDS } from './constants.js';
 import { IncompatibleBalanceConfigError, InvalidSimulationInputError } from './errors.js';
-import type { SimulationInput, SimulationTeamInput } from './types.js';
+import type { SimulationInput, SimulationPlayerProfile, SimulationTeamInput } from './types.js';
 
 function assertFinite(n: number, label: string) {
   if (!Number.isFinite(n)) throw new InvalidSimulationInputError(`${label} must be finite`);
+}
+
+function validatePlayerAttributes(p: SimulationPlayerProfile, label: string) {
+  if (p.primaryPosition === 'G') {
+    if (!p.goalieAttributes) {
+      throw new InvalidSimulationInputError(`${label} player ${p.playerId} missing goalieAttributes`);
+    }
+    for (const key of GOALIE_ATTRIBUTE_KEYS) {
+      assertFinite(p.goalieAttributes[key], `${label} player ${p.playerId} goalie.${key}`);
+    }
+    return;
+  }
+  if (!p.skaterAttributes) {
+    throw new InvalidSimulationInputError(`${label} player ${p.playerId} missing skaterAttributes`);
+  }
+  for (const key of SKATER_ATTRIBUTE_KEYS) {
+    assertFinite(p.skaterAttributes[key], `${label} player ${p.playerId} skater.${key}`);
+  }
 }
 
 function validateTeam(team: SimulationTeamInput, label: string) {
@@ -26,6 +45,7 @@ function validateTeam(team: SimulationTeamInput, label: string) {
   for (const p of team.players) {
     assertFinite(p.currentAbility, `${label} player ${p.playerId} currentAbility`);
     assertFinite(p.roleRating, `${label} player ${p.playerId} roleRating`);
+    validatePlayerAttributes(p, label);
   }
   for (const unit of [...team.forwardLines, ...team.defensePairs, team.starterGoalie]) {
     assertFinite(unit.effectivePerformance, `${label} unit ${unit.unitKey} effectivePerformance`);
@@ -43,9 +63,9 @@ function validateTeam(team: SimulationTeamInput, label: string) {
 }
 
 export function getMatchConfig(input: SimulationInput): MatchBalanceSection {
-  if (!isF11CompatibleBalanceConfig(input.balance.snapshot)) {
+  if (!isF12CompatibleBalanceConfig(input.balance.snapshot)) {
     throw new IncompatibleBalanceConfigError(
-      `Active balance schemaVersion ${input.balance.snapshot.schemaVersion} is not F11-compatible (requires schemaVersion >= 2 with active match section)`,
+      `Active balance schemaVersion ${input.balance.snapshot.schemaVersion} is not F12-compatible (requires schemaVersion >= 3 with active match/shots/goalies)`,
     );
   }
   return input.balance.snapshot.match;
@@ -56,7 +76,7 @@ export function validateSimulationInput(input: SimulationInput): void {
   if (input.engineVersion !== FHM_ENGINE_VERSION) {
     throw new InvalidSimulationInputError(`Unsupported engineVersion ${input.engineVersion}`);
   }
-  if (input.simulationMode !== F11_SIMULATION_MODE) {
+  if (input.simulationMode !== F12_SIMULATION_MODE) {
     throw new InvalidSimulationInputError(`Unsupported simulationMode ${input.simulationMode}`);
   }
   if (!input.inputFingerprint) throw new InvalidSimulationInputError('inputFingerprint required');

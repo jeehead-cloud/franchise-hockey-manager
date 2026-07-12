@@ -8,11 +8,55 @@ import ratingWeights from '../config/rating-weights.json' with { type: 'json' };
 import skaterRoles from '../config/skater-roles.json' with { type: 'json' };
 import goalieRoles from '../config/goalie-roles.json' with { type: 'json' };
 import { parseBalanceConfig } from './schema.js';
-import type { BalanceConfig, RuntimeSimulationSettings } from './types.js';
+import type {
+  BalanceConfig,
+  GoaliesBalanceSection,
+  RoleShotTendencyTier,
+  RuntimeSimulationSettings,
+  ShotsBalanceSection,
+} from './types.js';
 import { BALANCE_SCHEMA_VERSION } from './types.js';
 
 /** Keep in sync with simulation FHM_ENGINE_VERSION. */
-const ENGINE_COMPAT_VERSION = 'f11.1';
+const ENGINE_COMPAT_VERSION = 'f12.1';
+
+const HIGH_SHOT_TENDENCY_ROLES = new Set([
+  'POINT_SHOOTER',
+  'POWER_FORWARD',
+  'ROCKET',
+  'ATTACKING_D',
+  'DEFLECTOR',
+  'SCREENER',
+  'GARBAGE_COLLECTOR',
+  'CHAOS_MAKER',
+]);
+
+const LOW_SHOT_TENDENCY_ROLES = new Set([
+  'DEFENSIVE_D',
+  'GRINDER',
+  'ENFORCER',
+  'SHADOW',
+  'BACKCHECKER',
+  'NZ_FORECHECKER',
+  'CA_FORWARD',
+  'DEEP_FORECHECKER',
+  'INTERCEPTOR',
+]);
+
+function roleShotTendency(role: string): RoleShotTendencyTier {
+  if (HIGH_SHOT_TENDENCY_ROLES.has(role)) return 'high';
+  if (LOW_SHOT_TENDENCY_ROLES.has(role)) return 'low';
+  return 'medium';
+}
+
+function defaultRoleShotTendencies(): Record<string, RoleShotTendencyTier> {
+  const labels = skaterRoles.labels as Record<string, string>;
+  const out: Record<string, RoleShotTendencyTier> = {};
+  for (const role of Object.keys(labels).sort()) {
+    out[role] = roleShotTendency(role);
+  }
+  return out;
+}
 
 function defaultMatchSection() {
   return {
@@ -38,6 +82,116 @@ function defaultMatchSection() {
       offensiveTurnover: 0.4,
       offensiveStoppage: 0.25,
     },
+    offensiveZoneShotOpportunityProbability: 0.28,
+    offensiveZoneContinuedPossessionProbability: 0.15,
+  };
+}
+
+export function defaultShotsSection(): ShotsBalanceSection {
+  return {
+    active: true,
+    shotTypeWeights: {
+      WRIST: 0.35,
+      SNAP: 0.25,
+      SLAP: 0.15,
+      BACKHAND: 0.1,
+      TIP: 0.08,
+      DEFLECTION: 0.07,
+    },
+    roleShotTendencyMultipliers: {
+      high: 1.15,
+      medium: 1.0,
+      low: 0.85,
+    },
+    roleShotTendencies: defaultRoleShotTendencies(),
+    shooterAttributeWeights: {
+      shooting: 0.55,
+      offensiveAwareness: 0.3,
+      currentAbility: 0.15,
+    },
+    shotQualityWeights: {
+      shooting: 0.35,
+      offensiveAwareness: 0.2,
+      stickhandling: 0.15,
+      attackingUnitEffectivePerformance: 0.15,
+      defensivePressure: -0.15,
+    },
+    passQualityContribution: 0.08,
+    screenContribution: 0.05,
+    deflectionContribution: 0.1,
+    defensivePressureWeights: {
+      defensiveAwareness: 0.35,
+      strength: 0.25,
+      balance: 0.2,
+      defendingUnitEffectivePerformance: 0.2,
+    },
+    blockProbability: 0.18,
+    missProbability: 0.35,
+    onTargetFloor: 0.25,
+    onTargetCeiling: 0.92,
+    goalProbabilityFloor: 0.03,
+    goalProbabilityCeiling: 0.45,
+    shotQualityVariance: 0.12,
+  };
+}
+
+export function defaultGoaliesSection(): GoaliesBalanceSection {
+  return {
+    active: true,
+    attributeWeightsByShotType: {
+      WRIST: {
+        reflexes: 0.2,
+        positioning: 0.35,
+        glove: 0.25,
+        blocker: 0.1,
+        consistency: 0.1,
+      },
+      SLAP: {
+        positioning: 0.25,
+        blocker: 0.35,
+        reflexes: 0.2,
+        movement: 0.1,
+        consistency: 0.1,
+      },
+      SNAP: {
+        reflexes: 0.25,
+        positioning: 0.3,
+        glove: 0.2,
+        blocker: 0.15,
+        consistency: 0.1,
+      },
+      BACKHAND: {
+        positioning: 0.3,
+        reflexes: 0.3,
+        glove: 0.15,
+        movement: 0.15,
+        consistency: 0.1,
+      },
+      TIP: {
+        reflexes: 0.4,
+        positioning: 0.25,
+        reboundControl: 0.2,
+        consistency: 0.15,
+      },
+      DEFLECTION: {
+        reflexes: 0.35,
+        positioning: 0.25,
+        reboundControl: 0.25,
+        consistency: 0.15,
+      },
+    },
+    saveProbabilityCurve: {
+      intercept: 0.72,
+      shotQualitySlope: -0.65,
+    },
+    consistencyVarianceEffect: 0.35,
+    reboundOutcomeWeights: {
+      controlled: 0.45,
+      rebound: 0.3,
+      frozen: 0.25,
+    },
+    screenPenalty: 0.08,
+    lateralMovementEffect: 0.12,
   };
 }
 
@@ -101,8 +255,8 @@ export function getStandardBalanceConfig(): BalanceConfig {
         'Coach-style and tactical preference matrices used by F9 live under chemistry.coachFit and chemistry.tacticalFit.',
     },
     match: defaultMatchSection(),
-    shots: inactive('F12', 'Shot resolution coefficients are deferred until F12.'),
-    goalies: inactive('F12', 'Goalie save resolution beyond F5 model is deferred until F12.'),
+    shots: defaultShotsSection(),
+    goalies: defaultGoaliesSection(),
     penalties: inactive('F13', 'Penalty and special-teams coefficients are deferred until F13.'),
     development: inactive('F24', 'Annual development curves are deferred until F24.'),
     scouting: inactive('F26', 'Scouting confidence curves are deferred until F26.'),

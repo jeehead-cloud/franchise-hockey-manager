@@ -7,9 +7,11 @@
 > Technical source of truth for stack, monorepo structure, data flow, and config-driven balance.
 > For game behavior, see `PRODUCT_RULES.md` and `PLAYER_MODEL.md`. For status, see `CURRENT_STATUS.md`.
 
-F10 adds versioned balance presets (`BalancePreset` / immutable `BalancePresetVersion` / singleton `ActiveBalanceConfiguration`). Repository Standard defaults are composed in `packages/engine/src/balance` (**schemaVersion 2** includes active F11 `match` section). Chemistry and simulation load the active immutable snapshot. F5 player derivation still uses static JSON imports.
+F10 adds versioned balance presets (`BalancePreset` / immutable `BalancePresetVersion` / singleton `ActiveBalanceConfiguration`). Repository Standard defaults are composed in `packages/engine/src/balance` (**schemaVersion 3** includes active F12 `match` + `shots` + `goalies` sections; v1/v2 remain immutable). Chemistry and simulation load the active immutable snapshot. F5 player derivation still uses static JSON imports.
 
-**F11** adds a pure match engine in `packages/engine/src/simulation/match/` (`f11.1`): deterministic regulation progression (periods → shifts → possessions → technical events), seeded Mulberry32 RNG, immutable simulation input, pause/resume snapshots, and trace hashing. No shots/goals/persistence. Server exposes read-only debug endpoints under `/api/simulation/debug/*` (non-production). Client `/simulation-lab` runs technical simulations only.
+**F11** adds a pure match engine in `packages/engine/src/simulation/match/`: deterministic regulation progression (periods → shifts → possessions → events), seeded Mulberry32 RNG, immutable simulation input, pause/resume snapshots, and trace hashing.
+
+**F12** extends the engine to `f12.1` / `F12_SCORING`: offensive-zone shot opportunities, shot resolution, assists from pass chains, event-derived statistics, reconciliation, and pending-shot pause/resume. Server read-only debug endpoints under `/api/simulation/debug/*` return score/stats/reconciliation. Client `/simulation-lab` shows F12 scoring diagnostics (not batch Simulation Lab).
 
 F9 chemistry remains derived on read and now consumes the active preset chemistry section (with preset/version/hash metadata). Familiarity is still stubbed at 0.
 

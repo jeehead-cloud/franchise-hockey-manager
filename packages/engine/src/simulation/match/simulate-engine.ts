@@ -1,9 +1,21 @@
 import type { MatchBalanceSection } from '../../balance/types.js';
-import { FHM_ENGINE_VERSION, FORBIDDEN_F11_EVENT_TYPES } from './constants.js';
+import { isF12CompatibleBalanceConfig } from '../../balance/schema.js';
+import {
+  FHM_ENGINE_VERSION,
+  FORBIDDEN_F13_EVENT_TYPES,
+  SNAPSHOT_SCHEMA_VERSION,
+} from './constants.js';
 import { IllegalStateTransitionError, InvalidSnapshotError, SafetyLimitExceededError } from './errors.js';
 import { getMatchConfig, validateSimulationInput } from './input.js';
 import { computeTraceHash } from './hash.js';
-import { createRng, nextFloat, nextInt, chance, weightedPick } from './rng.js';
+import { createRng, nextFloat, nextInt, chance, weightedPick, pick } from './rng.js';
+import {
+  computeShotOpportunityProbability,
+  createShotAttempt,
+  resolvePendingShot,
+} from './shots.js';
+import { reduceStatistics } from './statistics.js';
+import { reconcileStatistics } from './reconciliation.js';
 import type {
   ActiveLines,
   MatchEvent,
@@ -42,7 +54,17 @@ function makeEvent(
     possession: extra.possession ?? state.possession,
     strengthState: 'EVEN_5V5',
     shiftNumber: state.currentShift?.shiftNumber ?? null,
-    visibility: extra.visibility ?? (type === 'PERIOD_START' || type === 'FACEOFF' ? 'PUBLIC' : 'TECHNICAL'),
+    visibility:
+      extra.visibility ??
+      (type === 'PERIOD_START' ||
+      type === 'FACEOFF' ||
+      type === 'GOAL' ||
+      type === 'SAVE' ||
+      type === 'SHOT' ||
+      type === 'SHOT_BLOCKED' ||
+      type === 'SHOT_MISSED'
+        ? 'PUBLIC'
+        : 'TECHNICAL'),
     details: extra.details ?? {},
   };
 }
@@ -165,6 +187,9 @@ export function createInitialMatchState(input: SimulationInput): MatchState {
     eventIndex: 0,
     rng: createRng(input.seed),
     safetyEventsEmitted: 0,
+    passChainPlayerIds: [],
+    pendingShot: null,
+    shotSequenceId: 0,
   };
 }
 
@@ -180,7 +205,7 @@ function emit(
   if (state.safetyEventsEmitted >= cfg.eventSafetyLimit) {
     throw new SafetyLimitExceededError(`Event safety limit ${cfg.eventSafetyLimit} exceeded`);
   }
-  if (FORBIDDEN_F11_EVENT_TYPES.includes(type as never)) {
+  if (FORBIDDEN_F13_EVENT_TYPES.includes(type as never)) {
     throw new IllegalStateTransitionError(`Forbidden event type ${type}`);
   }
   const ev = makeEvent(state, input, type, extra);
@@ -273,6 +298,94 @@ function resolvePossessionAction(input: SimulationInput, state: MatchState, even
   }
 
   // OFFENSIVE
+  if (isF12CompatibleBalanceConfig(input.balance.snapshot)) {
+    const matchCfg = input.balance.snapshot.match;
+    const shotOppP = computeShotOpportunityProbability(
+      attEp,
+      defEp,
+      matchCfg,
+      input.balance.snapshot.shots,
+    );
+    const continuedP = matchCfg.offensiveZoneContinuedPossessionProbability;
+    const turnoverP = cfg.turnoverBaseProbability * z.offensiveTurnover;
+    const stoppageP = z.offensiveStoppage;
+    const roll = nextFloat(rng);
+    rng = roll.rng;
+    const r = roll.value;
+    let s = advanceClock({ ...state, rng }, timeCost, input.rules.periodDurationSeconds);
+
+    if (r < shotOppP) {
+      return createShotAttempt(input, s, events);
+    }
+    if (r < shotOppP + turnoverP) {
+      const next = {
+        ...s,
+        possession: def,
+        zone: 'DEFENSIVE' as PossessionZone,
+        passChainPlayerIds: [],
+      };
+      const out = emit(
+        input,
+        next,
+        events,
+        'TURNOVER',
+        { teamId: teamIdForSide(input, def), zone: 'DEFENSIVE', possession: def },
+        0,
+      );
+      return { state: out.state, events: out.events };
+    }
+    if (r < shotOppP + turnoverP + stoppageP) {
+      const next = {
+        ...s,
+        possession: 'NONE' as PossessionSide,
+        zone: null,
+        passChainPlayerIds: [],
+        phase: 'AWAITING_STOPPAGE_FACEOFF' as const,
+      };
+      const out = emit(
+        input,
+        next,
+        events,
+        'STOPPAGE',
+        { teamId: teamIdForSide(input, atk), details: { reason: 'PUCK_FROZEN' } },
+        0,
+      );
+      return { state: out.state, events: out.events };
+    }
+    if (r < shotOppP + turnoverP + stoppageP + continuedP) {
+      const attackingIds =
+        atk === 'HOME'
+          ? [...lines.homeForwardPlayerIds, ...lines.homeDefensePlayerIds]
+          : [...lines.awayForwardPlayerIds, ...lines.awayDefensePlayerIds];
+      let chain = [...state.passChainPlayerIds];
+      if (attackingIds.length > 0) {
+        const passer = pick(rng, attackingIds);
+        rng = passer.rng;
+        chain = [...chain, passer.value].slice(-2);
+      }
+      const next = { ...s, rng, passChainPlayerIds: chain, zone: 'OFFENSIVE' as PossessionZone, possession: atk };
+      const out = emit(
+        input,
+        next,
+        events,
+        'POSSESSION_GAIN',
+        { teamId: teamIdForSide(input, atk), zone: 'OFFENSIVE', possession: atk },
+        0,
+      );
+      return { state: out.state, events: out.events };
+    }
+    const next = { ...s, zone: 'OFFENSIVE' as PossessionZone, possession: atk };
+    const out = emit(
+      input,
+      next,
+      events,
+      'POSSESSION_GAIN',
+      { teamId: teamIdForSide(input, atk), zone: 'OFFENSIVE', possession: atk },
+      0,
+    );
+    return { state: out.state, events: out.events };
+  }
+
   const turnoverP = cfg.turnoverBaseProbability * z.offensiveTurnover;
   const stoppageP = z.offensiveStoppage;
   const roll = nextFloat(rng);
@@ -363,6 +476,12 @@ export function simulateNextEvent(input: SimulationInput, state: MatchState, exi
         s = { ...s, phase: 'AWAITING_PERIOD_END' };
         break;
       }
+      if (s.pendingShot) {
+        const resolved = resolvePendingShot(input, s, events);
+        s = resolved.state;
+        events = resolved.events;
+        break;
+      }
       const shift = s.currentShift!;
       const shiftDuration = s.clockElapsedSeconds - shift.startElapsedSeconds;
       if (shiftDuration >= shift.plannedDurationSeconds) {
@@ -445,7 +564,9 @@ export function simulateRegulation(input: SimulationInput): SimulationResult {
   if (state.phase !== 'COMPLETE') {
     throw new SafetyLimitExceededError('Regulation simulation did not complete before safety limit');
   }
-  const diagnostics = computeDiagnostics(input, events, state, false);
+  const statistics = reduceStatistics(input, events, state);
+  const reconciliation = reconcileStatistics(input, events, state, statistics);
+  const diagnostics = computeDiagnostics(input, events, state, false, reconciliation.ok);
   return {
     metadata: {
       engineVersion: FHM_ENGINE_VERSION,
@@ -460,6 +581,9 @@ export function simulateRegulation(input: SimulationInput): SimulationResult {
     finalState: state,
     events,
     diagnostics,
+    statistics,
+    reconciliation,
+    periodScores: statistics.periodScores,
   };
 }
 
@@ -519,6 +643,7 @@ export function computeDiagnostics(
   events: MatchEvent[],
   state: MatchState,
   safetyLimitHit: boolean,
+  reconciliationOk: boolean | null = null,
 ): SimulationDiagnostics {
   const eventsByType: Record<string, number> = {};
   const shiftsByTeamLine: Record<string, number> = {};
@@ -558,6 +683,39 @@ export function computeDiagnostics(
     if (e.type === 'FACEOFF' && e.teamId === input.awayTeam.teamId) faceoffWins.away += 1;
   }
 
+  const shotAttempts = events.filter((e) => e.type === 'SHOT').length;
+  const shotsBlocked = events.filter((e) => e.type === 'SHOT_BLOCKED').length;
+  const shotsMissed = events.filter((e) => e.type === 'SHOT_MISSED').length;
+  const shotsOnGoal = events.filter((e) => e.type === 'SAVE' || e.type === 'GOAL').length;
+  const saves = events.filter((e) => e.type === 'SAVE').length;
+  const goals = events.filter((e) => e.type === 'GOAL').length;
+  const shotTypes: Record<string, number> = {};
+  const shotsByPeriod: Record<number, number> = {};
+  const goalsByPeriod: Record<number, number> = {};
+  let qualitySum = 0;
+  let qualityCount = 0;
+  for (const e of events) {
+    if (e.type === 'SHOT') {
+      const st = String(e.details.shotType ?? 'UNKNOWN');
+      shotTypes[st] = (shotTypes[st] ?? 0) + 1;
+      shotsByPeriod[e.period] = (shotsByPeriod[e.period] ?? 0) + 1;
+      const q = e.details.shotQuality;
+      if (typeof q === 'number') {
+        qualitySum += q;
+        qualityCount += 1;
+      }
+    }
+    if (e.type === 'GOAL') {
+      goalsByPeriod[e.period] = (goalsByPeriod[e.period] ?? 0) + 1;
+    }
+  }
+  const stats = reduceStatistics(input, events, state);
+  const topShooters = stats.skaters
+    .filter((s) => s.shotsOnGoal > 0 || s.goals > 0)
+    .sort((a, b) => b.goals - a.goals || b.shotsOnGoal - a.shotsOnGoal)
+    .slice(0, 5)
+    .map((s) => ({ playerId: s.playerId, shotsOnGoal: s.shotsOnGoal, goals: s.goals }));
+
   return {
     totalEvents: events.length,
     eventsByType,
@@ -570,6 +728,27 @@ export function computeDiagnostics(
     regulationDurationSeconds: input.rules.regulationPeriods * input.rules.periodDurationSeconds,
     safetyLimitHit,
     traceHash: computeTraceHash(events),
+    shotAttempts,
+    shotsBlocked,
+    shotsMissed,
+    shotsOnGoal,
+    saves,
+    goals,
+    shootingPercentage: shotsOnGoal > 0 ? goals / shotsOnGoal : 0,
+    savePercentage: shotsOnGoal > 0 ? saves / shotsOnGoal : 0,
+    shotsByPeriod,
+    goalsByPeriod,
+    shotTypes,
+    averageShotQuality: qualityCount > 0 ? qualitySum / qualityCount : 0,
+    topShooters,
+    goalieSummaries: stats.goalies.map((g) => ({
+      playerId: g.playerId,
+      shotsAgainst: g.shotsAgainst,
+      saves: g.saves,
+      goalsAgainst: g.goalsAgainst,
+      savePercentage: g.savePercentage,
+    })),
+    reconciliationOk,
   };
 }
 
@@ -579,7 +758,7 @@ export function serializeMatchSnapshot(
   events: MatchEvent[],
 ): MatchSnapshot {
   return {
-    schemaVersion: 1,
+    schemaVersion: SNAPSHOT_SCHEMA_VERSION,
     engineVersion: FHM_ENGINE_VERSION,
     simulationMode: input.simulationMode,
     inputFingerprint: input.inputFingerprint,
@@ -597,7 +776,14 @@ export function restoreMatchSnapshot(snapshot: MatchSnapshot, input: SimulationI
   events: MatchEvent[];
 } {
   if (snapshot.engineVersion !== FHM_ENGINE_VERSION) {
-    throw new InvalidSnapshotError(`Unsupported snapshot engineVersion ${snapshot.engineVersion}`);
+    throw new InvalidSnapshotError(
+      `Unsupported snapshot engineVersion ${snapshot.engineVersion} (requires ${FHM_ENGINE_VERSION})`,
+    );
+  }
+  if (snapshot.schemaVersion !== SNAPSHOT_SCHEMA_VERSION) {
+    throw new InvalidSnapshotError(
+      `Unsupported snapshot schemaVersion ${snapshot.schemaVersion} (requires ${SNAPSHOT_SCHEMA_VERSION})`,
+    );
   }
   if (snapshot.inputFingerprint !== input.inputFingerprint) {
     throw new InvalidSnapshotError('Snapshot inputFingerprint mismatch');

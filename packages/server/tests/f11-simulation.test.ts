@@ -27,14 +27,14 @@ async function autoFillLineup(app: FastifyInstance, teamId: string) {
     payload: {
       expectedUpdatedAt: lineup.json().item.updatedAt,
       mode: 'REPLACE',
-      reason: 'F11 simulation test setup',
+      reason: 'F12 simulation test setup',
     },
   });
   expect(res.statusCode).toBe(200);
   expect(res.json().validation.status).toBe('VALID');
 }
 
-describe('F11 simulation debug API', () => {
+describe('F12 simulation debug API', () => {
   let app: FastifyInstance;
   let prisma: PrismaClient;
   let tempDir: string;
@@ -90,23 +90,29 @@ describe('F11 simulation debug API', () => {
     const res = await app.inject({
       method: 'POST',
       url: '/api/simulation/debug/regulation',
-      payload: { homeTeamId: frostId, awayTeamId: owlsId, seed: 'f11-api-001', eventDetail: 'SUMMARY' },
+      payload: { homeTeamId: frostId, awayTeamId: owlsId, seed: 'f12-api-001', eventDetail: 'SUMMARY' },
     });
     expect(res.statusCode).toBe(200);
     const item = res.json().item;
-    expect(item.metadata.engineVersion).toBe('f11.1');
+    expect(item.metadata.engineVersion).toBe('f12.1');
+    expect(item.metadata.simulationMode).toBe('F12_SCORING');
     expect(item.metadata.balanceHash).toBeTruthy();
-    expect(item.finalState.score).toEqual({ home: 0, away: 0 });
     expect(item.finalState.simulationStatus).toBe('REGULATION_COMPLETE');
+    expect(item.reconciliation.ok).toBe(true);
+    expect(item.statistics.home.goals).toBe(item.finalState.score.home);
+    expect(item.statistics.away.goals).toBe(item.finalState.score.away);
     expect(item.diagnostics.traceHash).toMatch(/^[a-f0-9]+$/);
-    expect(item.notice).toContain('0-0');
+    expect(item.diagnostics.goals).toBeGreaterThan(0);
+    expect(item.notice).toContain('F12');
   });
 
   it('is deterministic for same seed', async () => {
-    const payload = { homeTeamId: frostId, awayTeamId: owlsId, seed: 'f11-api-det', eventDetail: 'NONE' };
+    const payload = { homeTeamId: frostId, awayTeamId: owlsId, seed: 'f12-api-det', eventDetail: 'NONE' };
     const a = await app.inject({ method: 'POST', url: '/api/simulation/debug/regulation', payload });
     const b = await app.inject({ method: 'POST', url: '/api/simulation/debug/regulation', payload });
     expect(a.json().item.diagnostics.traceHash).toBe(b.json().item.diagnostics.traceHash);
+    expect(a.json().item.finalState.score).toEqual(b.json().item.finalState.score);
+    expect(a.json().item.statistics.home.goals).toBe(b.json().item.statistics.home.goals);
   });
 
   it('steps next event and resumes regulation', async () => {
@@ -116,7 +122,7 @@ describe('F11 simulation debug API', () => {
       payload: {
         homeTeamId: frostId,
         awayTeamId: owlsId,
-        seed: 'f11-step-001',
+        seed: 'f12-step-001',
         stepMode: 'NEXT_EVENT',
       },
     });
@@ -128,7 +134,7 @@ describe('F11 simulation debug API', () => {
       payload: {
         homeTeamId: frostId,
         awayTeamId: owlsId,
-        seed: 'f11-step-001',
+        seed: 'f12-step-001',
         snapshot: step.json().item.snapshot,
       },
     });

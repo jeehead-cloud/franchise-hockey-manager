@@ -46,11 +46,12 @@ npm run typecheck
 npm run test:server
 npm run db:validate
 npm run verify:event-engine
+npm run verify:scoring-engine
 npm run setup:validate
 npm run setup:status
 ```
 
-**F11 simulation debug (local/dev only):**
+**F12 simulation debug (local/dev only):**
 
 - `FHM_SIMULATION_DEBUG_ENABLED=true|false` — gates `POST /api/simulation/debug/*` (default enabled in development and test; disabled in production unless explicitly set)
 - Endpoints are read-only; they do not persist matches or mutate world state

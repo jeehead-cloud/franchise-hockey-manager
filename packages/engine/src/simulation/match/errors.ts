@@ -42,3 +42,13 @@ export class IllegalStateTransitionError extends SimulationError {
     this.name = 'IllegalStateTransitionError';
   }
 }
+
+export class StatisticsReconciliationError extends SimulationError {
+  readonly diagnostics: string[];
+
+  constructor(message: string, diagnostics: string[] = []) {
+    super('StatisticsReconciliation', message);
+    this.name = 'StatisticsReconciliationError';
+    this.diagnostics = diagnostics;
+  }
+}

@@ -1,12 +1,44 @@
 import { getStandardBalanceConfig } from '../../balance/index.js';
-import { FHM_ENGINE_VERSION, F11_SIMULATION_MODE, REGULATION_PERIODS, PERIOD_DURATION_SECONDS } from './constants.js';
+import type { GoalieAttributes, SkaterAttributes } from '../../players/types.js';
+import { FHM_ENGINE_VERSION, F12_SIMULATION_MODE, REGULATION_PERIODS, PERIOD_DURATION_SECONDS } from './constants.js';
 import type { SimulationInput, SimulationPlayerProfile, SimulationTeamInput } from './types.js';
+
+function defaultSkaterAttrs(ca: number): SkaterAttributes {
+  const base = Math.round(ca / 5);
+  return {
+    stickhandling: base + 1,
+    shooting: base + 2,
+    passing: base,
+    strength: base,
+    speed: base + 1,
+    balance: base,
+    aggression: base - 1,
+    offensiveAwareness: base + 1,
+    defensiveAwareness: base - 1,
+  };
+}
+
+function defaultGoalieAttrs(ca: number): GoalieAttributes {
+  const base = Math.round(ca / 5);
+  return {
+    reflexes: base + 2,
+    positioning: base + 1,
+    reboundControl: base,
+    glove: base + 1,
+    blocker: base + 1,
+    movement: base,
+    puckHandling: base - 1,
+    consistency: base,
+    stamina: base,
+  };
+}
 
 function skater(
   id: string,
   slot: string,
   pos: SimulationPlayerProfile['primaryPosition'],
   ca = 70,
+  role = 'TWO_WAY_FORWARD',
 ): SimulationPlayerProfile {
   return {
     playerId: id,
@@ -17,9 +49,10 @@ function skater(
     currentAbility: ca,
     offensiveRating: ca - 2,
     defensiveRating: ca - 4,
-    role: 'TWO_WAY',
+    role,
     roleRating: 65,
     effectivePerformance: ca,
+    skaterAttributes: defaultSkaterAttrs(ca),
   };
 }
 
@@ -36,6 +69,7 @@ function goalie(id: string, slot: string, ca = 72): SimulationPlayerProfile {
     role: 'STARTER',
     roleRating: 70,
     effectivePerformance: ca,
+    goalieAttributes: defaultGoalieAttrs(ca),
   };
 }
 
@@ -63,9 +97,9 @@ function buildTeam(side: 'HOME' | 'AWAY', prefix: string): SimulationTeamInput {
     { slot: 'G_BACKUP', playerId: `${prefix}-g2` },
   ];
   const players = [
-    skater(`${prefix}-f1lw`, 'F1_LW', 'LW', side === 'HOME' ? 72 : 68),
-    skater(`${prefix}-f1c`, 'F1_C', 'C', side === 'HOME' ? 74 : 67),
-    skater(`${prefix}-f1rw`, 'F1_RW', 'RW'),
+    skater(`${prefix}-f1lw`, 'F1_LW', 'LW', side === 'HOME' ? 72 : 68, 'PLAYMAKER'),
+    skater(`${prefix}-f1c`, 'F1_C', 'C', side === 'HOME' ? 74 : 67, 'GARBAGE_COLLECTOR'),
+    skater(`${prefix}-f1rw`, 'F1_RW', 'RW', 70, 'ROCKET'),
     skater(`${prefix}-f2lw`, 'F2_LW', 'LW'),
     skater(`${prefix}-f2c`, 'F2_C', 'C'),
     skater(`${prefix}-f2rw`, 'F2_RW', 'RW'),
@@ -75,13 +109,13 @@ function buildTeam(side: 'HOME' | 'AWAY', prefix: string): SimulationTeamInput {
     skater(`${prefix}-f4lw`, 'F4_LW', 'LW'),
     skater(`${prefix}-f4c`, 'F4_C', 'C'),
     skater(`${prefix}-f4rw`, 'F4_RW', 'RW'),
-    skater(`${prefix}-d1ld`, 'D1_LD', 'LD'),
-    skater(`${prefix}-d1rd`, 'D1_RD', 'RD'),
+    skater(`${prefix}-d1ld`, 'D1_LD', 'LD', 70, 'ATTACKING_D'),
+    skater(`${prefix}-d1rd`, 'D1_RD', 'RD', 69, 'QUARTERBACK'),
     skater(`${prefix}-d2ld`, 'D2_LD', 'LD'),
     skater(`${prefix}-d2rd`, 'D2_RD', 'RD'),
     skater(`${prefix}-d3ld`, 'D3_LD', 'LD'),
     skater(`${prefix}-d3rd`, 'D3_RD', 'RD'),
-    goalie(`${prefix}-g1`, 'G_STARTER'),
+    goalie(`${prefix}-g1`, 'G_STARTER', side === 'HOME' ? 74 : 68),
     goalie(`${prefix}-g2`, 'G_BACKUP', 68),
   ];
   const unit = (key: string, ids: string[], ep: number) => ({ unitKey: key, playerIds: ids, effectivePerformance: ep });
@@ -90,13 +124,13 @@ function buildTeam(side: 'HOME' | 'AWAY', prefix: string): SimulationTeamInput {
     teamName: `${prefix} Team`,
     side,
     coach: {
-      coachingStyle: 'BALANCED',
-      tacticalStyle: 'BALANCED',
+      coachingStyle: 'AUTHORITATIVE',
+      tacticalStyle: 'SYSTEM',
       overallCoaching: 70,
       offense: 70,
       defense: 70,
     },
-    tacticalStyle: 'BALANCED',
+    tacticalStyle: 'SYSTEM',
     lineupAssignments,
     players,
     forwardLines: [
@@ -110,16 +144,16 @@ function buildTeam(side: 'HOME' | 'AWAY', prefix: string): SimulationTeamInput {
       unit('D2', [`${prefix}-d2ld`, `${prefix}-d2rd`], 68),
       unit('D3', [`${prefix}-d3ld`, `${prefix}-d3rd`], 66),
     ],
-    starterGoalie: unit('G_STARTER', [`${prefix}-g1`], 72),
+    starterGoalie: unit('G_STARTER', [`${prefix}-g1`], side === 'HOME' ? 74 : 68),
   };
 }
 
-export function buildTestSimulationInput(seed: string | number = 'f11-test-001'): SimulationInput {
+export function buildTestSimulationInput(seed: string | number = 'f12-test-001'): SimulationInput {
   const balanceConfig = getStandardBalanceConfig();
   return {
     matchId: 'test-match-001',
     engineVersion: FHM_ENGINE_VERSION,
-    simulationMode: F11_SIMULATION_MODE,
+    simulationMode: F12_SIMULATION_MODE,
     seed,
     inputFingerprint: 'test-fingerprint',
     balance: {

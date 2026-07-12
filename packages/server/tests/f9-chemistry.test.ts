@@ -61,7 +61,7 @@ describe('F9 chemistry APIs', () => {
       presetName: 'Standard',
       versionNumber: expect.any(Number),
       configHash: expect.stringMatching(/^[a-f0-9]{64}$/),
-      schemaVersion: 2,
+      schemaVersion: 3,
     });
     expect(item.chemistry.forwardLines).toHaveLength(4);
     expect(item.chemistry.overall.unavailableUnits).toBeGreaterThan(0);

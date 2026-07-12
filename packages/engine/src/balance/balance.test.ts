@@ -3,14 +3,20 @@ import { describe, expect, it } from 'vitest';
 import {
   canonicalizeBalanceConfig,
   collectChangedPaths,
-  defaultChemistryRuntimeConfig,
-  evaluateChemistryUnit,
+  defaultGoaliesSection,
+  defaultShotsSection,
   getStandardBalanceConfig,
+  isF12CompatibleBalanceConfig,
   normalizeBalanceConfig,
+  SHOT_TYPES,
   validateBalanceConfig,
   validateRuntimeSimulationSettings,
+} from './index.js';
+import {
+  defaultChemistryRuntimeConfig,
+  evaluateChemistryUnit,
   chemistryRuntimeFromBalance,
-} from '../index.js';
+} from '../chemistry/index.js';
 
 function hash(config: ReturnType<typeof getStandardBalanceConfig>) {
   return createHash('sha256').update(canonicalizeBalanceConfig(config)).digest('hex');
@@ -19,17 +25,37 @@ function hash(config: ReturnType<typeof getStandardBalanceConfig>) {
 describe('balance config', () => {
   it('parses Standard defaults with required sections', () => {
     const config = getStandardBalanceConfig();
-    expect(config.schemaVersion).toBe(2);
+    expect(config.schemaVersion).toBe(3);
     expect(config.presetKey).toBe('standard');
     expect(config.chemistry.active).toBe(true);
     expect(config.playerModel.active).toBe(true);
     expect(config.match.active).toBe(true);
+    expect(config.shots.active).toBe(true);
+    expect(config.goalies.active).toBe(true);
     if (config.match.active) {
       expect(config.match.regulationPeriods).toBe(3);
+      expect(config.match.offensiveZoneShotOpportunityProbability).toBeCloseTo(0.28);
+      expect(config.match.offensiveZoneContinuedPossessionProbability).toBeCloseTo(0.15);
+    }
+    if (config.shots.active) {
+      for (const shotType of SHOT_TYPES) {
+        expect(config.shots.shotTypeWeights[shotType]).toBeGreaterThan(0);
+      }
+    }
+    if (config.goalies.active) {
+      for (const shotType of SHOT_TYPES) {
+        expect(config.goalies.attributeWeightsByShotType[shotType]).toBeTruthy();
+      }
     }
     expect(config.chemistry.weights.version).toBe('f9-v1');
+    expect(isF12CompatibleBalanceConfig(config)).toBe(true);
     const result = validateBalanceConfig(config);
     expect(result.ok).toBe(true);
+  });
+
+  it('default shots and goalies sections validate independently', () => {
+    expect(validateBalanceConfig(defaultShotsSection()).ok).toBe(false);
+    expect(validateBalanceConfig(defaultGoaliesSection()).ok).toBe(false);
   });
 
   it('canonicalization is order-independent and hash-stable', () => {
@@ -72,6 +98,32 @@ describe('balance config', () => {
             ...base.chemistry.weights,
             caps: { ...base.chemistry.weights.caps, totalMin: 0.2, totalMax: 0.1 },
           },
+        },
+      }).ok,
+    ).toBe(false);
+  });
+
+  it('rejects schemaVersion 3 config with inactive shots or goalies', () => {
+    const base = getStandardBalanceConfig();
+    expect(
+      validateBalanceConfig({
+        ...base,
+        shots: {
+          active: false,
+          status: 'INACTIVE_UNTIL_MILESTONE',
+          milestone: 'F12',
+          notes: 'inactive',
+        },
+      }).ok,
+    ).toBe(false);
+    expect(
+      validateBalanceConfig({
+        ...base,
+        goalies: {
+          active: false,
+          status: 'INACTIVE_UNTIL_MILESTONE',
+          milestone: 'F12',
+          notes: 'inactive',
         },
       }).ok,
     ).toBe(false);

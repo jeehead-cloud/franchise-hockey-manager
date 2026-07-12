@@ -807,7 +807,7 @@ BalancePresetVersion
 
 # 16. F11 — Event Engine Core
 
-**Status: implemented locally (2026-07-13).** Pure deterministic regulation match engine (`f11.1`), balance schemaVersion 2 active match section, debug API, technical `/simulation-lab` page. Shots/scoring/persistence remain F12+.
+**Status: done on `main` (2026-07-13).** Pure deterministic regulation match engine (`f11.1`), balance schemaVersion 2 active match section, debug API, technical `/simulation-lab` page. Extended by F12 scoring.
 
 ## Goal
 
@@ -872,6 +872,8 @@ GAME_END
 ---
 
 # 17. F12 — Shots, Goalies, and Scoring
+
+**Status: implemented locally (2026-07-13).** Engine `f12.1` / `F12_SCORING`, balance schemaVersion 3 (`shots`/`goalies`), statistics reducer + reconciliation, debug API scoring output, `/simulation-lab` F12 UI. Penalties/persistence remain F13+.
 
 ## Goal
 

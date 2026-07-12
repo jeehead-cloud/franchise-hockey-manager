@@ -16,7 +16,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "dev": "tsc -p tsconfig.json --watch",
     "test": "vitest run",
-    "verify:event-engine": "tsx src/simulation/match/verify-event-engine.ts"
+    "verify:event-engine": "tsx src/simulation/match/verify-event-engine.ts",
+    "verify:scoring-engine": "tsx src/simulation/match/verify-scoring-engine.ts"
   },
   "devDependencies": {
     "typescript": "^5.8.2",

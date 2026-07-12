@@ -1,6 +1,12 @@
-export const BALANCE_SCHEMA_VERSION = 2 as const;
+export const BALANCE_SCHEMA_VERSION = 3 as const;
 
-export const BALANCE_SCHEMA_VERSIONS = [1, 2] as const;
+export const BALANCE_SCHEMA_VERSIONS = [1, 2, 3] as const;
+
+export const SHOT_TYPES = ['WRIST', 'SLAP', 'SNAP', 'BACKHAND', 'TIP', 'DEFLECTION'] as const;
+
+export type ShotType = (typeof SHOT_TYPES)[number];
+
+export type RoleShotTendencyTier = 'high' | 'medium' | 'low';
 
 export type LoggingLevel = 'MINIMAL' | 'STANDARD' | 'DETAILED' | 'DEBUG';
 
@@ -124,6 +130,76 @@ export interface MatchBalanceSection {
     offensiveTurnover: number;
     offensiveStoppage: number;
   };
+  offensiveZoneShotOpportunityProbability: number;
+  offensiveZoneContinuedPossessionProbability: number;
+}
+
+export interface ShotsBalanceSection {
+  active: true;
+  shotTypeWeights: Record<ShotType, number>;
+  roleShotTendencyMultipliers: Record<RoleShotTendencyTier, number>;
+  roleShotTendencies: Record<string, RoleShotTendencyTier>;
+  shooterAttributeWeights: {
+    shooting: number;
+    offensiveAwareness: number;
+    currentAbility: number;
+  };
+  shotQualityWeights: {
+    shooting: number;
+    offensiveAwareness: number;
+    stickhandling: number;
+    attackingUnitEffectivePerformance: number;
+    defensivePressure: number;
+  };
+  passQualityContribution: number;
+  screenContribution: number;
+  deflectionContribution: number;
+  defensivePressureWeights: {
+    defensiveAwareness: number;
+    strength: number;
+    balance: number;
+    defendingUnitEffectivePerformance: number;
+  };
+  blockProbability: number;
+  missProbability: number;
+  onTargetFloor: number;
+  onTargetCeiling: number;
+  goalProbabilityFloor: number;
+  goalProbabilityCeiling: number;
+  shotQualityVariance: number;
+}
+
+export interface GoaliesBalanceSection {
+  active: true;
+  attributeWeightsByShotType: Record<
+    ShotType,
+    Partial<
+      Record<
+        | 'reflexes'
+        | 'positioning'
+        | 'reboundControl'
+        | 'glove'
+        | 'blocker'
+        | 'movement'
+        | 'puckHandling'
+        | 'consistency'
+        | 'stamina',
+        number
+      >
+    >
+  >;
+  saveProbabilityCurve: {
+    intercept: number;
+    shotQualitySlope: number;
+  };
+  consistencyVarianceEffect: number;
+  reboundOutcomeWeights: {
+    controlled: number;
+    rebound: number;
+    frozen: number;
+  };
+  screenPenalty: number;
+  lateralMovementEffect: number;
 }
 
 export interface BalanceConfig extends BalanceMetadata {
@@ -132,8 +208,8 @@ export interface BalanceConfig extends BalanceMetadata {
   chemistry: ChemistryBalanceSection;
   tactics: ActiveTacticsSection;
   match: MatchBalanceSection | InactiveSection;
-  shots: InactiveSection;
-  goalies: InactiveSection;
+  shots: ShotsBalanceSection | InactiveSection;
+  goalies: GoaliesBalanceSection | InactiveSection;
   penalties: InactiveSection;
   development: InactiveSection;
   scouting: InactiveSection;

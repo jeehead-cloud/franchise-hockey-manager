@@ -1,4 +1,4 @@
-import { simulateRegulation, FORBIDDEN_F11_EVENT_TYPES } from '../../index.js';
+import { simulateRegulation, FORBIDDEN_F13_EVENT_TYPES } from '../../index.js';
 import { buildTestSimulationInput } from './fixture.js';
 
 const count = Number(process.env.FHM_EVENT_ENGINE_VERIFY_COUNT ?? 200);
@@ -16,8 +16,12 @@ for (let i = 0; i < count; i += 1) {
       console.error(`Run ${i}: safety limit hit`);
       failures += 1;
     }
+    if (!result.reconciliation.ok) {
+      console.error(`Run ${i}: reconciliation failed`);
+      failures += 1;
+    }
     for (const ev of result.events) {
-      if ((FORBIDDEN_F11_EVENT_TYPES as readonly string[]).includes(ev.type)) {
+      if ((FORBIDDEN_F13_EVENT_TYPES as readonly string[]).includes(ev.type)) {
         console.error(`Run ${i}: forbidden event ${ev.type}`);
         failures += 1;
         break;

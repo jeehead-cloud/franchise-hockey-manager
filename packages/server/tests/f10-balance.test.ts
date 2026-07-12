@@ -74,13 +74,13 @@ describe('F10 balance configuration', () => {
     expect(preset.name).toBe('Standard');
     expect(preset.isSystem).toBe(true);
     expect(preset.versions.length).toBeGreaterThanOrEqual(1);
-    expect(preset.versions.some((v) => v.schemaVersion >= 2)).toBe(true);
+    expect(preset.versions.some((v) => v.schemaVersion >= 3)).toBe(true);
 
     const active = await prisma.activeBalanceConfiguration.findUniqueOrThrow({
       where: { id: 'default' },
     });
     const activeVersion = preset.versions.find((v) => v.id === active.activePresetVersionId);
-    expect(activeVersion?.schemaVersion).toBeGreaterThanOrEqual(2);
+    expect(activeVersion?.schemaVersion).toBeGreaterThanOrEqual(3);
 
     const versionCount = await prisma.balancePresetVersion.count();
     const second = await bootstrapBalanceConfiguration(prisma);
