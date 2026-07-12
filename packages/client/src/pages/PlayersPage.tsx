@@ -203,7 +203,10 @@ export function PlayersPage() {
             {data.items.map((p) => (
               <DataRow key={p.id} onActivate={() => navigate(`/players/${p.id}`)}>
                 <Td primary>{playerLabel(p)}</Td>
-                <Td>{p.primaryPosition}</Td>
+                <Td>
+                  {p.primaryPosition}
+                  {p.secondaryPositions?.length ? ` (${p.secondaryPositions.join('/')})` : ''}
+                </Td>
                 <Td>{p.currentTeam?.name ?? 'Unassigned'}</Td>
                 <Td>{p.currentAbility ?? '—'}</Td>
                 <Td>{p.roleLabel ?? p.role ?? '—'}</Td>

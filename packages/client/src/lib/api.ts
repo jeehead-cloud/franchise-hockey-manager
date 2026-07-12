@@ -177,6 +177,10 @@ export interface WorldSummary {
     readyTeams?: number;
     warningTeams?: number;
     notReadyTeams?: number;
+    teamsWithoutLineup?: number;
+    teamsWithIncompleteLineup?: number;
+    teamsWithValidLineup?: number;
+    teamsWithInvalidLineup?: number;
   };
   competitionEditions: Array<{
     id: string;
@@ -223,6 +227,137 @@ export interface TeamListItem {
   readinessStatus?: 'READY' | 'WARNING' | 'NOT_READY';
 }
 
+export type LineupPresence = 'ABSENT' | 'INCOMPLETE' | 'VALID' | 'INVALID';
+export type LineupValidationStatus = 'VALID' | 'INCOMPLETE' | 'INVALID';
+export type LineupSlot =
+  | 'F1_LW'
+  | 'F1_C'
+  | 'F1_RW'
+  | 'F2_LW'
+  | 'F2_C'
+  | 'F2_RW'
+  | 'F3_LW'
+  | 'F3_C'
+  | 'F3_RW'
+  | 'F4_LW'
+  | 'F4_C'
+  | 'F4_RW'
+  | 'D1_LD'
+  | 'D1_RD'
+  | 'D2_LD'
+  | 'D2_RD'
+  | 'D3_LD'
+  | 'D3_RD'
+  | 'G_STARTER'
+  | 'G_BACKUP';
+export type PositionFit = 'PRIMARY' | 'SECONDARY' | 'NONE';
+export type AutoLineupMode = 'REPLACE' | 'FILL_EMPTY';
+
+export interface LineupValidationIssue {
+  code: string;
+  severity: 'error' | 'warning';
+  slot?: LineupSlot;
+  playerId?: string;
+  message: string;
+}
+
+export interface LineupValidationResult {
+  status: LineupValidationStatus;
+  errors: LineupValidationIssue[];
+  warnings: LineupValidationIssue[];
+  filledSlots: number;
+  requiredSlots: number;
+  eligiblePlayerCount: number;
+}
+
+export interface LineupPlayerRef {
+  id: string;
+  firstName: string;
+  lastName: string;
+  primaryPosition: string;
+  secondaryPositions: string[];
+  rosterStatus: string;
+  currentAbility: number | null;
+  role: string | null;
+  roleRating: number | null;
+  modelStatus: PlayerModelStatus;
+  positionFit?: PositionFit;
+  eligible?: boolean;
+  assignedToLineup?: boolean;
+}
+
+export interface LineupAssignment {
+  slot: LineupSlot;
+  playerId: string;
+  player?: LineupPlayerRef;
+}
+
+export interface LineupBoard {
+  forwardLines: Array<{ lw: LineupPlayerRef | null; c: LineupPlayerRef | null; rw: LineupPlayerRef | null }>;
+  defensePairs: Array<{ ld: LineupPlayerRef | null; rd: LineupPlayerRef | null }>;
+  goalies: { starter: LineupPlayerRef | null; backup: LineupPlayerRef | null };
+}
+
+export interface TeamLineupSummary {
+  presence: LineupPresence;
+  validationStatus: LineupValidationStatus | null;
+  filledSlots: number;
+  requiredSlots: number;
+  updatedAt: string | null;
+}
+
+export interface TeamLineup {
+  team: { id: string; name: string; shortName: string | null };
+  exists: boolean;
+  id?: string;
+  updatedAt: string | null;
+  version: number | null;
+  assignments: LineupAssignment[];
+  board: LineupBoard;
+  validation: LineupValidationResult;
+  presence: LineupPresence;
+  filledSlots: number;
+  requiredSlots: number;
+}
+
+export interface CommissionerTeamLineup extends TeamLineup {
+  expectedUpdatedAt: string | null;
+  eligiblePlayers: LineupPlayerRef[];
+}
+
+export interface CommissionerLineupSavePayload {
+  expectedUpdatedAt: string | null;
+  reason: string;
+  assignments: Array<{ slot: LineupSlot; playerId: string }>;
+}
+
+export interface CommissionerLineupAutoFillPayload {
+  expectedUpdatedAt: string | null;
+  reason: string;
+  mode: AutoLineupMode;
+}
+
+export interface CommissionerLineupMutationResult {
+  item: CommissionerTeamLineup;
+  validation: LineupValidationResult;
+  presence: LineupPresence;
+  auto?: {
+    mode: AutoLineupMode;
+    unfilledSlots: LineupSlot[];
+    warnings: LineupValidationIssue[];
+    explanation: Array<{ slot: LineupSlot; selectedPlayerId: string | null; reasons: string[] }>;
+  };
+}
+
+export interface LineupAuditItem {
+  id: string;
+  action: string;
+  reason: string;
+  source: string;
+  createdAt: string;
+  changedFields: string[];
+}
+
 export interface TeamDetail extends TeamListItem {
   externalId: string | null;
   sourceDataset: string | null;
@@ -236,6 +371,7 @@ export interface TeamDetail extends TeamListItem {
   };
   roster: PlayerListItem[];
   readiness?: { status: 'READY' | 'WARNING' | 'NOT_READY'; checks: Array<{ code: string; label: string; result: string; explanation: string }>; counts: Record<string, number> };
+  lineupSummary?: TeamLineupSummary;
 }
 
 export interface CoachItem {
@@ -307,6 +443,7 @@ export interface PlayerListItem extends PlayerModelCompact {
   dateOfBirth: string;
   age?: number | null;
   primaryPosition: string;
+  secondaryPositions?: string[];
   rosterStatus: string;
   sourceType: string;
   nationality?: CountryRef;
@@ -475,6 +612,7 @@ export interface CommissionerPlayerDetail extends PlayerDetail {
       nationalityCountryId: string;
       currentTeamId: string | null;
       primaryPosition: string;
+      secondaryPositions: string[];
       rosterStatus: string;
       sourceType: string;
     };
@@ -506,6 +644,7 @@ export interface CommissionerPlayerEditPayload {
     nationalityCountryId: string;
     currentTeamId: string | null;
     primaryPosition: string;
+    secondaryPositions: string[];
     rosterStatus: string;
   };
   profile: {
@@ -627,3 +766,68 @@ export const updateCommissionerCoach = (id: string, payload: CommissionerCoachPa
 export const getCommissionerTeamSetup = (id: string) => commissionerGetJson<{ item: { id: string; tacticalStyle: string | null; updatedAt: string; coach: CoachItem | null; readiness: TeamDetail['readiness'] } }>(`/api/commissioner/teams/${id}/setup`);
 export const updateCommissionerTeamSetup = (id: string, payload: { expectedUpdatedAt: string; reason: string; headCoachId: string | null; tacticalStyle: string | null; replaceExisting?: boolean; moveFromOtherTeam?: boolean }) => commissionerWrite<{ item: unknown }>(`/api/commissioner/teams/${id}/setup`, 'PATCH', payload);
 export const updateTeamRosterStatus = (id: string, payload: { playerId: string; rosterStatus: string; expectedUpdatedAt: string; reason: string }) => commissionerWrite<{ item: unknown }>(`/api/commissioner/teams/${id}/roster-status`, 'PATCH', payload);
+
+export async function getTeamLineup(id: string, signal?: AbortSignal): Promise<{ item: TeamLineup }> {
+  return getJson(`/api/teams/${id}/lineup`, signal);
+}
+
+export async function getCommissionerTeamLineup(
+  id: string,
+  signal?: AbortSignal,
+): Promise<{ item: CommissionerTeamLineup }> {
+  return commissionerGetJson(`/api/commissioner/teams/${id}/lineup`, signal);
+}
+
+async function commissionerLineupWrite<T>(
+  path: string,
+  method: 'PUT' | 'POST',
+  payload: unknown,
+): Promise<T> {
+  const res = await fetch(`${apiBase()}${path}`, {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      [COMMISSIONER_HEADER]: 'enabled',
+      'X-FHM-Commissioner-Source': 'ui',
+    },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    let message = `Request failed: ${res.status}`;
+    let details: unknown;
+    try {
+      const body = (await res.json()) as { message?: string; error?: string; details?: unknown };
+      message = body.message || body.error || message;
+      details = body.details;
+    } catch {
+      /* ignore */
+    }
+    const err = new Error(message) as Error & { status?: number; details?: unknown };
+    err.status = res.status;
+    err.details = details;
+    throw err;
+  }
+  return res.json() as Promise<T>;
+}
+
+export async function saveCommissionerTeamLineup(
+  id: string,
+  payload: CommissionerLineupSavePayload,
+): Promise<CommissionerLineupMutationResult> {
+  return commissionerLineupWrite(`/api/commissioner/teams/${id}/lineup`, 'PUT', payload);
+}
+
+export async function autoFillCommissionerTeamLineup(
+  id: string,
+  payload: CommissionerLineupAutoFillPayload,
+): Promise<CommissionerLineupMutationResult> {
+  return commissionerLineupWrite(`/api/commissioner/teams/${id}/lineup/auto-fill`, 'POST', payload);
+}
+
+export async function getCommissionerLineupAudit(
+  id: string,
+  params: Record<string, string | number | undefined | null> = {},
+  signal?: AbortSignal,
+): Promise<Paginated<LineupAuditItem>> {
+  return commissionerGetJson(`/api/commissioner/teams/${id}/lineup/audit${qs(params)}`, signal);
+}

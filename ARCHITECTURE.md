@@ -7,7 +7,9 @@
 > Technical source of truth for stack, monorepo structure, data flow, and config-driven balance.
 > For game behavior, see `PRODUCT_RULES.md` and `PLAYER_MODEL.md`. For status, see `CURRENT_STATUS.md`.
 
-F7 adds a pure engine readiness evaluator consumed by server team/world summaries. Coach, tactic, and roster-status commissioner writes remain transactional and append audit records; no lineup or chemistry logic is included.
+F8 adds pure engine lineup validation and deterministic auto-lineup (`packages/engine/src/lineups`). Persistence is `TeamLineup` / `LineupAssignment` plus `PlayerSecondaryPosition`. Commissioner lineup writes are transactional and audited (`TEAM_LINEUP`). Team readiness is lineup-aware: READY requires a complete valid main lineup. No chemistry or special teams.
+
+F7 readiness evaluator remains the structural base (coach, tactics, depth); F8 extends it with lineup presence.
 
 ---
 

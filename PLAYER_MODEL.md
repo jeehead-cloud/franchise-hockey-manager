@@ -7,7 +7,16 @@
 
 > This document is the detailed spec for a single player: identity, growth/aging formulas, attributes, and archetype derivation. Sections §1–§7 preserve the spreadsheet prototype translation. **§0 documents the F5 implemented model** (authoritative for current code).
 
-For design *rules*, see `PRODUCT_RULES.md`. Engine code: `packages/engine/src/players`, `packages/engine/src/goalies`, `packages/engine/src/config/*.json`.
+For design *rules*, see `PRODUCT_RULES.md`. Engine code: `packages/engine/src/players`, `packages/engine/src/goalies`, `packages/engine/src/lineups`, `packages/engine/src/config/*.json`.
+
+### Secondary positions (F8)
+
+- Persisted via `PlayerSecondaryPosition` (unique per player + position).
+- Allowed values: LW, RW, C, LD, RD only — never G.
+- Primary position must not appear as secondary.
+- Goalies have no secondary positions (cleared on skater→goalie conversion).
+- Lineup slots accept exact primary or secondary matches only (no broad wing/defense fallback).
+- Main-lineup eligibility still requires ACTIVE/RESERVE + complete F5 model; PROSPECT/UNAVAILABLE cannot be assigned.
 
 ---
 

@@ -2,6 +2,8 @@ import { prisma } from '../db/client.js';
 import { getSetupStatus } from '../initialization/index.js';
 import { mapCompetitionEdition } from '../mappers.js';
 import { buildTeamReadiness } from './team-readiness.js';
+import { buildValidationForTeam, lineupPresenceFromValidation } from './lineup-helpers.js';
+import type { LineupSlot } from '@fhm/engine';
 
 export interface WorldWarning {
   code: string;
@@ -64,6 +66,7 @@ export async function getWorldSummary() {
       coach: { select: { id: true } },
       players: {
         select: {
+          id: true,
           primaryPosition: true,
           rosterStatus: true,
           preferredCoachingStyle: true,
@@ -78,16 +81,35 @@ export async function getWorldSummary() {
           publicPotentialEstimate: true,
           skaterAttributes: true,
           goalieAttributes: true,
+          secondaryPositions: { select: { position: true } },
         },
       },
+      lineup: { include: { assignments: { select: { slot: true, playerId: true } } } },
     },
   });
   const readinessCounts = { readyTeams: 0, warningTeams: 0, notReadyTeams: 0 };
+  const lineupCounts = {
+    teamsWithoutLineup: 0,
+    teamsWithIncompleteLineup: 0,
+    teamsWithValidLineup: 0,
+    teamsWithInvalidLineup: 0,
+  };
   for (const team of readinessTeams) {
+    const assignmentInputs = team.lineup
+      ? team.lineup.assignments.map((a) => ({ slot: a.slot as LineupSlot, playerId: a.playerId }))
+      : [];
+    const validation = buildValidationForTeam(team.players, assignmentInputs);
+    const presence = lineupPresenceFromValidation(Boolean(team.lineup), team.lineup ? validation : null);
+    if (presence === 'ABSENT') lineupCounts.teamsWithoutLineup += 1;
+    else if (presence === 'INCOMPLETE') lineupCounts.teamsWithIncompleteLineup += 1;
+    else if (presence === 'VALID') lineupCounts.teamsWithValidLineup += 1;
+    else lineupCounts.teamsWithInvalidLineup += 1;
+
     const status = buildTeamReadiness({
       hasHeadCoach: Boolean(team.coach),
       tacticalStyle: team.tacticalStyle,
       players: team.players,
+      lineupPresence: presence,
     }).status;
     if (status === 'READY') readinessCounts.readyTeams += 1;
     else if (status === 'WARNING') readinessCounts.warningTeams += 1;
@@ -224,6 +246,7 @@ export async function getWorldSummary() {
       teamsWithoutCoaches,
       teamsWithoutTacticalStyle,
       ...readinessCounts,
+      ...lineupCounts,
     },
     competitionEditions: editions.map(mapCompetitionEdition),
     warnings,

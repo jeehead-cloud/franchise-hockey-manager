@@ -2,19 +2,32 @@ import { prisma } from '../db/client.js';
 import { CommissionerHttpError } from '../commissioner/errors.js';
 import type { CommissionerRosterStatusInput, CommissionerTeamSetupInput } from '../commissioner/schemas.js';
 import { buildTeamReadiness } from './team-readiness.js';
+import { buildValidationForTeam, lineupPresenceFromValidation } from './lineup-helpers.js';
 import { isErrorResult, parsePagination } from './query.js';
+import type { LineupSlot } from '@fhm/engine';
 
 const teamInclude = {
   coach: { select: { id: true, firstName: true, lastName: true, coachingStyle: true, tacticalStyle: true, overallCoaching: true, playerDevelopment: true, offense: true, defense: true } },
-  players: { include: { skaterAttributes: true, goalieAttributes: true } },
+  players: { include: { skaterAttributes: true, goalieAttributes: true, secondaryPositions: { select: { position: true } } } },
+  lineup: { include: { assignments: { select: { slot: true, playerId: true } } } },
 } as const;
 
 async function detail(id: string) {
   const team = await prisma.team.findUnique({ where: { id }, include: teamInclude });
   if (!team) return null;
+  const assignmentInputs = team.lineup
+    ? team.lineup.assignments.map((a) => ({ slot: a.slot as LineupSlot, playerId: a.playerId }))
+    : [];
+  const validation = buildValidationForTeam(team.players, assignmentInputs);
+  const presence = lineupPresenceFromValidation(Boolean(team.lineup), team.lineup ? validation : null);
   return {
     id: team.id, tacticalStyle: team.tacticalStyle, updatedAt: team.updatedAt.toISOString(), coach: team.coach,
-    readiness: buildTeamReadiness({ hasHeadCoach: Boolean(team.coach), tacticalStyle: team.tacticalStyle, players: team.players }),
+    readiness: buildTeamReadiness({
+      hasHeadCoach: Boolean(team.coach),
+      tacticalStyle: team.tacticalStyle,
+      players: team.players,
+      lineupPresence: presence,
+    }),
   };
 }
 

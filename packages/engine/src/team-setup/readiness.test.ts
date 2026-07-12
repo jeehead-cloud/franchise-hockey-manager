@@ -26,16 +26,27 @@ function buildReadyRoster(): TeamReadinessRosterMember[] {
 }
 
 describe('team readiness', () => {
-  it('marks a fully configured depth roster READY', () => {
+  it('marks a fully configured depth roster READY when lineup is valid', () => {
     const result = evaluateTeamReadiness({
       hasHeadCoach: true,
       hasTacticalStyle: true,
       roster: buildReadyRoster(),
+      lineup: { presence: 'VALID' },
     });
     expect(result.status).toBe('READY');
     expect(result.counts.availableForwards).toBe(TEAM_READINESS_THRESHOLDS.availableForwards);
     expect(result.counts.availableDefensemen).toBe(TEAM_READINESS_THRESHOLDS.availableDefensemen);
     expect(result.counts.availableGoalies).toBe(TEAM_READINESS_THRESHOLDS.availableGoalies);
+  });
+
+  it('warns when structural depth is ready but main lineup is absent', () => {
+    const result = evaluateTeamReadiness({
+      hasHeadCoach: true,
+      hasTacticalStyle: true,
+      roster: buildReadyRoster(),
+    });
+    expect(result.status).toBe('WARNING');
+    expect(result.checks.find((c) => c.code === 'MAIN_LINEUP')?.result).toBe('WARN');
   });
 
   it('fails without a head coach', () => {

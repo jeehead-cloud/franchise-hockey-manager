@@ -8,7 +8,7 @@
 > These are not implementation suggestions — they are behavioral constraints that future features must respect unless the owner explicitly changes them.
 > For the detailed player attribute/growth model this document builds on, see `PLAYER_MODEL.md`.
 
-F7 readiness is an administrative structural check only: PROSPECT players are excluded, while coach assignment, tactical style, available positional depth, and complete player models are reported without creating lineups or chemistry effects.
+F8 main lineups use exact primary/secondary position slot fits only. Auto-lineup is deterministic from eligibility, position fit, current ability, and limited role tie-breaks — not chemistry. Partial lineup saves are allowed; invalid assignments are retained and surfaced until corrected. READY readiness requires a complete valid 20-slot lineup in addition to F7 structural checks.
 
 ---
 

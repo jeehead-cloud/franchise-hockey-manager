@@ -51,8 +51,11 @@ export function summarizeRoster(roster: TeamReadinessInput['roster']): TeamReadi
 }
 
 /**
- * Deterministic structural team readiness for F7.
- * Does not consider ratings, chemistry, contracts, or lineups.
+ * Deterministic team readiness (F7 structural + F8 lineup-aware).
+ * Does not consider ratings, chemistry, or contracts.
+ *
+ * READY requires structural depth + coach + tactics + complete valid 20-slot lineup.
+ * INVALID lineup → NOT_READY. Missing/incomplete lineup → WARNING (when structure otherwise passes).
  */
 export function evaluateTeamReadiness(input: TeamReadinessInput): TeamReadinessResult {
   const counts = summarizeRoster(input.roster);
@@ -160,6 +163,45 @@ export function evaluateTeamReadiness(input: TeamReadinessInput): TeamReadinessR
       actual: true,
       required: true,
       explanation: 'All ACTIVE/RESERVE players have complete models (or none are available).',
+    });
+  }
+
+  const lineupPresence = input.lineup?.presence ?? 'ABSENT';
+  if (lineupPresence === 'VALID') {
+    checks.push({
+      code: 'MAIN_LINEUP',
+      label: 'Main lineup',
+      result: 'PASS',
+      actual: 'VALID',
+      required: 'VALID',
+      explanation: 'Complete valid 20-slot main lineup is set.',
+    });
+  } else if (lineupPresence === 'INVALID') {
+    checks.push({
+      code: 'MAIN_LINEUP',
+      label: 'Main lineup',
+      result: 'FAIL',
+      actual: 'INVALID',
+      required: 'VALID',
+      explanation: 'Main lineup has invalid assignments that must be corrected.',
+    });
+  } else if (lineupPresence === 'INCOMPLETE') {
+    checks.push({
+      code: 'MAIN_LINEUP',
+      label: 'Main lineup',
+      result: 'WARN',
+      actual: 'INCOMPLETE',
+      required: 'VALID',
+      explanation: 'Main lineup exists but is incomplete (partial saves are allowed).',
+    });
+  } else {
+    checks.push({
+      code: 'MAIN_LINEUP',
+      label: 'Main lineup',
+      result: 'WARN',
+      actual: 'ABSENT',
+      required: 'VALID',
+      explanation: 'No main lineup yet. Generate or assign one in Commissioner Mode.',
     });
   }
 

@@ -13,6 +13,8 @@ import {
   commissionerPlayerEditSchema,
   commissionerRosterStatusSchema,
   commissionerTeamSetupSchema,
+  commissionerLineupSaveSchema,
+  commissionerLineupAutoFillSchema,
 } from '../commissioner/schemas.js';
 import {
   getCommissionerPlayer,
@@ -31,6 +33,12 @@ import {
   updateCommissionerTeamSetup,
   updateTeamRosterStatus,
 } from '../services/commissioner-teams.js';
+import {
+  autoFillCommissionerTeamLineup,
+  getCommissionerTeamLineup,
+  listLineupAudit,
+  saveCommissionerTeamLineup,
+} from '../services/commissioner-lineups.js';
 import { detailResponse, notFound, paginatedResponse } from '../http.js';
 
 function assertCommissionerAccess(request: { headers: Record<string, string | string[] | undefined> }) {
@@ -145,5 +153,57 @@ export async function registerCommissionerRoutes(app: FastifyInstance) {
   });
   app.get('/api/commissioner/teams/:id/audit', async (request, reply) => {
     try { assertCommissionerAccess(request); const result = await listTeamAudit((request.params as { id: string }).id, request.query as Record<string, unknown>); return result ? paginatedResponse(result) : reply.status(404).send(notFound('Team')); } catch (err) { return sendCommissionerError(reply, err); }
+  });
+
+  app.get('/api/commissioner/teams/:id/lineup', async (request, reply) => {
+    try {
+      assertCommissionerAccess(request);
+      const item = await getCommissionerTeamLineup((request.params as { id: string }).id);
+      return item ? detailResponse(item) : reply.status(404).send(notFound('Team'));
+    } catch (err) {
+      return sendCommissionerError(reply, err);
+    }
+  });
+  app.put('/api/commissioner/teams/:id/lineup', async (request, reply) => {
+    try {
+      assertCommissionerAccess(request);
+      const parsed = commissionerLineupSaveSchema.safeParse(request.body);
+      if (!parsed.success) return invalid(reply, 'Invalid lineup save payload', parsed.error.issues);
+      const result = await saveCommissionerTeamLineup(
+        (request.params as { id: string }).id,
+        parsed.data,
+        sourceFor(request),
+      );
+      return result ?? reply.status(404).send(notFound('Team'));
+    } catch (err) {
+      return sendCommissionerError(reply, err);
+    }
+  });
+  app.post('/api/commissioner/teams/:id/lineup/auto-fill', async (request, reply) => {
+    try {
+      assertCommissionerAccess(request);
+      const parsed = commissionerLineupAutoFillSchema.safeParse(request.body);
+      if (!parsed.success) return invalid(reply, 'Invalid lineup auto-fill payload', parsed.error.issues);
+      const result = await autoFillCommissionerTeamLineup(
+        (request.params as { id: string }).id,
+        parsed.data,
+        sourceFor(request),
+      );
+      return result ?? reply.status(404).send(notFound('Team'));
+    } catch (err) {
+      return sendCommissionerError(reply, err);
+    }
+  });
+  app.get('/api/commissioner/teams/:id/lineup/audit', async (request, reply) => {
+    try {
+      assertCommissionerAccess(request);
+      const result = await listLineupAudit(
+        (request.params as { id: string }).id,
+        request.query as Record<string, unknown>,
+      );
+      return result ? paginatedResponse(result) : reply.status(404).send(notFound('Team'));
+    } catch (err) {
+      return sendCommissionerError(reply, err);
+    }
   });
 }

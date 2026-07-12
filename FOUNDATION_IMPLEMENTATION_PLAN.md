@@ -591,7 +591,7 @@ Commissioner Mode:
 
 # 12. F7 — Coaches, Tactics, and Team Setup
 
-**Status: implemented locally (2026-07-13).** Readiness, Commissioner coach/team setup editing, roster statuses, schema v3 fixtures, and UI browsers are complete; F8 lineups/chemistry remains out of scope.
+**Status: done on main (`542d733`).**
 
 ## Goal
 
@@ -641,6 +641,8 @@ UNAVAILABLE
 ---
 
 # 13. F8 — Lines and Auto-Lineup
+
+**Status: implemented locally (2026-07-13).** Persistent main lineups, secondary positions, validation, deterministic auto-lineup (REPLACE/FILL_EMPTY), Commissioner editor, and lineup-aware readiness are complete; F9 chemistry remains out of scope.
 
 ## Goal
 

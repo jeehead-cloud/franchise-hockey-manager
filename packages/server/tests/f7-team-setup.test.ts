@@ -68,7 +68,7 @@ describe('F7 coaches, tactics, and team setup', () => {
     if (tempDir) cleanupTempDir(tempDir);
   });
 
-  it('imports schemaVersion 3 coach ratings and team tactics', async () => {
+  it('imports schemaVersion 4 coach ratings and team tactics', async () => {
     const coach = await prisma.coach.findUniqueOrThrow({ where: { id: assignedCoachId } });
     expect(coach.overallCoaching).toBe(14);
     expect(coach.playerDevelopment).toBe(13);
@@ -93,7 +93,7 @@ describe('F7 coaches, tactics, and team setup', () => {
     expect(res.statusCode).toBe(200);
     const item = res.json().item;
     expect(item.tacticalStyle).toBe('SYSTEM');
-    expect(item.readiness.status).toBe('NOT_READY');
+    expect(item.readiness.status).toBe('WARNING');
     expect(item.readiness.checks.some((c: { code: string }) => c.code === 'AVAILABLE_FORWARDS')).toBe(
       true,
     );

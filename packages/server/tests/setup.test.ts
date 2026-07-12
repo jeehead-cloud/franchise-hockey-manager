@@ -32,7 +32,7 @@ describe('F3 loader', () => {
   it('loads the development fixture manifest and files', () => {
     const dataset = loadDataset(fixtureDir);
     expect(dataset.manifest.datasetId).toBe('fhm-f3-minimal-fixture-v1');
-    expect(dataset.manifest.schemaVersion).toBe(3);
+    expect(dataset.manifest.schemaVersion).toBe(4);
     expect(dataset.countries.length).toBeGreaterThan(0);
     expect(dataset.players.length).toBeGreaterThan(0);
   });
@@ -72,6 +72,19 @@ describe('F3 loader', () => {
     }
   });
 
+  it('rejects schemaVersion 3 with a clear migration message', () => {
+    const dir = copyFixtureToTemp();
+    try {
+      const path = join(dir, 'manifest.json');
+      const manifest = JSON.parse(readFileSync(path, 'utf8'));
+      manifest.schemaVersion = 3;
+      writeFileSync(path, JSON.stringify(manifest, null, 2));
+      expect(() => loadDataset(dir)).toThrow(/schemaVersion 4|schemaVersion: 3/i);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it('rejects schemaVersion 2 with a clear migration message', () => {
     const dir = copyFixtureToTemp();
     try {
@@ -79,7 +92,7 @@ describe('F3 loader', () => {
       const manifest = JSON.parse(readFileSync(path, 'utf8'));
       manifest.schemaVersion = 2;
       writeFileSync(path, JSON.stringify(manifest, null, 2));
-      expect(() => loadDataset(dir)).toThrow(/schemaVersion 3|schemaVersion: 2/i);
+      expect(() => loadDataset(dir)).toThrow(/schemaVersion 4|schemaVersion: 2/i);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -94,7 +107,7 @@ describe('F3 loader', () => {
       >;
       manifest.schemaVersion = 1;
       writeFileSync(join(dir, 'manifest.json'), JSON.stringify(manifest), 'utf8');
-      expect(() => loadDataset(dir)).toThrow(/schemaVersion 3|schemaVersion: 1/i);
+      expect(() => loadDataset(dir)).toThrow(/schemaVersion 4|schemaVersion: 1/i);
     } finally {
       cleanupTempDir(dir);
     }
@@ -106,7 +119,7 @@ describe('F3 validation', () => {
     const report = validateDataset(loadDataset(fixtureDir));
     expect(report.valid).toBe(true);
     expect(report.warnings.some((w) => w.code === 'FICTIONAL_DATASET')).toBe(true);
-    expect(report.counts.players).toBe(6);
+    expect(report.counts.players).toBe(24);
   });
 
   it('rejects duplicate external IDs', () => {
@@ -305,7 +318,7 @@ describe('F3 preview / initialize / idempotency', () => {
     expect(result.created.countries).toBe(2);
     expect(result.created.leagues).toBe(1);
     expect(result.created.teams).toBe(3);
-    expect(result.created.players).toBe(6);
+    expect(result.created.players).toBe(24);
     expect(result.created.coaches).toBe(2);
     expect(result.created.competitions).toBe(1);
     expect(result.created.competitionEditions).toBe(1);
@@ -337,12 +350,12 @@ describe('F3 preview / initialize / idempotency', () => {
       include: { coach: true, players: true },
     });
     expect(team?.coach?.externalId).toBe('coach-rowan-pike');
-    expect(team?.players.length).toBe(2);
+    expect(team?.players.length).toBe(20);
 
     const meta = await prisma.appMeta.findUnique({ where: { id: 'default' } });
     expect(meta?.worldInitialized).toBe(true);
     expect(meta?.worldDatasetId).toBe('fhm-f3-minimal-fixture-v1');
-    expect(meta?.worldSchemaVersion).toBe(3);
+    expect(meta?.worldSchemaVersion).toBe(4);
   });
 
   it('rolls back partial data after injected failure', async () => {
@@ -441,7 +454,7 @@ describe('F3 setup API', () => {
     expect(res.statusCode).toBe(200);
     const body = res.json();
     expect(body.valid).toBe(true);
-    expect(body.counts.players).toBe(6);
+    expect(body.counts.players).toBe(24);
   });
 
   it('POST initialize success then 409', async () => {

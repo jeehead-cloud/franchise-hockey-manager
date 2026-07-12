@@ -27,6 +27,7 @@ const playerInclude = {
   },
   skaterAttributes: true,
   goalieAttributes: true,
+  secondaryPositions: { select: { position: true } },
 } as const;
 
 const PLAYER_SORTS = ['lastName', 'firstName', 'dateOfBirth', 'primaryPosition', 'createdAt'] as const;

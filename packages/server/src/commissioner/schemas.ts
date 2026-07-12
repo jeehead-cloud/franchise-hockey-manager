@@ -48,6 +48,7 @@ export const commissionerPlayerEditSchema = z
         nationalityCountryId: nonEmpty,
         currentTeamId: z.string().trim().min(1).nullable(),
         primaryPosition: z.enum(['LW', 'RW', 'C', 'LD', 'RD', 'G']),
+        secondaryPositions: z.array(z.enum(['LW', 'RW', 'C', 'LD', 'RD'])).default([]),
         rosterStatus: z.enum(['ACTIVE', 'RESERVE', 'PROSPECT', 'UNAVAILABLE']),
       })
       .strict(),
@@ -90,6 +91,31 @@ export const commissionerPlayerEditSchema = z
       });
     }
     const isGoalie = row.identity.primaryPosition === 'G';
+    if (isGoalie && row.identity.secondaryPositions.length > 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Goalie must not have secondary positions',
+        path: ['identity', 'secondaryPositions'],
+      });
+    }
+    const seen = new Set<string>();
+    for (const pos of row.identity.secondaryPositions) {
+      if (pos === row.identity.primaryPosition) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Secondary position must not duplicate primary',
+          path: ['identity', 'secondaryPositions'],
+        });
+      }
+      if (seen.has(pos)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Duplicate secondary position ${pos}`,
+          path: ['identity', 'secondaryPositions'],
+        });
+      }
+      seen.add(pos);
+    }
     if (isGoalie) {
       if (!row.goalieAttributes) {
         ctx.addIssue({
@@ -195,7 +221,57 @@ export const commissionerRosterStatusSchema = z
   })
   .strict();
 
+const lineupSlotEnum = z.enum([
+  'F1_LW',
+  'F1_C',
+  'F1_RW',
+  'F2_LW',
+  'F2_C',
+  'F2_RW',
+  'F3_LW',
+  'F3_C',
+  'F3_RW',
+  'F4_LW',
+  'F4_C',
+  'F4_RW',
+  'D1_LD',
+  'D1_RD',
+  'D2_LD',
+  'D2_RD',
+  'D3_LD',
+  'D3_RD',
+  'G_STARTER',
+  'G_BACKUP',
+]);
+
+export const commissionerLineupSaveSchema = z
+  .object({
+    expectedUpdatedAt: z.string().datetime().nullable(),
+    reason: nonEmpty.max(500),
+    assignments: z
+      .array(
+        z
+          .object({
+            slot: lineupSlotEnum,
+            playerId: nonEmpty,
+          })
+          .strict(),
+      )
+      .max(20),
+  })
+  .strict();
+
+export const commissionerLineupAutoFillSchema = z
+  .object({
+    expectedUpdatedAt: z.string().datetime().nullable(),
+    reason: nonEmpty.max(500),
+    mode: z.enum(['REPLACE', 'FILL_EMPTY']),
+  })
+  .strict();
+
 export type CommissionerCoachEditInput = z.infer<typeof commissionerCoachEditSchema>;
 export type CommissionerCoachCreateInput = z.infer<typeof commissionerCoachCreateSchema>;
 export type CommissionerTeamSetupInput = z.infer<typeof commissionerTeamSetupSchema>;
 export type CommissionerRosterStatusInput = z.infer<typeof commissionerRosterStatusSchema>;
+export type CommissionerLineupSaveInput = z.infer<typeof commissionerLineupSaveSchema>;
+export type CommissionerLineupAutoFillInput = z.infer<typeof commissionerLineupAutoFillSchema>;

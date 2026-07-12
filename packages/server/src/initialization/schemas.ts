@@ -3,7 +3,7 @@ import { z } from 'zod';
 const nonEmpty = z.string().trim().min(1);
 const attr = z.number().int().min(1).max(20);
 
-export const CURRENT_DATASET_SCHEMA_VERSION = 3 as const;
+export const CURRENT_DATASET_SCHEMA_VERSION = 4 as const;
 
 export const manifestSchema = z.object({
   datasetId: nonEmpty,
@@ -104,6 +104,7 @@ export const playerRowSchema = z
     nationalityExternalId: nonEmpty,
     currentTeamExternalId: nonEmpty.nullable().optional(),
     primaryPosition: z.enum(['LW', 'RW', 'C', 'LD', 'RD', 'G']),
+    secondaryPositions: z.array(z.enum(['LW', 'RW', 'C', 'LD', 'RD'])).default([]),
     sourceType: z.enum(['REAL_INITIAL_DATA', 'GENERATED_YOUTH', 'MANUAL', 'IMPORTED']),
     rosterStatus: z.enum(['ACTIVE', 'RESERVE', 'PROSPECT', 'UNAVAILABLE']),
     ...playerModelCommon,
@@ -118,8 +119,33 @@ export const playerRowSchema = z
         path: ['potentialFloor'],
       });
     }
+    const seen = new Set<string>();
+    for (const pos of row.secondaryPositions) {
+      if (pos === row.primaryPosition) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'secondaryPositions must not include primaryPosition',
+          path: ['secondaryPositions'],
+        });
+      }
+      if (seen.has(pos)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Duplicate secondary position ${pos}`,
+          path: ['secondaryPositions'],
+        });
+      }
+      seen.add(pos);
+    }
     const isGoalie = row.primaryPosition === 'G';
     if (isGoalie) {
+      if (row.secondaryPositions.length > 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Goalie must have empty secondaryPositions',
+          path: ['secondaryPositions'],
+        });
+      }
       if (!row.goalieAttributes) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,

@@ -7,12 +7,12 @@ Version-controlled **input snapshots** for world initialization (F3+). Mutable r
 | Path | Role |
 |---|---|
 | `data/world/` | Intended location for the owner-prepared real initial-world snapshot |
-| `data/fixtures/f3-minimal-world/` | Fictional development/test fixture (**schemaVersion 3**, complete F5 player models, coach ratings, and team tactics) |
+| `data/fixtures/f3-minimal-world/` | Fictional development/test fixture (**schemaVersion 4**, F8 secondary positions; Frostbite has full main-lineup depth) |
 | `data/names/`, `data/nhl-teams.json` | Legacy leftover name/team lists — **not** F3 import format |
 
-## Manifest schema (schemaVersion 3)
+## Manifest schema (schemaVersion 4)
 
-F7 requires **`schemaVersion: 3`**. Earlier versions are rejected rather than silently reinterpreted.
+F8 requires **`schemaVersion: 4`**. Earlier versions are rejected rather than silently reinterpreted.
 
 Required manifest keys include `datasetId`, `datasetName`, `schemaVersion`, `sourceName`, `sourceUpdatedAt`, `worldSeasonLabel`, `worldSeasonStartYear`, `worldSeasonEndYear`, and `files`.
 
@@ -31,9 +31,20 @@ Mutual exclusion is enforced. Hidden potential fields are imported but must not 
 
 Each coach must include `coachingStyle`, `tacticalStyle`, and ratings `overallCoaching`, `playerDevelopment`, `offense`, `defense` (integers 1–20), plus optional `nationalityExternalId` / `currentTeamExternalId`.
 
-### Teams (v3)
+### Teams (v3+)
 
 Each team must include `tacticalStyle` (team configuration; separate from the coach’s own tactical style).
+
+### Secondary positions (v4)
+
+Skaters may include `secondaryPositions: ['LW'|'RW'|'C'|'LD'|'RD']` (optional; empty array allowed). Rules:
+
+- must not include primary position;
+- no duplicates;
+- goalies must use `[]`;
+- `G` is never a secondary.
+
+Lineups are **not** imported; teams start without a persisted lineup until Commissioner assignment or auto-fill.
 
 ## Server configuration
 

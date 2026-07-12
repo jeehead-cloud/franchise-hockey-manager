@@ -12,54 +12,39 @@
 
 ## 1. Current Development Phase
 
-**F7 — Coaches, Tactics, and Team Setup: implemented locally (not committed).** Coach ratings, team tactical style, head-coach assignment, roster-status management, schemaVersion 3 import, engine readiness, Commissioner-gated writes with audit, and Coaches/Team Setup UI are in the working tree.
+**F8 — Lines and Auto-Lineup: implemented locally (not committed).** Persistent 20-slot main lineups, secondary positions, deterministic auto-lineup (REPLACE / FILL_EMPTY), Commissioner-gated editing with audit/concurrency, lineup-aware readiness, and schemaVersion 4 import (Frostbite expanded to full depth).
 
-**Next milestone: F8 — Lineups and Chemistry** (do not start until requested).
+**Next milestone: F9 — Chemistry and Effective Performance** (do not start until requested).
 
-F1–F6 remain complete on `main` (`bf1d0ab`, `3e6f343`, `58adfc0`, `c50ce83`, `f2e8ec5`, `d8dccb1`).
+F1–F7 remain complete on `main` (through `542d733`).
 
 ---
 
 ## 2. Milestone Status
 
-### F1 — Monorepo and Application Shell (Done)
+### F1–F6
 
-Committed/pushed: `bf1d0ab`.
+Complete on `main` (`bf1d0ab` … `d8dccb1`).
 
-### F2 — Core Database Model (Done)
+### F7 — Coaches, Tactics, and Team Setup (Done)
 
-Committed/pushed: `3e6f343`.
+Committed/pushed: `542d733`.
 
-### F3 — World Initialization and Real Data Import (Done)
-
-Committed/pushed: `58adfc0`. Dataset format advanced to **schemaVersion 3** under F7 (v1/v2 rejected with clear messages).
-
-### F4 — World Dashboard and Browsers (Done)
-
-Committed/pushed: `c50ce83`. Extended by F7 with readiness fields and Coaches browser.
-
-### F5 — Player Model Foundation (Done)
-
-Committed/pushed: `f2e8ec5`.
-
-### F6 — Commissioner Editing (Done)
-
-Committed/pushed: `d8dccb1`. F7 reuses the same header gate, optimistic concurrency, and append-only audit log.
-
-### F7 — Coaches, Tactics, and Team Setup (Done locally)
+### F8 — Lines and Auto-Lineup (Done locally)
 
 Implemented:
-- Coach ratings `overallCoaching` / `playerDevelopment` / `offense` / `defense` (1–20, nullable on legacy rows)
-- `Team.tacticalStyle` (nullable at DB; required for READY)
-- One head coach per team via `Coach.currentTeamId` unique; unassigned coaches allowed
-- Engine `evaluateTeamReadiness` (12F / 6D / 2G from ACTIVE+RESERVE; PROSPECT and UNAVAILABLE excluded)
-- schemaVersion 3 import (coach ratings + team tactics); v1/v2 rejected
-- Commissioner coach create/edit, team setup assign/unassign/replace/move (explicit flags), roster-status PATCH
-- Audit entity types COACH/TEAM and F7 actions
-- Coaches list/detail/edit/new UI; Team Overview/Roster/Setup; World readiness summary
+- `TeamLineup` + `LineupAssignment` (20 slots); partial saves allowed
+- `PlayerSecondaryPosition` join model; Commissioner player editor manages secondaries
+- Engine `packages/engine/src/lineups/` — validation + deterministic auto-lineup
+- Eligibility: ACTIVE/RESERVE + complete model; PROSPECT/UNAVAILABLE excluded
+- Invalid assignments retained and surfaced (not silently deleted) when roster/status changes
+- Commissioner PUT / auto-fill / audit; normal GET lineup
+- Team Lines tab + `/teams/:teamId/lines/edit` (dnd-kit + keyboard fallback)
+- Readiness: READY requires valid complete lineup; INVALID → NOT_READY; absent/incomplete → WARNING
+- schemaVersion **4**; Frostbite fixture has 20 eligible skaters/goalies; other clubs remain thin
 
-Not in F7:
-- Lineups, auto-lineup, chemistry, coach/tactics fit scoring, matches, auth
+Not in F8:
+- Chemistry, tactical/coach fit, special teams, matches, auth
 
 ### M1–M8
 
@@ -69,24 +54,20 @@ Unchanged.
 
 ## 3. Known Bugs / Limitations Worth Remembering
 
-- Default dataset remains the fictional fixture — not real NHL data. Fixture depth is intentionally small → teams are typically **NOT_READY** on positional totals.
+- Default dataset remains fictional. Cedar/Owls remain under-depth → partial auto-lineup / NOT_READY structural checks.
 - Commissioner header is a **local safety boundary**, not security.
-- Manual UI verification for F7 was **NOT RUN** in the implementing agent session (API/tests covered).
-- Legacy coaches/teams may have null ratings / null tactical style until reimport or Commissioner edit; readiness reports FAIL until filled.
-- PROSPECT players are excluded from F7 main-team readiness depth (must promote to ACTIVE/RESERVE).
-- Role-rating weights remain F5 foundation approximations.
-- Hidden potential still absent from ordinary public player DTOs; Commissioner detail exposes it.
-- F7 changes not yet committed/pushed.
-- SQLite `contains` search is case-sensitive depending on collation.
-- Team list readiness filter may post-filter after DB pagination (acceptable for small worlds).
+- Manual UI verification for F8 was **NOT RUN** in the implementing agent session.
+- Auto-lineup uses ability + position + limited role tie-break only — not chemistry.
+- Invalid lineup assignments are retained until Commissioner corrects them.
+- F8 changes not yet committed/pushed.
 
 ---
 
 ## 4. Nearest Next Steps
 
-1. Commit/push F7 when the owner requests.
-2. Manual UI pass on a disposable schemaVersion 3 fixture database.
-3. **F8 — Lineups and Auto-Lineup** (when requested). Do not start F9 chemistry early.
+1. Commit/push F8 when the owner requests.
+2. Manual UI pass on disposable schemaVersion 4 DB (Lines editor, DnD, auto-fill, invalidation).
+3. **F9 — Chemistry** (when requested). Do not start match simulation early.
 
 ---
 
@@ -94,28 +75,15 @@ Unchanged.
 
 > Ordinary repository-relevant history, newest first.
 
+### 2026-07-13 — F8 Lines and Auto-Lineup
+
+- Work completed: lineup persistence; secondary positions; engine validation/auto-lineup; schema v4 + Frostbite depth; Commissioner lineup APIs; Lines UI/editor; readiness/world integration; docs
+- Validation: 50 engine + 110 server tests; migrate empty→F8 and F7→F8; setup validate/init; typecheck/build; API smoke PASS; manual UI **NOT RUN**
+- Remaining: F8 uncommitted; no chemistry
+
 ### 2026-07-13 — F7 Coaches, Tactics, and Team Setup
 
-- Work completed: Prisma F7 migration; schemaVersion 3 fixtures/import; engine readiness + 11 tests; Commissioner coach/team-setup/roster-status APIs; Coaches browser + Team Setup/Roster UI; World readiness counts; docs
-- Files/areas affected: `packages/engine/src/team-setup/**`, `packages/server` migration/services/routes/tests, `packages/client` coaches/team/world pages, `data/fixtures`, docs
-- Validation: 31 engine + 96 server tests; prisma format/validate/generate; empty→F7 and F6→F7 migrate deploy; setup validate/preview/init; typecheck/build; API smoke PASS; manual UI **NOT RUN**
-- Remaining limitations or follow-up: F7 local uncommitted; fixture teams NOT_READY on depth; no lineups/chemistry
-
-### 2026-07-13 — F6 Commissioner Editing
-
-- Work completed: committed/pushed `d8dccb1`
-
-### 2026-07-13 — F5 Player Model Foundation
-
-- Work completed: committed/pushed `f2e8ec5`
-
-### 2026-07-12 — F4 World Dashboard and Browsers
-
-- Work completed: committed/pushed `c50ce83`
-
-### 2026-07-12 — F3 World Initialization committed
-
-- Work completed: `58adfc0`
+- Work completed: committed/pushed `542d733`
 
 ---
 
@@ -123,42 +91,19 @@ Unchanged.
 
 > Permanent history, newest first.
 
+### 2026-07-13 — F8 main lineup foundation
+
+- Significance: First persisted team lineups and secondary-position model before chemistry.
+- Decision: Exact primary/secondary slot fit only; partial saves allowed; invalid assignments retained; auto-lineup deterministic without chemistry; READY requires complete valid 20-slot lineup.
+- Lasting impact: F9 chemistry must consume lineups without reinventing slot/eligibility rules.
+
 ### 2026-07-13 — F7 team readiness and setup foundation
 
-- Significance: Establishes auditable team structural readiness before lineups and chemistry.
-- Decision: Keep readiness pure in the engine; use explicit `replaceExisting` / `moveFromOtherTeam` flags rather than silently displacing coaches; PROSPECT excluded from available depth; schemaVersion 3 for complete coach/team tactics data.
-- Lasting impact: F8 may consume readiness but must not fold in lineup or chemistry outcomes; coach vs team tactical style remain separate concepts.
+- Related: commit `542d733`
 
-### 2026-07-13 — F6 Commissioner Mode (sandbox editing + audit)
+### 2026-07-13 — F6 Commissioner Mode
 
-- Significance: First write path into the living world; auditability; explicit non-auth safety boundary
-- Decision: Runtime client mode + header gate; full editable snapshot PATCH; engine authority for derived values; append-only audit; hidden potential only on Commissioner endpoints
-- Lasting impact: Later gameplay must not treat Commissioner corrections as normal transactions
-- Related files/areas: `/api/commissioner/*`, `CommissionerAuditLog`, `/players/:id/edit` — commit `d8dccb1`
-
-### 2026-07-13 — F5 player-model foundation (skater/goalie split)
-
-- Related files/areas: commit `f2e8ec5`
-
-### 2026-07-12 — F4 read-only world browsers
-
-- Related files/areas: commit `c50ce83`
-
-### 2026-07-12 — F3 one-time local world initialization boundary
-
-- Related files/areas: commit `58adfc0`
-
-### 2026-07-12 — F2 foundational world schema + read APIs
-
-- Related files/areas: commit `3e6f343`
-
-### 2026-07-12 — F1 foundation: shell without gameplay
-
-- Related files/areas: commit `bf1d0ab`
-
-### 2026-07-10 — Mandatory end-of-iteration CURRENT_STATUS maintenance
-
-- Related files/areas: `AI_AGENTS.md` §12–§13
+- Related: commit `d8dccb1`
 
 ---
 

@@ -10,6 +10,7 @@ import { SettingsPage } from './pages/SettingsPage';
 import { SetupPage } from './pages/SetupPage';
 import { SimulationLabPage } from './pages/SimulationLabPage';
 import { TeamDetailPage } from './pages/TeamDetailPage';
+import { TeamLinesEditPage } from './pages/TeamLinesEditPage';
 import { TeamsPage } from './pages/TeamsPage';
 import { WorldPage } from './pages/WorldPage';
 import { CoachesPage } from './pages/CoachesPage';
@@ -31,6 +32,7 @@ export function App() {
             <Route path="/competitions/:competitionId" element={<CompetitionDetailPage />} />
             <Route path="/teams" element={<TeamsPage />} />
             <Route path="/teams/:teamId" element={<TeamDetailPage />} />
+            <Route path="/teams/:teamId/lines/edit" element={<TeamLinesEditPage />} />
             <Route path="/coaches" element={<CoachesPage />} />
             <Route path="/coaches/new" element={<CoachNewPage />} />
             <Route path="/coaches/:coachId" element={<CoachDetailPage />} />

@@ -1,27 +1,52 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { PageHeader } from '../components/layout/PageHeader';
 import { Badge } from '../components/ui/Badge';
+import { Button } from '../components/ui/Button';
 import {
   DataRow,
   DataTable,
+  Field,
   Td,
+  TextInput,
 } from '../components/ui/DataBrowser';
+import { Dialog } from '../components/ui/Dialog';
 import { EmptyState, ErrorState, LoadingState } from '../components/ui/EmptyState';
+import { LineupBoard, type AssignmentMap } from '../components/ui/LineupBoard';
 import { Panel } from '../components/ui/Panel';
 import { BackLink, RecordNotFound } from '../components/ui/RecordStates';
 import { Tabs } from '../components/ui/Tabs';
-import { getTeam, type TeamDetail } from '../lib/api';
+import {
+  autoFillCommissionerTeamLineup,
+  getTeam,
+  getTeamLineup,
+  saveCommissionerTeamLineup,
+  type LineupSlot,
+  type TeamDetail,
+  type TeamLineup,
+} from '../lib/api';
+import { useCommissioner } from '../lib/commissioner';
 import { playerLabel } from '../lib/listQuery';
+import { presenceTone, secondaryLabel, validationTone } from '../lib/lineupUi';
+
+type ConfirmKind = 'REPLACE' | 'FILL_EMPTY' | 'CLEAR';
 
 export function TeamDetailPage() {
   const { teamId = '' } = useParams();
   const navigate = useNavigate();
+  const { enabled } = useCommissioner();
   const [team, setTeam] = useState<TeamDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notFound, setNotFound] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<'overview' | 'roster' | 'setup'>('overview');
+  const [tab, setTab] = useState<'overview' | 'roster' | 'setup' | 'lines'>('overview');
+  const [lineup, setLineup] = useState<TeamLineup | null>(null);
+  const [lineupLoading, setLineupLoading] = useState(false);
+  const [lineupError, setLineupError] = useState<string | null>(null);
+  const [confirmKind, setConfirmKind] = useState<ConfirmKind | null>(null);
+  const [actionReason, setActionReason] = useState('');
+  const [actionBusy, setActionBusy] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -43,6 +68,85 @@ export function TeamDetailPage() {
       });
     return () => controller.abort();
   }, [teamId]);
+
+  useEffect(() => {
+    if (tab !== 'lines') return;
+    const controller = new AbortController();
+    setLineupLoading(true);
+    setLineupError(null);
+    getTeamLineup(teamId, controller.signal)
+      .then((res) => setLineup(res.item))
+      .catch((err: unknown) => {
+        if (controller.signal.aborted) return;
+        setLineupError(err instanceof Error ? err.message : 'Failed to load lineup');
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLineupLoading(false);
+      });
+    return () => controller.abort();
+  }, [tab, teamId]);
+
+  const boardAssignments: AssignmentMap = useMemo(() => {
+    if (!lineup) return {};
+    const map: AssignmentMap = {};
+    for (const row of lineup.assignments) {
+      map[row.slot] = row.player ?? null;
+    }
+    // Prefer board grouping when assignments empty but board has data
+    const b = lineup.board;
+    const put = (slot: LineupSlot, player: typeof b.goalies.starter) => {
+      if (player) map[slot] = player;
+    };
+    b.forwardLines.forEach((line, i) => {
+      const n = (i + 1) as 1 | 2 | 3 | 4;
+      put(`F${n}_LW`, line.lw);
+      put(`F${n}_C`, line.c);
+      put(`F${n}_RW`, line.rw);
+    });
+    b.defensePairs.forEach((pair, i) => {
+      const n = (i + 1) as 1 | 2 | 3;
+      put(`D${n}_LD`, pair.ld);
+      put(`D${n}_RD`, pair.rd);
+    });
+    put('G_STARTER', b.goalies.starter);
+    put('G_BACKUP', b.goalies.backup);
+    return map;
+  }, [lineup]);
+
+  async function runConfirmedAction() {
+    if (!confirmKind || !lineup) return;
+    if (!actionReason.trim()) {
+      setActionError('Reason is required');
+      return;
+    }
+    setActionBusy(true);
+    setActionError(null);
+    try {
+      if (confirmKind === 'CLEAR') {
+        await saveCommissionerTeamLineup(teamId, {
+          expectedUpdatedAt: lineup.updatedAt,
+          reason: actionReason.trim(),
+          assignments: [],
+        });
+      } else {
+        await autoFillCommissionerTeamLineup(teamId, {
+          expectedUpdatedAt: lineup.updatedAt,
+          reason: actionReason.trim(),
+          mode: confirmKind,
+        });
+      }
+      const refreshed = await getTeamLineup(teamId);
+      setLineup(refreshed.item);
+      const teamRes = await getTeam(teamId);
+      setTeam(teamRes.item);
+      setConfirmKind(null);
+      setActionReason('');
+    } catch (err: unknown) {
+      setActionError(err instanceof Error ? err.message : 'Action failed');
+    } finally {
+      setActionBusy(false);
+    }
+  }
 
   if (loading) {
     return (
@@ -70,6 +174,8 @@ export function TeamDetailPage() {
     );
   }
 
+  const summary = team.lineupSummary;
+
   return (
     <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
       <BackLink to="/teams" label="Teams" />
@@ -94,6 +200,7 @@ export function TeamDetailPage() {
           { value: 'overview', label: 'Overview' },
           { value: 'roster', label: 'Roster' },
           { value: 'setup', label: 'Setup' },
+          { value: 'lines', label: 'Lines' },
         ]}
         value={tab}
         onChange={(value) => setTab(value as typeof tab)}
@@ -141,6 +248,22 @@ export function TeamDetailPage() {
           <Row label="Dataset" value={team.sourceDataset ?? '—'} />
           <Row label="Source updated" value={team.sourceUpdatedAt ?? '—'} />
         </Panel>
+        {summary ? (
+          <Panel title="Lineup">
+            <div style={{ marginBottom: 8 }}>
+              <Badge tone={presenceTone(summary.presence)}>{summary.presence}</Badge>
+            </div>
+            <Row
+              label="Validation"
+              value={summary.validationStatus ?? '—'}
+            />
+            <Row
+              label="Filled"
+              value={`${summary.filledSlots}/${summary.requiredSlots}`}
+            />
+            <Row label="Updated" value={summary.updatedAt ?? '—'} />
+          </Panel>
+        ) : null}
       </div> : null}
 
       {tab === 'overview' && team.readiness ? <Panel title="Readiness">
@@ -166,6 +289,7 @@ export function TeamDetailPage() {
             headers={[
               { key: 'player', label: 'Player' },
               { key: 'pos', label: 'Pos' },
+              { key: 'sec', label: 'Secondary' },
               { key: 'ca', label: 'CA' },
               { key: 'role', label: 'Role' },
               { key: 'model', label: 'Model' },
@@ -176,6 +300,7 @@ export function TeamDetailPage() {
               <DataRow key={p.id} onActivate={() => navigate(`/players/${p.id}`)}>
                 <Td primary>{playerLabel(p)}</Td>
                 <Td>{p.primaryPosition}</Td>
+                <Td>{secondaryLabel(p.secondaryPositions) || '—'}</Td>
                 <Td>{p.currentAbility ?? '—'}</Td>
                 <Td>{p.roleLabel ?? p.role ?? '—'}</Td>
                 <Td>
@@ -198,6 +323,111 @@ export function TeamDetailPage() {
           Enable Commissioner Mode to change tactics, head coach assignment, or player roster status.
         </p>
       </Panel> : null}
+
+      {tab === 'lines' ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <Panel
+            title="Lines"
+            actions={
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                {lineup ? (
+                  <>
+                    <Badge tone={presenceTone(lineup.presence)}>{lineup.presence}</Badge>
+                    <Badge tone={validationTone(lineup.validation.status)}>
+                      {lineup.validation.status}
+                    </Badge>
+                  </>
+                ) : null}
+                {enabled ? (
+                  <>
+                    <Button size="sm" onClick={() => navigate(`/teams/${teamId}/lines/edit`)}>
+                      Edit Lines
+                    </Button>
+                    <Button size="sm" variant="secondary" onClick={() => setConfirmKind('REPLACE')}>
+                      Auto-Lineup
+                    </Button>
+                    <Button size="sm" variant="secondary" onClick={() => setConfirmKind('FILL_EMPTY')}>
+                      Fill Empty
+                    </Button>
+                    <Button size="sm" variant="danger" onClick={() => setConfirmKind('CLEAR')}>
+                      Clear
+                    </Button>
+                  </>
+                ) : (
+                  <span style={{ font: 'var(--text-body-sm)', color: 'var(--text-tertiary)' }}>
+                    Enable Commissioner Mode to edit lines.
+                  </span>
+                )}
+              </div>
+            }
+          >
+            {lineupLoading ? <LoadingState label="Loading lineup…" /> : null}
+            {lineupError ? <ErrorState description={lineupError} /> : null}
+            {!lineupLoading && !lineupError && lineup ? (
+              <>
+                <div style={{ marginBottom: 12, font: 'var(--text-body-sm)', color: 'var(--text-secondary)' }}>
+                  {lineup.filledSlots}/{lineup.requiredSlots} slots filled
+                  {lineup.updatedAt ? ` · updated ${lineup.updatedAt}` : ' · no saved lineup yet'}
+                </div>
+                {lineup.validation.errors.length > 0 || lineup.validation.warnings.length > 0 ? (
+                  <div style={{ marginBottom: 12, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    {lineup.validation.errors.map((issue, i) => (
+                      <div key={`e-${i}`} style={{ font: 'var(--text-body-sm)', color: 'var(--accent-danger)' }}>
+                        {issue.message}
+                      </div>
+                    ))}
+                    {lineup.validation.warnings.map((issue, i) => (
+                      <div key={`w-${i}`} style={{ font: 'var(--text-body-sm)', color: 'var(--accent-warning)' }}>
+                        {issue.message}
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+                <LineupBoard assignments={boardAssignments} />
+              </>
+            ) : null}
+            {actionError ? <ErrorState description={actionError} /> : null}
+          </Panel>
+        </div>
+      ) : null}
+
+      <Dialog
+        open={confirmKind !== null}
+        title={
+          confirmKind === 'CLEAR'
+            ? 'Clear lineup?'
+            : confirmKind === 'REPLACE'
+              ? 'Run Auto-Lineup (REPLACE)?'
+              : 'Fill empty slots?'
+        }
+        confirmLabel="Confirm"
+        confirmVariant={confirmKind === 'CLEAR' ? 'danger' : 'primary'}
+        busy={actionBusy}
+        onClose={() => {
+          setConfirmKind(null);
+          setActionError(null);
+        }}
+        onConfirm={() => void runConfirmedAction()}
+      >
+        <p style={{ marginTop: 0 }}>
+          {confirmKind === 'CLEAR'
+            ? 'Removes all assignments and saves immediately.'
+            : confirmKind === 'REPLACE'
+              ? 'Replaces the entire lineup using auto-lineup rules and saves immediately.'
+              : 'Fills empty slots only and saves immediately.'}
+        </p>
+        <Field label="Reason" htmlFor="lineup-action-reason">
+          <TextInput
+            id="lineup-action-reason"
+            value={actionReason}
+            onChange={(e) => setActionReason(e.target.value)}
+            placeholder="Required audit reason"
+          />
+        </Field>
+        {actionError ? (
+          <p style={{ color: 'var(--accent-danger)', font: 'var(--text-body-sm)' }}>{actionError}</p>
+        ) : null}
+      </Dialog>
     </div>
   );
 }

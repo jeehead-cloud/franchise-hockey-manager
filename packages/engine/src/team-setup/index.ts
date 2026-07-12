@@ -17,4 +17,6 @@ export type {
   TeamReadinessCounts,
   TeamReadinessResult,
   RosterPositionGroup,
+  TeamReadinessLineupPresence,
+  TeamReadinessLineupSummary,
 } from './types.js';

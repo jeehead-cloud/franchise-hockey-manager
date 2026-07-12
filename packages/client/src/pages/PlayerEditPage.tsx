@@ -65,6 +65,7 @@ function defaultsFromDetail(item: CommissionerPlayerDetail): CommissionerPlayerE
       nationalityCountryId: e.identity.nationalityCountryId,
       currentTeamId: e.identity.currentTeamId,
       primaryPosition: e.identity.primaryPosition,
+      secondaryPositions: [...(e.identity.secondaryPositions ?? [])],
       rosterStatus: e.identity.rosterStatus,
     },
     profile: {
@@ -210,21 +211,49 @@ export function PlayerEditPage() {
       const wasG = prev.identity.primaryPosition === 'G';
       const nextG = next === 'G';
       if (wasG === nextG) {
-        return { ...prev, identity: { ...prev.identity, primaryPosition: next } };
+        return {
+          ...prev,
+          identity: {
+            ...prev.identity,
+            primaryPosition: next,
+            secondaryPositions: prev.identity.secondaryPositions.filter((p) => p !== next),
+          },
+        };
       }
       if (nextG) {
         return {
           ...prev,
-          identity: { ...prev.identity, primaryPosition: next },
+          identity: { ...prev.identity, primaryPosition: next, secondaryPositions: [] },
           skaterAttributes: null,
           goalieAttributes: emptyGoalie(),
         };
       }
       return {
         ...prev,
-        identity: { ...prev.identity, primaryPosition: next },
+        identity: {
+          ...prev.identity,
+          primaryPosition: next,
+          secondaryPositions: prev.identity.secondaryPositions.filter((p) => p !== next),
+        },
         goalieAttributes: null,
         skaterAttributes: emptySkater(),
+      };
+    });
+  }
+
+  function toggleSecondary(pos: string) {
+    setForm((prev) => {
+      if (!prev || prev.identity.primaryPosition === 'G') return prev;
+      if (pos === prev.identity.primaryPosition) return prev;
+      const has = prev.identity.secondaryPositions.includes(pos);
+      return {
+        ...prev,
+        identity: {
+          ...prev.identity,
+          secondaryPositions: has
+            ? prev.identity.secondaryPositions.filter((p) => p !== pos)
+            : [...prev.identity.secondaryPositions, pos].sort(),
+        },
       };
     });
   }
@@ -398,6 +427,40 @@ export function PlayerEditPage() {
                 ))}
               </SelectInput>
             </Field>
+          </div>
+          <div style={{ marginTop: 12 }}>
+            <div style={{ font: 'var(--text-label)', color: 'var(--text-tertiary)', marginBottom: 6 }}>
+              Secondary positions
+            </div>
+            {isGoalie ? (
+              <p style={{ margin: 0, font: 'var(--text-body-sm)', color: 'var(--text-tertiary)' }}>
+                Goalies cannot have secondary positions.
+              </p>
+            ) : (
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                {['LW', 'RW', 'C', 'LD', 'RD']
+                  .filter((p) => p !== form.identity.primaryPosition)
+                  .map((p) => (
+                    <label
+                      key={p}
+                      style={{
+                        display: 'inline-flex',
+                        gap: 6,
+                        alignItems: 'center',
+                        font: 'var(--text-body-sm)',
+                        color: 'var(--text-secondary)',
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={form.identity.secondaryPositions.includes(p)}
+                        onChange={() => toggleSecondary(p)}
+                      />
+                      {p}
+                    </label>
+                  ))}
+              </div>
+            )}
           </div>
           {modelConverted ? (
             <p style={{ marginTop: 12, font: 'var(--text-body-sm)', color: 'var(--accent-warning)' }}>

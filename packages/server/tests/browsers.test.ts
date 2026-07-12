@@ -62,7 +62,7 @@ describe('F4 browser APIs', () => {
     expect(body.fictionalDataset).toBe(true);
     expect(body.season.label).toBe('2026/27');
     expect(body.counts.teams).toBe(3);
-    expect(body.counts.players).toBe(6);
+    expect(body.counts.players).toBe(24);
     expect(body.structure.clubTeams).toBe(3);
     expect(Array.isArray(body.warnings)).toBe(true);
     expect(body.recommendedNextAction.href).toBeTruthy();

@@ -3,6 +3,7 @@ import {
   type TeamReadinessInput,
   type TeamReadinessResult,
   type TeamReadinessRosterMember,
+  type TeamReadinessLineupPresence,
 } from '@fhm/engine';
 import { resolveModelStatus, type PlayerModelRow } from './player-model.js';
 
@@ -60,11 +61,13 @@ export function buildTeamReadiness(opts: {
   hasHeadCoach: boolean;
   tacticalStyle: string | null | undefined;
   players: TeamReadinessPlayerRow[];
+  lineupPresence?: TeamReadinessLineupPresence | null;
 }): TeamReadinessResult {
   const input: TeamReadinessInput = {
     hasHeadCoach: opts.hasHeadCoach,
     hasTacticalStyle: Boolean(opts.tacticalStyle),
     roster: opts.players.map(toReadinessRosterMember),
+    lineup: opts.lineupPresence ? { presence: opts.lineupPresence } : { presence: 'ABSENT' },
   };
   return evaluateTeamReadiness(input);
 }

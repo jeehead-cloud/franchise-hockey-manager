@@ -163,6 +163,13 @@ export async function persistWorld(
             ...(row.primaryPosition !== 'G' && row.skaterAttributes
               ? { skaterAttributes: { create: row.skaterAttributes } }
               : {}),
+            ...(row.secondaryPositions.length > 0
+              ? {
+                  secondaryPositions: {
+                    create: row.secondaryPositions.map((position) => ({ position })),
+                  },
+                }
+              : {}),
           },
         });
         counts.players += 1;

@@ -29,6 +29,7 @@ const playerInclude = {
   },
   skaterAttributes: true,
   goalieAttributes: true,
+  secondaryPositions: { select: { position: true } },
 } as const;
 
 type PlayerFull = Prisma.PlayerGetPayload<{ include: typeof playerInclude }>;
@@ -74,6 +75,7 @@ function editableSnapshot(row: PlayerFull) {
       nationalityCountryId: row.nationalityCountryId,
       currentTeamId: row.currentTeamId,
       primaryPosition: row.primaryPosition,
+      secondaryPositions: (row.secondaryPositions ?? []).map((s) => s.position).sort(),
       rosterStatus: row.rosterStatus,
       sourceType: row.sourceType,
     },
@@ -388,6 +390,14 @@ export async function updateCommissionerPlayer(
       });
     }
 
+    await tx.playerSecondaryPosition.deleteMany({ where: { playerId: id } });
+    const secondary = willGoalie ? [] : input.identity.secondaryPositions;
+    if (secondary.length > 0) {
+      await tx.playerSecondaryPosition.createMany({
+        data: secondary.map((position) => ({ playerId: id, position })),
+      });
+    }
+
     const finalRow = await tx.player.findUniqueOrThrow({
       where: { id },
       include: playerInclude,
@@ -596,6 +606,7 @@ export function buildEditPayloadFromPlayer(
       nationalityCountryId: snap.identity.nationalityCountryId,
       currentTeamId: snap.identity.currentTeamId,
       primaryPosition: snap.identity.primaryPosition as CommissionerPlayerEditInput['identity']['primaryPosition'],
+      secondaryPositions: snap.identity.secondaryPositions as CommissionerPlayerEditInput['identity']['secondaryPositions'],
       rosterStatus: snap.identity.rosterStatus as CommissionerPlayerEditInput['identity']['rosterStatus'],
       ...overrides.identity,
     },

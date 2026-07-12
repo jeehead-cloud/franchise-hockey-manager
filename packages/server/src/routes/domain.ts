@@ -10,6 +10,7 @@ import * as coaches from '../services/coaches.js';
 import * as competitions from '../services/competitions.js';
 import * as competitionEditions from '../services/competition-editions.js';
 import * as world from '../services/world.js';
+import { getTeamLineup } from '../services/lineups.js';
 
 function asQuery(raw: unknown): Record<string, unknown> {
   return (raw ?? {}) as Record<string, unknown>;
@@ -50,8 +51,14 @@ export async function registerDomainRoutes(app: FastifyInstance) {
     return reply.send(paginatedResponse(result));
   });
 
-  app.get<{ Params: { id: string } }>('/api/teams/:id', async (request, reply) => {
-    const item = await teams.getTeamById(request.params.id);
+  app.get('/api/teams/:id', async (request, reply) => {
+    const item = await teams.getTeamById((request.params as { id: string }).id);
+    if (!item) return reply.status(404).send(notFound('Team'));
+    return reply.send(detailResponse(item));
+  });
+
+  app.get('/api/teams/:id/lineup', async (request, reply) => {
+    const item = await getTeamLineup((request.params as { id: string }).id);
     if (!item) return reply.status(404).send(notFound('Team'));
     return reply.send(detailResponse(item));
   });

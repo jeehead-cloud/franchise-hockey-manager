@@ -183,6 +183,15 @@ export function WorldPage() {
           </Panel>
         ) : null}
 
+        {data.structure.teamsWithoutLineup !== undefined ? (
+          <Panel title="Lineups">
+            <Stat label="Valid" value={data.structure.teamsWithValidLineup ?? 0} />
+            <Stat label="Incomplete" value={data.structure.teamsWithIncompleteLineup ?? 0} />
+            <Stat label="Invalid" value={data.structure.teamsWithInvalidLineup ?? 0} />
+            <Stat label="None" value={data.structure.teamsWithoutLineup ?? 0} />
+          </Panel>
+        ) : null}
+
         <Panel title="Competition editions">
           {data.competitionEditions.length === 0 ? (
             <EmptyState title="No editions" description="No competition editions yet." />

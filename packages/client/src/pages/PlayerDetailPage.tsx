@@ -105,7 +105,8 @@ export function PlayerDetailPage() {
       <PageHeader
         title={playerLabel(player)}
         subtitle={[
-          player.primaryPosition,
+          player.primaryPosition +
+            (player.secondaryPositions?.length ? ` (${player.secondaryPositions.join('/')})` : ''),
           player.nationality?.name,
           player.currentTeam?.name ?? 'Unassigned',
           complete && 'currentAbility' in model ? `CA ${model.currentAbility}` : null,
@@ -170,6 +171,14 @@ export function PlayerDetailPage() {
             />
             <Row label="Nationality" value={player.nationality?.name ?? '—'} />
             <Row label="Position" value={player.primaryPosition} />
+            <Row
+              label="Secondary"
+              value={
+                player.secondaryPositions && player.secondaryPositions.length > 0
+                  ? player.secondaryPositions.join(', ')
+                  : '—'
+              }
+            />
             <Row label="Roster status" value={player.rosterStatus} />
             <Row label="Source type" value={player.sourceType} />
           </Panel>

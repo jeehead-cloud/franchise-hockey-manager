@@ -9,10 +9,18 @@ export interface TeamReadinessRosterMember {
   modelComplete: boolean;
 }
 
+export type TeamReadinessLineupPresence = 'ABSENT' | 'INCOMPLETE' | 'VALID' | 'INVALID';
+
+export interface TeamReadinessLineupSummary {
+  presence: TeamReadinessLineupPresence;
+}
+
 export interface TeamReadinessInput {
   hasHeadCoach: boolean;
   hasTacticalStyle: boolean;
   roster: TeamReadinessRosterMember[];
+  /** F8 lineup-aware readiness. Omit/null treated as ABSENT for backward compatibility. */
+  lineup?: TeamReadinessLineupSummary | null;
 }
 
 export interface TeamReadinessCheck {

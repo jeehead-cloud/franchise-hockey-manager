@@ -4,6 +4,12 @@ import { mapPlayer, mapTeam } from '../mappers.js';
 import { compactPlayerModelFields } from './player-model.js';
 import { buildTeamReadiness } from './team-readiness.js';
 import {
+  buildValidationForTeam,
+  lineupPresenceFromValidation,
+  serializeAssignments,
+  type LineupPlayerRow,
+} from './lineup-helpers.js';
+import {
   deriveAgeYears,
   isErrorResult,
   parseDirection,
@@ -93,20 +99,35 @@ export async function listTeams(query: Record<string, unknown> = {}) {
       orderBy: { [sortRaw]: direction },
       skip: pagination.skip,
       take: pagination.pageSize,
-      include: { ...teamInclude, players: { select: readinessPlayerInclude } },
+      include: {
+        ...teamInclude,
+        players: {
+          select: {
+            ...readinessPlayerInclude,
+            id: true,
+            secondaryPositions: { select: { position: true } },
+          },
+        },
+        lineup: { include: { assignments: { select: { slot: true, playerId: true } } } },
+      },
     }),
   ]);
 
   const items = rows.map((row) => {
+    const assignmentInputs = row.lineup ? serializeAssignments(row.lineup.assignments) : [];
+    const validation = buildValidationForTeam(row.players as LineupPlayerRow[], assignmentInputs);
+    const presence = lineupPresenceFromValidation(Boolean(row.lineup), row.lineup ? validation : null);
     const readiness = buildTeamReadiness({
       hasHeadCoach: Boolean(row.coach),
       tacticalStyle: row.tacticalStyle,
       players: row.players,
+      lineupPresence: presence,
     });
     return {
       ...mapTeam(row),
       rosterCount: row._count.players,
       readinessStatus: readiness.status,
+      lineupStatus: presence,
       coach: row.coach
         ? {
             ...row.coach,
@@ -133,8 +154,10 @@ export async function getTeamById(id: string) {
           nationality: { select: { id: true, name: true, code: true } },
           skaterAttributes: true,
           goalieAttributes: true,
+          secondaryPositions: { select: { position: true } },
         },
       },
+      lineup: { include: { assignments: { select: { slot: true, playerId: true } } } },
     },
   });
   if (!row) return null;
@@ -159,6 +182,10 @@ export async function getTeamById(id: string) {
   const averageAge =
     ages.length > 0 ? Math.round((ages.reduce((a, b) => a + b, 0) / ages.length) * 10) / 10 : null;
 
+  const assignmentInputs = row.lineup ? serializeAssignments(row.lineup.assignments) : [];
+  const validation = buildValidationForTeam(row.players as LineupPlayerRow[], assignmentInputs);
+  const presence = lineupPresenceFromValidation(Boolean(row.lineup), row.lineup ? validation : null);
+
   return {
     ...mapTeam(row),
     rosterCount: row.players.length,
@@ -167,7 +194,15 @@ export async function getTeamById(id: string) {
       hasHeadCoach: Boolean(row.coach),
       tacticalStyle: row.tacticalStyle,
       players: row.players,
+      lineupPresence: presence,
     }),
+    lineupSummary: {
+      presence,
+      validationStatus: row.lineup ? validation.status : null,
+      filledSlots: validation.filledSlots,
+      requiredSlots: validation.requiredSlots,
+      updatedAt: row.lineup?.updatedAt.toISOString() ?? null,
+    },
     rosterSummary: {
       total: row.players.length,
       byPosition,

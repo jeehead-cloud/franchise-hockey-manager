@@ -153,6 +153,7 @@ export function mapPlayer(row: {
   updatedAt: Date;
   nationality?: { id: string; name: string; code: string };
   currentTeam?: { id: string; name: string } | null;
+  secondaryPositions?: { position: string }[];
 }) {
   return {
     id: row.id,
@@ -162,6 +163,9 @@ export function mapPlayer(row: {
     nationalityCountryId: row.nationalityCountryId,
     currentTeamId: row.currentTeamId,
     primaryPosition: row.primaryPosition,
+    secondaryPositions: row.secondaryPositions
+      ? row.secondaryPositions.map((s) => s.position).sort()
+      : [],
     sourceType: row.sourceType,
     rosterStatus: row.rosterStatus,
     ...sourceMeta(row),

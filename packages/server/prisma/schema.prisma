@@ -134,6 +134,7 @@ enum CommissionerAuditEntityType {
   PLAYER
   COACH
   TEAM
+  TEAM_LINEUP
 }
 
 enum CommissionerAuditAction {
@@ -147,6 +148,33 @@ enum CommissionerAuditAction {
   HEAD_COACH_UNASSIGNED
   TEAM_TACTICS_UPDATED
   PLAYER_ROSTER_STATUS_CHANGED
+  LINEUP_CREATED
+  LINEUP_UPDATED
+  LINEUP_AUTO_FILLED
+  LINEUP_CLEARED
+}
+
+enum LineupSlot {
+  F1_LW
+  F1_C
+  F1_RW
+  F2_LW
+  F2_C
+  F2_RW
+  F3_LW
+  F3_C
+  F3_RW
+  F4_LW
+  F4_C
+  F4_RW
+  D1_LD
+  D1_RD
+  D2_LD
+  D2_RD
+  D3_LD
+  D3_RD
+  G_STARTER
+  G_BACKUP
 }
 
 enum CommissionerAuditSource {
@@ -233,6 +261,7 @@ model Team {
   players Player[]
   /// At most one current head coach (unique on Coach.currentTeamId).
   coach   Coach?
+  lineup  TeamLineup?
 
   @@unique([leagueId, name])
   @@unique([sourceDataset, externalId])
@@ -272,10 +301,12 @@ model Player {
   createdAt               DateTime                 @default(now())
   updatedAt               DateTime                 @updatedAt
 
-  nationality      Country           @relation("PlayerNationality", fields: [nationalityCountryId], references: [id], onDelete: Restrict)
-  currentTeam      Team?             @relation(fields: [currentTeamId], references: [id], onDelete: SetNull)
-  skaterAttributes SkaterAttributes?
-  goalieAttributes GoalieAttributes?
+  nationality        Country                   @relation("PlayerNationality", fields: [nationalityCountryId], references: [id], onDelete: Restrict)
+  currentTeam        Team?                     @relation(fields: [currentTeamId], references: [id], onDelete: SetNull)
+  skaterAttributes   SkaterAttributes?
+  goalieAttributes   GoalieAttributes?
+  secondaryPositions PlayerSecondaryPosition[]
+  lineupAssignments  LineupAssignment[]
 
   @@unique([sourceDataset, externalId])
   @@index([nationalityCountryId])
@@ -317,6 +348,47 @@ model GoalieAttributes {
   updatedAt      DateTime @updatedAt
 
   player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+}
+
+/// Optional secondary skater positions (F8). Goalies must have none; primary excluded.
+model PlayerSecondaryPosition {
+  id        String         @id @default(cuid())
+  playerId  String
+  position  PlayerPosition
+  createdAt DateTime       @default(now())
+
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([playerId, position])
+  @@index([position])
+}
+
+/// One main lineup per team (F8). Partial lineups allowed; validation is derived.
+model TeamLineup {
+  id        String   @id @default(cuid())
+  teamId    String   @unique
+  version   Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  team        Team               @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  assignments LineupAssignment[]
+}
+
+model LineupAssignment {
+  id        String     @id @default(cuid())
+  lineupId  String
+  slot      LineupSlot
+  playerId  String
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  lineup TeamLineup @relation(fields: [lineupId], references: [id], onDelete: Cascade)
+  player Player     @relation(fields: [playerId], references: [id], onDelete: Restrict)
+
+  @@unique([lineupId, slot])
+  @@unique([lineupId, playerId])
+  @@index([playerId])
 }
 
 model Coach {
