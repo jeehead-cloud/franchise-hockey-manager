@@ -17,7 +17,10 @@
     "build:client": "npm run build --workspace=@fhm/client",
     "db:generate": "npm run db:generate --workspace=@fhm/server",
     "db:migrate": "npm run db:migrate --workspace=@fhm/server",
-    "db:push": "npm run db:push --workspace=@fhm/server"
+    "db:push": "npm run db:push --workspace=@fhm/server",
+    "db:validate": "npm run db:validate --workspace=@fhm/server",
+    "test": "npm run test --workspace=@fhm/server",
+    "test:server": "npm run test --workspace=@fhm/server"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

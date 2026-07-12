@@ -17,7 +17,7 @@ npm run db:generate --workspace=@fhm/server
 npm run db:migrate --workspace=@fhm/server
 ```
 
-`db:migrate` creates the local SQLite database (`packages/server/prisma/dev.db`). F1 ships a bootstrap-only Prisma schema (`AppMeta`) — no gameplay entities yet.
+`db:migrate` applies Prisma migrations to local SQLite (`packages/server/prisma/dev.db`). F1 adds `AppMeta`; F2 adds the core world entities. Do not commit `*.db` files.
 
 ## Run locally
 
@@ -34,16 +34,22 @@ npm run dev:server
 npm run dev:client
 ```
 
-- API: http://127.0.0.1:3000 (`GET /health`)
-- UI: http://localhost:5173 (Vite proxies `/health` to the API)
+- API: http://127.0.0.1:3000 (`GET /health`, read-only `GET /api/...`)
+- UI: http://localhost:5173 (Vite proxies `/health` and `/api`)
 
-Optional client env: copy `packages/client/.env.example` → `.env` and set `VITE_API_URL` if not using the Vite proxy.
+## Tests
+
+```powershell
+npm run test:server
+```
+
+Vitest uses isolated temporary SQLite databases (does not mutate the normal `dev.db` except when you run migrate yourself).
 
 ## Packages
 
 | Package | Role |
 |---|---|
-| `@fhm/engine` | Pure simulation/generation logic (F1: wiring export only) |
+| `@fhm/engine` | Pure simulation/generation logic (currently wiring export only) |
 | `@fhm/server` | Fastify + Prisma + SQLite REST API |
 | `@fhm/client` | React + Vite shell using Atlas design tokens |
 

@@ -7,10 +7,245 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-/// Bootstrap-only model so Prisma + SQLite wiring exists in F1.
-/// Gameplay entities (League, Team, Player, Coach, …) arrive in later milestones.
+/// F1 bootstrap metadata — retained for migration continuity and app wiring checks.
 model AppMeta {
   id        String   @id @default("default")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum WorldSeasonStatus {
+  PLANNED
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+}
+
+enum WorldSeasonPhase {
+  SEASON_PREPARATION
+  AGGREGATED_LEAGUES
+  NHL_REGULAR_SEASON
+  NHL_PLAYOFFS
+  WORLD_JUNIOR_CHAMPIONSHIP
+  INTERNATIONAL_CHAMPIONSHIP
+  SEASON_REVIEW
+  ANNUAL_DEVELOPMENT
+  OFFSEASON
+  NHL_DRAFT
+  ROSTER_PREPARATION
+  COMPLETE
+}
+
+enum LeagueSimulationLevel {
+  DETAILED
+  AGGREGATED
+}
+
+enum CompetitionSimulationLevel {
+  DETAILED
+  AGGREGATED
+}
+
+enum TeamType {
+  CLUB
+  NATIONAL
+}
+
+enum PlayerPosition {
+  LW
+  RW
+  C
+  LD
+  RD
+  G
+}
+
+enum PlayerSource {
+  REAL_INITIAL_DATA
+  GENERATED_YOUTH
+  MANUAL
+  IMPORTED
+}
+
+enum RosterStatus {
+  ACTIVE
+  RESERVE
+  PROSPECT
+  UNAVAILABLE
+}
+
+enum CoachingStyle {
+  AUTHORITARIAN
+  AUTHORITATIVE
+  DEMOCRATIC
+  DEVELOPMENTAL
+  HANDS_OFF
+}
+
+enum TacticalStyle {
+  COMBINATIONAL
+  PHYSICAL
+  SPEED
+  SYSTEM
+  FORECHECKING
+}
+
+enum CompetitionType {
+  LEAGUE
+  PLAYOFF
+  INTERNATIONAL_TOURNAMENT
+  OTHER
+}
+
+enum CompetitionStatus {
+  PLANNED
+  PREPARING
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+}
+
+// ---------------------------------------------------------------------------
+// Domain entities (F2)
+// ---------------------------------------------------------------------------
+
+/// Global season of the single living hockey world.
+model WorldSeason {
+  id        String            @id @default(cuid())
+  label     String            @unique
+  startYear Int
+  endYear   Int
+  phase     WorldSeasonPhase
+  status    WorldSeasonStatus
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  competitionEditions CompetitionEdition[]
+}
+
+model Country {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  code      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  leagues League[]
+  teams   Team[]
+  players Player[] @relation("PlayerNationality")
+  coaches Coach[]  @relation("CoachNationality")
+}
+
+model League {
+  id              String                @id @default(cuid())
+  name            String
+  shortName       String?
+  countryId       String?
+  simulationLevel LeagueSimulationLevel
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  country Country? @relation(fields: [countryId], references: [id], onDelete: Restrict)
+  teams   Team[]
+
+  @@unique([countryId, name])
+  @@index([countryId])
+}
+
+model Team {
+  id        String   @id @default(cuid())
+  name      String
+  shortName String?
+  city      String?
+  teamType  TeamType
+  countryId String
+  leagueId  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  country Country @relation(fields: [countryId], references: [id], onDelete: Restrict)
+  league  League? @relation(fields: [leagueId], references: [id], onDelete: Restrict)
+
+  players Player[]
+  /// At most one current head coach (unique on Coach.currentTeamId).
+  coach   Coach?
+
+  @@unique([leagueId, name])
+  @@index([countryId])
+  @@index([leagueId])
+}
+
+/// Structural player only — attributes/ratings arrive in later milestones.
+/// Age: `dateOfBirth` (DateTime); age is derived later relative to world/competition date.
+model Player {
+  id                   String         @id @default(cuid())
+  firstName            String
+  lastName             String
+  dateOfBirth          DateTime
+  nationalityCountryId String
+  currentTeamId        String?
+  primaryPosition      PlayerPosition
+  sourceType           PlayerSource
+  rosterStatus         RosterStatus
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+
+  nationality Country @relation("PlayerNationality", fields: [nationalityCountryId], references: [id], onDelete: Restrict)
+  currentTeam Team?   @relation(fields: [currentTeamId], references: [id], onDelete: SetNull)
+
+  @@index([nationalityCountryId])
+  @@index([currentTeamId])
+  @@index([primaryPosition])
+}
+
+model Coach {
+  id                   String        @id @default(cuid())
+  firstName            String
+  lastName             String
+  nationalityCountryId String?
+  /// Unique when set — enforces at most one current head coach per team.
+  currentTeamId        String?       @unique
+  coachingStyle        CoachingStyle
+  tacticalStyle        TacticalStyle
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+
+  nationality Country? @relation("CoachNationality", fields: [nationalityCountryId], references: [id], onDelete: Restrict)
+  currentTeam Team?    @relation(fields: [currentTeamId], references: [id], onDelete: SetNull)
+
+  @@index([nationalityCountryId])
+}
+
+model Competition {
+  id              String                      @id @default(cuid())
+  name            String
+  shortName       String?
+  type            CompetitionType
+  simulationLevel CompetitionSimulationLevel?
+  createdAt       DateTime                    @default(now())
+  updatedAt       DateTime                    @updatedAt
+
+  editions CompetitionEdition[]
+
+  @@unique([name, type])
+}
+
+model CompetitionEdition {
+  id            String            @id @default(cuid())
+  competitionId String
+  worldSeasonId String
+  displayName   String
+  status        CompetitionStatus
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  competition Competition @relation(fields: [competitionId], references: [id], onDelete: Restrict)
+  worldSeason WorldSeason @relation(fields: [worldSeasonId], references: [id], onDelete: Restrict)
+
+  @@unique([competitionId, worldSeasonId])
+  @@index([worldSeasonId])
 }

@@ -40,6 +40,8 @@ Also useful:
 ```powershell
 npm run build
 npm run typecheck
+npm run test:server
+npm run db:validate
 ```
 
 There is no staging environment, no production environment, and no CI/CD pipeline yet.

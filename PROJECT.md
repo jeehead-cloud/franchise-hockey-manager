@@ -169,6 +169,8 @@ Any simulation or UI feature that would make "highest overall attribute wins" tr
 
 - **`PROJECT.md`** — this file. Vision, product areas, roadmap.
 - **`AI_AGENTS.md`** — mandatory operating instructions for Cursor and other AI coding agents, including the repository-context requirement.
+- **`PRODUCT_STRUCTURE.md`** — target product structure: single-world sandbox, navigation, screens, simulation principles.
+- **`FOUNDATION_IMPLEMENTATION_PLAN.md`** — F1–F33 foundation sequence and milestone definitions.
 - **`ARCHITECTURE.md`** — tech stack, monorepo structure, data flow, config-driven balance approach, algorithmic lessons learned.
 - **`PLAYER_MODEL.md`** — the detailed player data model: attributes, growth/aging formulas, archetypes/roles, and the design questions carried over from the original spreadsheet prototype.
 - **`PRODUCT_RULES.md`** — game design invariants: chemistry/tactics-fit rules, aging rules, draft/scouting rules, and what's explicitly deferred.
@@ -180,22 +182,25 @@ Any simulation or UI feature that would make "highest overall attribute wins" tr
 1. `PROJECT.md`
 2. `AI_AGENTS.md`
 3. `CURRENT_STATUS.md`
-4. `PRODUCT_RULES.md`
-5. `PLAYER_MODEL.md`
-6. `ARCHITECTURE.md`
-7. `DEPLOYMENT.md`
+4. `PRODUCT_STRUCTURE.md`
+5. `FOUNDATION_IMPLEMENTATION_PLAN.md`
+6. `PRODUCT_RULES.md`
+7. `PLAYER_MODEL.md`
+8. `ARCHITECTURE.md`
+9. `DEPLOYMENT.md`
 
 ## 12. Source-of-Truth Hierarchy
 
 When information conflicts, use this order:
 
 1. current repository code and actual running behavior;
-2. `PRODUCT_RULES.md`;
-3. `PLAYER_MODEL.md`;
-4. `ARCHITECTURE.md`;
-5. `CURRENT_STATUS.md`;
-6. `PROJECT.md`;
-7. old chat history / memory.
+2. `PRODUCT_STRUCTURE.md` / `FOUNDATION_IMPLEMENTATION_PLAN.md` (target product and foundation sequence);
+3. `PRODUCT_RULES.md`;
+4. `PLAYER_MODEL.md`;
+5. `ARCHITECTURE.md`;
+6. `CURRENT_STATUS.md`;
+7. `PROJECT.md`;
+8. old chat history / memory.
 
 ## 13. Maintenance Policy
 
