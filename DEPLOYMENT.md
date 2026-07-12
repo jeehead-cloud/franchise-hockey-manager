@@ -1,7 +1,7 @@
 # Franchise Hockey Manager — Deployment and Operations
 
 **Status:** Not deployed yet (local development only)
-**Last updated:** 2026-07-10
+**Last updated:** 2026-07-12
 **Repository:** `https://github.com/jeehead-cloud/franchise-hockey-manager`
 **Local repository path:** `C:\Projects\franchise-hockey-manager`
 
@@ -12,16 +12,35 @@
 
 ## 1. Current State: Local-Only
 
-The intended local workflow (once scaffolded):
+Local workflow (F1):
 
 ```powershell
 cd C:\Projects\franchise-hockey-manager
 npm install
-npm run dev --workspace=packages/server
-npm run dev --workspace=packages/client
+npm run build --workspace=@fhm/engine
+npm run db:generate --workspace=@fhm/server
+npm run db:migrate --workspace=@fhm/server
+npm run dev
 ```
 
-The server prints a local API URL (e.g. `http://localhost:3000/`); the client prints a local Vite URL (e.g. `http://localhost:5173/`) to open in a browser. SQLite is a local file (`packages/server/prisma/dev.db` or similar) — no external database service is needed to run locally.
+`npm run dev` starts API + Vite client together (`concurrently`). Package-specific alternatives:
+
+```powershell
+npm run dev:server
+npm run dev:client
+```
+
+- API: `http://127.0.0.1:3000` — health check `GET /health`
+- UI: `http://localhost:5173` — Vite proxies `/health` to the API
+- SQLite: `packages/server/prisma/dev.db` (no external DB service)
+- Optional: `packages/client/.env` with `VITE_API_URL` if not using the proxy
+
+Also useful:
+
+```powershell
+npm run build
+npm run typecheck
+```
 
 There is no staging environment, no production environment, and no CI/CD pipeline yet.
 
@@ -56,8 +75,10 @@ The following have **not** been decided yet and are recorded here specifically s
 
 ```powershell
 cd C:\Projects\franchise-hockey-manager
-npm run build --workspace=packages/server
-npm run build --workspace=packages/client
+npm run build
+npm run typecheck
+npm run build --workspace=@fhm/server
+npm run build --workspace=@fhm/client
 ```
 
 Sanity-check the production build locally before ever deploying it.

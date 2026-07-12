@@ -1,0 +1,32 @@
+<!-- @dsCard group="Colors" viewport="700x200" name="Semantic — fixed hues" subtitle="Success / danger / warning / info — never swapped by team theme" -->
+<html><head><link rel="stylesheet" href="../styles.css"><style>
+  body{margin:0;background:var(--surface-app);font-family:var(--font-sans);}
+  .row{display:flex;gap:8px;padding:12px;box-sizing:border-box;}
+  .grp{flex:1;display:flex;flex-direction:column;gap:4px;}
+  .sw{height:38px;border-radius:var(--radius-sm);display:flex;align-items:center;padding:0 10px;}
+  .sw span{font:var(--text-data-sm);}
+</style></head>
+<body>
+<div class="row">
+  <div class="grp">
+    <div class="sw" style="background:var(--green-1)"><span style="color:var(--gray-8)">green-1</span></div>
+    <div class="sw" style="background:var(--green-3)"><span style="color:var(--gray-9)">green-3</span></div>
+    <div class="sw" style="background:var(--green-4)"><span style="color:#fff">green-4 · win/success</span></div>
+  </div>
+  <div class="grp">
+    <div class="sw" style="background:var(--red-1)"><span style="color:var(--gray-8)">red-1</span></div>
+    <div class="sw" style="background:var(--red-3)"><span style="color:#fff">red-3</span></div>
+    <div class="sw" style="background:var(--red-4)"><span style="color:#fff">red-4 · loss/danger</span></div>
+  </div>
+  <div class="grp">
+    <div class="sw" style="background:var(--amber-1)"><span style="color:var(--gray-8)">amber-1</span></div>
+    <div class="sw" style="background:var(--amber-3)"><span style="color:var(--gray-9)">amber-3</span></div>
+    <div class="sw" style="background:var(--amber-4)"><span style="color:#fff">amber-4 · OTL/warning</span></div>
+  </div>
+  <div class="grp">
+    <div class="sw" style="background:var(--steel-1)"><span style="color:var(--gray-8)">steel-1</span></div>
+    <div class="sw" style="background:var(--steel-3)"><span style="color:#fff">steel-3</span></div>
+    <div class="sw" style="background:var(--steel-4)"><span style="color:#fff">steel-4 · info/links</span></div>
+  </div>
+</div>
+</body></html>

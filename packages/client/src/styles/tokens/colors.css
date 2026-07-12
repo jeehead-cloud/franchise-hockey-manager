@@ -1,0 +1,98 @@
+/* ==========================================================================
+   ATLAS — COLOR TOKENS (v2 — light shell, sports-manager direction)
+   Neutral shell is light (white cards on soft gray app background).
+   Accent is TEAM-THEMEABLE: --team-* tokens default to blue ("classic ice"),
+   but are designed to be overridden per-club (see guidelines/colors-team.html
+   for the swap pattern). Semantic hues (success/danger/warning/info) are
+   FIXED regardless of team color, so meaning never breaks when a team's
+   color happens to collide with a status hue.
+   ========================================================================== */
+
+:root {
+  /* ---- Base: neutrals (white shell → ink text) ---- */
+  --gray-0: #ffffff;   /* card / surface white */
+  --gray-1: #f5f7fa;   /* app background */
+  --gray-2: #eaedf2;   /* raised surface, table stripe, hover */
+  --gray-3: #dde1e8;   /* subtle border */
+  --gray-4: #c5cad3;   /* default border, input outline */
+  --gray-5: #a6adb9;   /* strong border, disabled */
+  --gray-6: #7d8592;   /* tertiary text, icons */
+  --gray-7: #565e6b;   /* secondary text */
+  --gray-8: #2e333c;   /* primary text */
+  --gray-9: #14171c;   /* headings, max-contrast text */
+
+  /* ---- Base: team accent — "classic ice" blue is the default theme ---- */
+  --team-1: #eaf2ff;   /* wash */
+  --team-2: #cfe3ff;   /* muted */
+  --team-3: #5b9bff;   /* light */
+  --team-4: #1f6feb;   /* primary — swap this family per club */
+  --team-5: #185ac4;   /* hover */
+  --team-6: #123f8a;   /* active/deep */
+
+  /* ---- Base: fixed semantic hues (never swapped by team theme) ---- */
+  --green-1: #eaf7ee; --green-2: #cbeed6; --green-3: #5cb96f; --green-4: #2f9e49; --green-5: #227a37;
+  --red-1: #fdedec;   --red-2: #f8cfcb;   --red-3: #e5695c;   --red-4: #d33b2c;   --red-5: #a92a1e;
+  --amber-1: #fef6e7; --amber-2: #fbe3ae; --amber-3: #eeaa2e; --amber-4: #cc8a11; --amber-5: #96660a;
+  --steel-1: #eef3f7; --steel-2: #d3e0ea; --steel-3: #7ea3c2; --steel-4: #3d6f96; --steel-5: #2a5170;
+
+  /* ================= Semantic aliases ================= */
+
+  /* Surfaces */
+  --surface-canvas: var(--gray-1);          /* page/app background */
+  --surface-app: var(--gray-1);
+  --surface-panel: var(--gray-0);           /* cards, tables, panels — white */
+  --surface-panel-raised: var(--gray-2);    /* hover row, table stripe */
+  --surface-overlay: rgba(14, 18, 24, 0.55);/* modal scrim */
+  --surface-input: var(--gray-0);
+
+  /* Borders */
+  --border-subtle: var(--gray-3);
+  --border-default: var(--gray-4);
+  --border-strong: var(--gray-5);
+  --border-selected: var(--team-4);
+  --border-focus: var(--team-4);
+
+  /* Text */
+  --text-primary: var(--gray-9);
+  --text-secondary: var(--gray-7);
+  --text-tertiary: var(--gray-6);
+  --text-disabled: var(--gray-5);
+  --text-on-accent: #ffffff;
+  --text-link: var(--steel-4);
+  --text-link-hover: var(--steel-5);
+
+  /* Brand / team accent (primary command color — theme this per club) */
+  --accent-primary: var(--team-4);
+  --accent-primary-hover: var(--team-5);
+  --accent-primary-active: var(--team-6);
+  --accent-primary-muted: var(--team-2);
+  --accent-primary-wash: var(--team-1);
+
+  /* Fixed semantics */
+  --accent-info: var(--steel-4);
+  --accent-info-muted: var(--steel-2);
+  --accent-info-wash: var(--steel-1);
+
+  --accent-success: var(--green-4);
+  --accent-success-muted: var(--green-2);
+  --accent-success-wash: var(--green-1);
+
+  --accent-danger: var(--red-4);
+  --accent-danger-hover: var(--red-5);
+  --accent-danger-muted: var(--red-2);
+  --accent-danger-wash: var(--red-1);
+
+  --accent-warning: var(--amber-4);
+  --accent-warning-muted: var(--amber-2);
+  --accent-warning-wash: var(--amber-1);
+
+  /* Match/roster status dots (fixed — legible regardless of team theme) */
+  --side-home: var(--accent-primary);
+  --side-away: var(--gray-6);
+  --status-win: var(--green-4);
+  --status-loss: var(--red-4);
+  --status-otl: var(--amber-4);
+  --status-injury: var(--red-4);
+
+  --shadow-color: rgba(20, 30, 45, 0.14);
+}

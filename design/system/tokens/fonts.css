@@ -1,0 +1,7 @@
+/* ==========================================================================
+   ATLAS — WEBFONTS (v2)
+   Serif display dropped per the sports-manager rework — all-sans now.
+   Still Google Fonts CDN substitutes (no real brand font files provided).
+   ========================================================================== */
+
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap");

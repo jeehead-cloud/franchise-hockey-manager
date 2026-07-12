@@ -1,0 +1,33 @@
+/* ==========================================================================
+   ATLAS — SPACING & RADIUS TOKENS
+   4px base rhythm; balanced density (compact panels, comfortable click targets).
+   ========================================================================== */
+
+:root {
+  --space-1: 2px;
+  --space-2: 4px;
+  --space-3: 6px;
+  --space-4: 8px;
+  --space-5: 12px;
+  --space-6: 16px;
+  --space-7: 20px;
+  --space-8: 24px;
+  --space-9: 32px;
+  --space-10: 40px;
+  --space-11: 56px;
+  --space-12: 72px;
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+  --radius-pill: 999px;
+  --radius-none: 0px;
+
+  /* Layout constants */
+  --panel-width-sm: 280px;
+  --panel-width-md: 340px;
+  --panel-width-lg: 420px;
+  --toolbar-height: 48px;
+  --statusbar-height: 32px;
+  --hit-target-min: 32px;
+}

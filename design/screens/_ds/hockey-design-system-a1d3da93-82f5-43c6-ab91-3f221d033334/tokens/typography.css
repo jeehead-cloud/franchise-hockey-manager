@@ -1,0 +1,53 @@
+/* ==========================================================================
+   ATLAS — TYPE TOKENS (v2 — all-sans, modern sports-app feel)
+   Single sans family for everything, incl. display/headings (no serif).
+   Mono is kept for tabular data — stats, scores, standings — where digit
+   alignment matters.
+   ========================================================================== */
+
+:root {
+  --font-sans: "IBM Plex Sans", -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", "SF Mono", Consolas, monospace;
+
+  /* Scale (px) */
+  --text-size-2xs: 11px;
+  --text-size-xs: 12px;
+  --text-size-sm: 13px;
+  --text-size-md: 14px;
+  --text-size-lg: 16px;
+  --text-size-xl: 19px;
+  --text-size-2xl: 24px;
+  --text-size-3xl: 32px;
+  --text-size-4xl: 44px;
+
+  --text-weight-regular: 400;
+  --text-weight-medium: 500;
+  --text-weight-semibold: 600;
+  --text-weight-bold: 700;
+
+  --text-leading-tight: 1.15;
+  --text-leading-normal: 1.4;
+  --text-leading-relaxed: 1.6;
+
+  --text-tracking-tight: -0.01em;
+  --text-tracking-normal: 0;
+  --text-tracking-wide: 0.05em;
+  --text-tracking-widest: 0.1em;
+
+  /* Semantic roles — all sans now */
+  --text-brand: 700 var(--text-size-2xl)/1.1 var(--font-sans);
+  --text-display: 700 var(--text-size-4xl)/var(--text-leading-tight) var(--font-sans);
+  --text-heading-lg: 700 var(--text-size-3xl)/var(--text-leading-tight) var(--font-sans);
+  --text-heading-md: 600 var(--text-size-xl)/var(--text-leading-tight) var(--font-sans);
+  --text-heading-sm: 600 var(--text-size-lg)/var(--text-leading-normal) var(--font-sans);
+
+  --text-body: 400 var(--text-size-md)/var(--text-leading-normal) var(--font-sans);
+  --text-body-sm: 400 var(--text-size-sm)/var(--text-leading-normal) var(--font-sans);
+
+  --text-label: 600 var(--text-size-xs)/1 var(--font-sans);
+  --text-label-wide: 600 var(--text-size-2xs)/1 var(--font-sans);
+
+  --text-data-lg: 600 var(--text-size-xl)/1 var(--font-mono);
+  --text-data-md: 500 var(--text-size-sm)/1 var(--font-mono);
+  --text-data-sm: 500 var(--text-size-2xs)/1 var(--font-mono);
+}

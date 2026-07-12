@@ -1,0 +1,29 @@
+<!-- @dsCard group="Colors" viewport="700x220" name="Team theming" subtitle="Accent swaps per club — this is the ONE thing themed per team" -->
+<html><head><link rel="stylesheet" href="../styles.css"><style>
+  body{margin:0;background:var(--surface-app);font-family:var(--font-sans);padding:16px;box-sizing:border-box;}
+  .teams{display:flex;gap:14px;}
+  .card{flex:1;border-radius:var(--radius-md);overflow:hidden;border:1px solid var(--gray-3);background:var(--gray-0);}
+  .band{height:56px;display:flex;align-items:center;padding:0 12px;font:700 var(--text-size-md)/1 var(--font-sans);color:#fff;}
+  .body{padding:10px 12px;font:var(--text-data-sm);color:var(--gray-6);}
+  .swrow{display:flex;}
+  .sw{flex:1;height:22px;}
+</style></head>
+<body>
+<div class="teams">
+  <div class="card">
+    <div class="band" style="background:#1f6feb;">Ice Blue (default)</div>
+    <div class="swrow"><div class="sw" style="background:#eaf2ff"></div><div class="sw" style="background:#5b9bff"></div><div class="sw" style="background:#1f6feb"></div><div class="sw" style="background:#123f8a"></div></div>
+    <div class="body">--team-4: #1f6feb</div>
+  </div>
+  <div class="card">
+    <div class="band" style="background:#c62828;">Crimson</div>
+    <div class="swrow"><div class="sw" style="background:#fdecec"></div><div class="sw" style="background:#e57373"></div><div class="sw" style="background:#c62828"></div><div class="sw" style="background:#7f1616"></div></div>
+    <div class="body">override --team-4 → #c62828</div>
+  </div>
+  <div class="card">
+    <div class="band" style="background:#1c7a4d;">Forest Green</div>
+    <div class="swrow"><div class="sw" style="background:#e8f6ee"></div><div class="sw" style="background:#63c893"></div><div class="sw" style="background:#1c7a4d"></div><div class="sw" style="background:#0f4d30"></div></div>
+    <div class="body">override --team-4 → #1c7a4d</div>
+  </div>
+</div>
+</body></html>

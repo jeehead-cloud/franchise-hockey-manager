@@ -1,0 +1,2579 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+
+<helmet>
+  <link rel="stylesheet" href="_ds/hockey-design-system-a1d3da93-82f5-43c6-ab91-3f221d033334/tokens/fonts.css">
+  <link rel="stylesheet" href="_ds/hockey-design-system-a1d3da93-82f5-43c6-ab91-3f221d033334/tokens/colors.css">
+  <link rel="stylesheet" href="_ds/hockey-design-system-a1d3da93-82f5-43c6-ab91-3f221d033334/tokens/typography.css">
+  <link rel="stylesheet" href="_ds/hockey-design-system-a1d3da93-82f5-43c6-ab91-3f221d033334/tokens/spacing.css">
+  <link rel="stylesheet" href="_ds/hockey-design-system-a1d3da93-82f5-43c6-ab91-3f221d033334/tokens/effects.css">
+  <link rel="stylesheet" href="_ds/hockey-design-system-a1d3da93-82f5-43c6-ab91-3f221d033334/styles.css">
+  <script src="_ds/hockey-design-system-a1d3da93-82f5-43c6-ab91-3f221d033334/_ds_bundle.js"></script>
+  <script src="https://unpkg.com/lucide@0.462.0/dist/umd/lucide.js"></script>
+  <style>
+    html, body { margin: 0; height: 100%; background: var(--surface-app); font: var(--text-body); color: var(--text-primary); }
+    * { box-sizing: border-box; }
+    ::-webkit-scrollbar { width: 9px; height: 9px; }
+    ::-webkit-scrollbar-thumb { background: var(--gray-4); border-radius: 5px; }
+    table { border-collapse: collapse; width: 100%; }
+    a { color: var(--text-link); text-decoration: none; }
+    a:hover { color: var(--text-link-hover); text-decoration: underline; }
+  </style>
+</helmet>
+
+<div style="display:flex; height:100vh; width:100%; overflow:hidden;">
+
+  <!-- ============ SIDEBAR ============ -->
+  <div style="width:216px; flex-shrink:0; background:var(--surface-panel); border-right:1px solid var(--border-subtle); display:flex; flex-direction:column;">
+    <div style="padding:16px 16px 14px; border-bottom:1px solid var(--border-subtle); display:flex; align-items:center; gap:8px;">
+      <i data-lucide="hexagon" style="width:20px;height:20px;color:var(--accent-primary);"></i>
+      <span style="font:var(--text-brand); color:var(--text-primary); letter-spacing:var(--text-tracking-tight);">FHM</span>
+    </div>
+    <div style="padding:10px 8px; display:flex; flex-direction:column; gap:1px;">
+      <sc-for list="{{ navItems }}" as="item" hint-placeholder-count="9">
+        <div onClick="{{ item.onClick }}" style="{{ item.rowStyle }}">
+          <i data-lucide="{{ item.icon }}" style="width:16px;height:16px;flex-shrink:0;"></i>
+          <span>{{ item.label }}</span>
+        </div>
+      </sc-for>
+    </div>
+    <div style="margin-top:auto; padding:12px 14px; border-top:1px solid var(--border-subtle); display:flex; flex-direction:column; gap:8px;">
+      <div style="display:flex; align-items:center; justify-content:space-between;">
+        <span style="font:var(--text-label); letter-spacing:var(--text-tracking-wide); color:var(--text-tertiary); text-transform:uppercase;">Commissioner</span>
+        <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Switch" hint-size="36px,20px" checked="{{ commissioner }}" onChange="{{ toggleCommissioner }}"></x-import>
+      </div>
+      <div style="font:var(--text-data-sm); color:var(--text-tertiary);">World DB · 2 min ago backup</div>
+    </div>
+  </div>
+
+  <!-- ============ MAIN ============ -->
+  <div style="flex:1; display:flex; flex-direction:column; min-width:0; overflow:hidden;">
+
+    <!-- Top bar -->
+    <div style="height:52px; flex-shrink:0; display:flex; align-items:center; justify-content:space-between; padding:0 18px; border-bottom:1px solid var(--border-subtle); background:var(--surface-panel); gap:16px;">
+      <div style="display:flex; align-items:center; gap:14px; min-width:0;">
+        <div style="display:flex; align-items:center; gap:7px; font:var(--text-data-md); color:var(--text-secondary); white-space:nowrap;">
+          <i data-lucide="calendar" style="width:14px;height:14px;"></i>
+          <span style="color:var(--text-primary); font-weight:600;">{{ season }}</span>
+        </div>
+        <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Badge" tone="primary" hint-size="auto,22px" style="{{ nowrapStyle }}">{{ phase }}</x-import>
+        <div style="display:flex; align-items:center; gap:6px; font:var(--text-body-sm); color:var(--text-tertiary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+          <i data-lucide="chevron-right" style="width:12px;height:12px;flex-shrink:0;"></i>
+          <span>{{ breadcrumb }}</span>
+        </div>
+      </div>
+      <div style="display:flex; align-items:center; gap:10px; flex-shrink:0;">
+        <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Input" hint-size="230px,32px" value="{{ searchValue }}" onChange="{{ onSearchChange }}" placeholder="Search players, teams, competitions..." size="sm"></x-import>
+        <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Button" hint-size="auto,32px" size="sm" onClick="{{ goToRecommendedAction }}" icon="{{ playIcon }}">{{ recommendedActionShort }}</x-import>
+        <x-import component-from-global-scope="AtlasDesignSystem_b2128a.IconButton" hint-size="32px,32px" title="Notifications" icon="{{ bellIcon }}"></x-import>
+      </div>
+    </div>
+
+    <!-- Scrollable content -->
+    <div style="flex:1; overflow:auto;">
+
+      <!-- ============ WORLD DASHBOARD ============ -->
+      <sc-if value="{{ isWorld }}" hint-placeholder-val="{{ true }}">
+        <div data-screen-label="World Dashboard" style="padding:20px; display:flex; flex-direction:column; gap:16px;">
+
+          <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+            <div>
+              <div style="font:var(--text-heading-lg); color:var(--text-primary);">World Dashboard</div>
+              <div style="font:var(--text-body-sm); color:var(--text-tertiary); margin-top:2px;">Season {{ season }} · {{ phase }}</div>
+            </div>
+          </div>
+
+          <!-- Recommended action -->
+          <div style="background:var(--gradient-team-hero); border-radius:var(--radius-lg); padding:20px 24px; display:flex; justify-content:space-between; align-items:center; color:#fff;">
+            <div style="display:flex; flex-direction:column; gap:4px;">
+              <div style="font:var(--text-label); letter-spacing:var(--text-tracking-wide); text-transform:uppercase; opacity:0.8;">Recommended next action</div>
+              <div style="font:var(--text-heading-md);">{{ recommendedActionTitle }}</div>
+              <div style="font:var(--text-body-sm); opacity:0.85;">{{ recommendedActionSubtitle }}</div>
+            </div>
+            <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Button" hint-size="auto,38px" onClick="{{ goToRecommendedAction }}" style="background:#fff; color:var(--accent-primary-active);">{{ recommendedActionTitle }}</x-import>
+          </div>
+
+          <!-- Season phase tracker -->
+          <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Panel" hint-size="100%,auto" title="Season Sequence" width="100%">
+            <div style="display:flex; flex-wrap:wrap; gap:6px;">
+              <sc-for list="{{ phaseSteps }}" as="step" hint-placeholder-count="12">
+                <div style="{{ step.pillStyle }}">
+                  <span style="font:var(--text-data-sm); opacity:0.7;">{{ step.num }}</span>
+                  <span>{{ step.label }}</span>
+                  <i data-lucide="{{ step.icon }}" style="width:13px;height:13px;"></i>
+                </div>
+              </sc-for>
+            </div>
+          </x-import>
+
+          <!-- Blocking warnings -->
+          <sc-if value="{{ hasWarnings }}" hint-placeholder-val="{{ false }}">
+            <div style="background:var(--accent-warning-wash); border:1px solid var(--accent-warning-muted); border-radius:var(--radius-md); padding:14px 16px; display:flex; flex-direction:column; gap:8px;">
+              <div style="display:flex; align-items:center; gap:8px; font:var(--text-heading-sm); color:var(--accent-warning);">
+                <i data-lucide="alert-triangle" style="width:16px;height:16px;"></i>
+                <span>Blocking warnings before next phase</span>
+              </div>
+              <sc-for list="{{ warnings }}" as="w" hint-placeholder-count="2">
+                <div style="display:flex; align-items:center; justify-content:space-between; font:var(--text-body-sm); padding:6px 0; border-top:1px solid var(--accent-warning-muted);">
+                  <span style="color:var(--text-secondary);">{{ w.text }}</span>
+                  <a href="{{ w.href }}" onClick="{{ w.onClick }}">Resolve →</a>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
+
+          <!-- Row: completed phases / leaders / backup -->
+          <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap:16px; align-items:stretch;">
+            <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Panel" hint-size="100%,auto" title="Recently Completed" width="100%">
+              <div style="display:flex; flex-direction:column; gap:10px;">
+                <sc-for list="{{ recentCompetitions }}" as="c" hint-placeholder-count="3">
+                  <div style="display:flex; justify-content:space-between; align-items:center; padding-bottom:9px; border-bottom:1px solid var(--border-subtle);">
+                    <div>
+                      <div style="font:var(--text-body-sm); font-weight:600; color:var(--text-primary);">{{ c.name }}</div>
+                      <div style="font:var(--text-data-sm); color:var(--text-tertiary);">{{ c.detail }}</div>
+                    </div>
+                    <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Badge" tone="success" hint-size="auto,20px">{{ c.status }}</x-import>
+                  </div>
+                </sc-for>
+              </div>
+            </x-import>
+
+            <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Panel" hint-size="100%,auto" title="League Leaders" width="100%">
+              <div style="display:flex; flex-direction:column; gap:8px;">
+                <sc-for list="{{ leaders }}" as="l" hint-placeholder-count="4">
+                  <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <div style="display:flex; flex-direction:column;">
+                      <span style="font:var(--text-body-sm); color:var(--text-primary);">{{ l.name }}</span>
+                      <span style="font:var(--text-data-sm); color:var(--text-tertiary);">{{ l.team }} · {{ l.cat }}</span>
+                    </div>
+                    <span style="font:var(--text-data-md); color:var(--text-primary);">{{ l.value }}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </x-import>
+
+            <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Panel" hint-size="100%,auto" title="Database Backup" width="100%">
+              <div style="display:flex; flex-direction:column; gap:10px;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <i data-lucide="check-circle-2" style="width:16px;height:16px;color:var(--accent-success);"></i>
+                  <span style="font:var(--text-body-sm); color:var(--text-primary);">Last backup succeeded</span>
+                </div>
+                <div style="font:var(--text-data-sm); color:var(--text-tertiary);">2026-07-12 · 03:00 UTC · 41 MB</div>
+                <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Button" variant="secondary" size="sm" hint-size="auto,30px" onClick="{{ goToSettings }}">Manage Backups</x-import>
+              </div>
+            </x-import>
+          </div>
+
+          <!-- Row: latest results / transactions / upcoming intl -->
+          <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap:16px; align-items:stretch;">
+            <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Panel" hint-size="100%,auto" title="Latest NHL Results" width="100%">
+              <div style="display:flex; flex-direction:column; gap:9px;">
+                <sc-for list="{{ latestResults }}" as="r" hint-placeholder-count="4">
+                  <div style="display:flex; justify-content:space-between; align-items:center; font:var(--text-body-sm);">
+                    <div style="display:flex; align-items:center; gap:6px;">
+                      <span style="{{ r.homeStyle }}">{{ r.home }}</span>
+                      <span style="font:var(--text-data-md); color:var(--text-primary);">{{ r.homeScore }}</span>
+                      <span style="color:var(--text-tertiary);">–</span>
+                      <span style="font:var(--text-data-md); color:var(--text-primary);">{{ r.awayScore }}</span>
+                      <span style="{{ r.awayStyle }}">{{ r.away }}</span>
+                    </div>
+                    <span style="font:var(--text-data-sm); color:var(--text-tertiary);">{{ r.note }}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </x-import>
+
+            <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Panel" hint-size="100%,auto" title="Recent Transactions" width="100%">
+              <div style="display:flex; flex-direction:column; gap:9px;">
+                <sc-for list="{{ dashboardTransactions }}" as="t" hint-placeholder-count="4">
+                  <div style="display:flex; gap:8px; align-items:flex-start;">
+                    <i data-lucide="{{ t.icon }}" style="width:14px;height:14px; margin-top:2px; color:var(--text-tertiary); flex-shrink:0;"></i>
+                    <span style="font:var(--text-body-sm); color:var(--text-secondary);">{{ t.text }}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </x-import>
+
+            <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Panel" hint-size="100%,auto" title="Upcoming International" width="100%">
+              <div style="display:flex; flex-direction:column; gap:10px;">
+                <sc-for list="{{ upcomingIntl }}" as="u" hint-placeholder-count="2">
+                  <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <div>
+                      <div style="font:var(--text-body-sm); font-weight:600; color:var(--text-primary);">{{ u.name }}</div>
+                      <div style="font:var(--text-data-sm); color:var(--text-tertiary);">{{ u.window }}</div>
+                    </div>
+                    <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Badge" tone="info" hint-size="auto,20px">{{ u.status }}</x-import>
+                  </div>
+                </sc-for>
+              </div>
+            </x-import>
+          </div>
+
+          <!-- Quick links -->
+          <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <sc-for list="{{ quickLinks }}" as="q" hint-placeholder-count="5">
+              <div onClick="{{ q.onClick }}" style="display:flex; align-items:center; gap:8px; padding:10px 14px; background:var(--surface-panel); border:1px solid var(--border-subtle); border-radius:var(--radius-md); cursor:pointer; font:var(--text-body-sm); color:var(--text-primary); font-weight:500;">
+                <i data-lucide="{{ q.icon }}" style="width:15px;height:15px; color:var(--accent-primary);"></i>
+                <span>{{ q.label }}</span>
+              </div>
+            </sc-for>
+          </div>
+
+        </div>
+      </sc-if>
+
+      <!-- ============ COMPETITIONS OVERVIEW ============ -->
+      <sc-if value="{{ isCompetitions }}" hint-placeholder-val="{{ false }}">
+        <div data-screen-label="Competitions Overview" style="padding:20px; display:flex; flex-direction:column; gap:16px; max-width:1600px;">
+          <div style="font:var(--text-heading-lg); color:var(--text-primary);">Competitions</div>
+
+          <div style="display:flex; gap:10px; align-items:center; background:var(--surface-panel); border:1px solid var(--border-subtle); border-radius:var(--radius-md); padding:10px 12px;">
+            <i data-lucide="filter" style="width:14px;height:14px; color:var(--text-tertiary);"></i>
+            <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Select" hint-size="160px,32px" size="sm" value="{{ compFilterKind }}" onChange="{{ onCompFilterKind }}" options="{{ compFilterKindOptions }}"></x-import>
+            <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Select" hint-size="150px,32px" size="sm" value="{{ compFilterMode }}" onChange="{{ onCompFilterMode }}" options="{{ compFilterModeOptions }}"></x-import>
+            <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Select" hint-size="150px,32px" size="sm" value="{{ compFilterStatus }}" onChange="{{ onCompFilterStatus }}" options="{{ compFilterStatusOptions }}"></x-import>
+          </div>
+
+          <div style="display:flex; flex-direction:column; gap:10px;">
+            <sc-for list="{{ filteredCompetitions }}" as="c" hint-placeholder-count="6">
+              <div onClick="{{ c.onOpen }}" style="display:grid; grid-template-columns: 1.6fr 0.7fr 0.8fr 0.9fr 0.7fr 1fr auto; align-items:center; gap:14px; background:var(--surface-panel); border:1px solid var(--border-subtle); border-radius:var(--radius-md); padding:14px 16px; cursor:pointer;">
+                <div>
+                  <div style="font:var(--text-body); font-weight:600; color:var(--text-primary);">{{ c.name }}</div>
+                  <div style="font:var(--text-data-sm); color:var(--text-tertiary);">{{ c.type }} · {{ c.country }}</div>
+                </div>
+                <div style="font:var(--text-body-sm); color:var(--text-secondary);">{{ c.season }}</div>
+                <div style="display:flex; align-items:center; gap:5px; font:var(--text-body-sm); color:var(--text-secondary);">
+                  <i data-lucide="{{ c.modeIcon }}" style="width:13px;height:13px;"></i>
+                  <span>{{ c.mode }}</span>
+                </div>
+                <div style="font:var(--text-body-sm); color:var(--text-secondary);">{{ c.stage }}</div>
+                <div>
+                  <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Badge" tone="{{ c.statusTone }}" hint-size="auto,20px">{{ c.status }}</x-import>
+                </div>
+                <div style="font:var(--text-body-sm); color:var(--text-secondary);">{{ c.teams }} teams · {{ c.leader }}</div>
+                <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Button" variant="secondary" size="sm" hint-size="auto,28px" onClick="{{ c.onOpen }}">{{ c.actionLabel }}</x-import>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- ============ COMPETITION DETAIL ============ -->
+      <sc-if value="{{ isCompetitionDetail }}" hint-placeholder-val="{{ false }}">
+        <div data-screen-label="Competition Detail" style="padding:20px; display:flex; flex-direction:column; gap:16px; max-width:1600px;">
+
+          <!-- Header -->
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; background:var(--surface-panel); border:1px solid var(--border-subtle); border-radius:var(--radius-lg); padding:18px 20px;">
+            <div style="display:flex; flex-direction:column; gap:6px;">
+              <div style="font:var(--text-heading-lg); color:var(--text-primary);">{{ currentCompetition.name }}</div>
+              <div style="display:flex; gap:8px; align-items:center;">
+                <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Badge" tone="primary" hint-size="auto,20px">{{ currentCompetition.season }}</x-import>
+                <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Badge" tone="neutral" hint-size="auto,20px">{{ currentCompetition.mode }}</x-import>
+                <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Badge" tone="info" hint-size="auto,20px">{{ currentCompetition.stage }}</x-import>
+                <span style="font:var(--text-data-sm); color:var(--text-tertiary);">{{ currentCompetition.teams }} teams</span>
+              </div>
+            </div>
+            <div style="display:flex; gap:8px;">
+              <sc-for list="{{ compActions }}" as="a" hint-placeholder-count="3">
+                <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Button" hint-size="auto,34px" variant="{{ a.primary }}" disabled="{{ a.disabledVal }}" onClick="{{ onCompAction }}" style="{{ a.style }}">{{ a.label }}</x-import>
+              </sc-for>
+            </div>
+          </div>
+
+          <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Tabs" hint-size="100%,36px" items="{{ compTabs }}" value="{{ compTab }}" onChange="{{ onCompTabChange }}"></x-import>
+
+          <sc-if value="{{ compTabOverview }}" hint-placeholder-val="{{ true }}">
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
+              <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Panel" hint-size="100%,auto" title="Standings — Atlantic" width="100%">
+                <x-import component-from-global-scope="AtlasDesignSystem_b2128a.StandingsTable" hint-size="100%,260px" rows="{{ standingsAtlantic }}" highlightTeam="Ironclad HC"></x-import>
+              </x-import>
+              <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Panel" hint-size="100%,auto" title="Playoff Bracket Preview" width="100%">
+                <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Bracket" hint-size="100%,320px" rounds="{{ playoffBracket }}"></x-import>
+              </x-import>
+              <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Panel" hint-size="100%,auto" title="Top Players" width="100%">
+                <x-import component-from-global-scope="AtlasDesignSystem_b2128a.StatsTable" hint-size="100%,220px" columns="{{ scorerColumns }}" rows="{{ compScorers }}" highlightId="{{ 1 }}"></x-import>
+              </x-import>
+              <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Panel" hint-size="100%,auto" title="Validation" width="100%">
+                <div style="display:flex; flex-direction:column; gap:8px;">
+                  <div style="display:flex; align-items:center; gap:8px; font:var(--text-body-sm); color:var(--text-secondary);">
+                    <i data-lucide="alert-triangle" style="width:14px;height:14px; color:var(--accent-warning);"></i>
+                    <span>Harbor City HC eliminated with 1 healthy goalie on active roster.</span>
+                  </div>
+                  <div style="display:flex; align-items:center; gap:8px; font:var(--text-body-sm); color:var(--text-secondary);">
+                    <i data-lucide="check-circle-2" style="width:14px;height:14px; color:var(--accent-success);"></i>
+                    <span>All remaining series schedules generated.</span>
+                  </div>
+                </div>
+              </x-import>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ compTabParticipants }}" hint-placeholder-val="{{ false }}">
+            <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Panel" hint-size="100%,auto" title="Participants" width="100%">
+              <table>
+                <thead><tr style="font:var(--text-label); color:var(--text-tertiary); text-align:left;"><th style="padding:8px 10px;">Team</th><th>Conference</th><th>Division</th><th>Coach</th><th>Style</th></tr></thead>
+                <tbody>
+                <sc-for list="{{ compParticipants }}" as="t" hint-placeholder-count="10">
+                  <tr style="border-top:1px solid var(--border-subtle);">
+                    <td style="padding:8px 10px; font:var(--text-body-sm); font-weight:600; color:var(--text-primary);">{{ t.name }}</td>
+                    <td style="font:var(--text-body-sm); color:var(--text-secondary);">{{ t.conf }}</td>
+                    <td style="font:var(--text-body-sm); color:var(--text-secondary);">{{ t.div }}</td>
+                    <td style="font:var(--text-body-sm); color:var(--text-secondary);">{{ t.coach }}</td>
+                    <td style="font:var(--text-body-sm); color:var(--text-secondary);">{{ t.style }}</td>
+                  </tr>
+                </sc-for>
+                </tbody>
+              </table>
+            </x-import>
+          </sc-if>
+
+          <sc-if value="{{ compTabStandings }}" hint-placeholder-val="{{ false }}">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+              <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Panel" hint-size="100%,auto" title="Atlantic Division" width="100%">
+                <x-import component-from-global-scope="AtlasDesignSystem_b2128a.StandingsTable" hint-size="100%,260px" rows="{{ standingsAtlantic }}" highlightTeam="Ironclad HC"></x-import>
+              </x-import>
+              <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Panel" hint-size="100%,auto" title="Pacific Division" width="100%">
+                <x-import component-from-global-scope="AtlasDesignSystem_b2128a.StandingsTable" hint-size="100%,260px" rows="{{ standingsPacific }}"></x-import>
+              </x-import>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ compTabSchedule }}" hint-placeholder-val="{{ false }}">
+            <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Panel" hint-size="100%,auto" title="Schedule & Results" width="100%">
+              <div style="display:flex; flex-direction:column;">
+                <sc-for list="{{ compSchedule }}" as="m" hint-placeholder-count="6">
+                  <div style="display:flex; justify-content:space-between; align-items:center; padding:9px 2px; border-bottom:1px solid var(--border-subtle);">
+                    <span style="font:var(--text-data-sm); color:var(--text-tertiary); width:90px;">{{ m.date }}</span>
+                    <span style="font:var(--text-body-sm); flex:1; color:var(--text-primary);">{{ m.home }} vs {{ m.away }}</span>
+                    <span style="font:var(--text-data-md); color:var(--text-primary); width:100px; text-align:right;">{{ m.score }}</span>
+                    <span style="font:var(--text-data-sm); color:var(--text-tertiary); width:120px; text-align:right;">{{ m.note }}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </x-import>
+          </sc-if>
+
+          <sc-if value="{{ compTabPlayoffs }}" hint-placeholder-val="{{ false }}">
+            <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Panel" hint-size="100%,auto" title="Playoff Bracket" width="100%">
+              <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Bracket" hint-size="100%,360px" rounds="{{ playoffBracket }}"></x-import>
+            </x-import>
+          </sc-if>
+
+          <sc-if value="{{ compTabPlayerStats }}" hint-placeholder-val="{{ false }}">
+            <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Panel" hint-size="100%,auto" title="Player Statistics Leaders" width="100%">
+              <x-import component-from-global-scope="AtlasDesignSystem_b2128a.StatsTable" hint-size="100%,260px" columns="{{ scorerColumns }}" rows="{{ compScorers }}" highlightId="{{ 1 }}"></x-import>
+            </x-import>
+          </sc-if>
+
+          <sc-if value="{{ compTabTeamStats }}" hint-placeholder-val="{{ false }}">
+            <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Panel" hint-size="100%,auto" title="Team Statistics" width="100%">
+              <x-import component-from-global-scope="AtlasDesignSystem_b2128a.StandingsTable" hint-size="100%,260px" rows="{{ standingsAtlantic }}" highlightTeam="Ironclad HC"></x-import>
+            </x-import>
+          </sc-if>
+
+          <sc-if value="{{ compTabAwards }}" hint-placeholder-val="{{ false }}">
+            <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Panel" hint-size="100%,auto" title="Awards (Projected)" width="100%">
+              <div style="display:flex; flex-direction:column; gap:10px;">
+                <sc-for list="{{ compAwards }}" as="a" hint-placeholder-count="3">
+                  <div style="display:flex; justify-content:space-between; align-items:center; padding-bottom:8px; border-bottom:1px solid var(--border-subtle);">
+                    <span style="font:var(--text-body-sm); color:var(--text-primary); font-weight:600;">{{ a.award }}</span>
+                    <span style="font:var(--text-body-sm); color:var(--text-secondary);">{{ a.player }} · {{ a.team }}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </x-import>
+          </sc-if>
+
+          <sc-if value="{{ compTabHistory }}" hint-placeholder-val="{{ false }}">
+            <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Panel" hint-size="100%,auto" title="Past Champions" width="100%">
+              <table>
+                <thead><tr style="font:var(--text-label); color:var(--text-tertiary); text-align:left;"><th style="padding:8px 10px;">Season</th><th>Champion</th><th>Runner-up</th><th>MVP</th></tr></thead>
+                <tbody>
+                <sc-for list="{{ compHistory }}" as="h" hint-placeholder-count="5">
+                  <tr style="border-top:1px solid var(--border-subtle);">
+                    <td style="padding:8px 10px; font:var(--text-data-md); color:var(--text-primary);">{{ h.season }}</td>
+                    <td style="font:var(--text-body-sm); font-weight:600; color:var(--text-primary);">{{ h.champion }}</td>
+                    <td style="font:var(--text-body-sm); color:var(--text-secondary);">{{ h.runnerUp }}</td>
+                    <td style="font:var(--text-body-sm); color:var(--text-secondary);">{{ h.mvp }}</td>
+                  </tr>
+                </sc-for>
+                </tbody>
+              </table>
+            </x-import>
+          </sc-if>
+
+        </div>
+      </sc-if>
+
+      <!-- ============ TEAM DETAIL ============ -->
+      <sc-if value="{{ isTeamDetail }}" hint-placeholder-val="{{ false }}">
+        <div data-screen-label="Team Overview" style="padding:20px; display:flex; flex-direction:column; gap:16px; max-width:1680px;">
+
+          <!-- Header -->
+          <div style="background:var(--gradient-team-hero); border-radius:var(--radius-lg); padding:20px 24px; display:flex; justify-content:space-between; align-items:center; color:#fff;">
+            <div>
+              <div style="font:var(--text-heading-lg);">{{ currentTeam.name }}</div>
+              <div style="font:var(--text-body-sm); opacity:0.85;">{{ currentTeam.city }} · {{ currentTeam.country }} · {{ currentTeam.league }} · Coach {{ currentTeam.coach }} · {{ currentTeam.style }}</div>
+            </div>
+            <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Button" hint-size="auto,36px" onClick="{{ goToMatch }}" style="background:#fff; color:var(--accent-primary-active);">View Next Match</x-import>
+          </div>
+
+          <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Tabs" hint-size="100%,36px" items="{{ teamTabs }}" value="{{ teamTab }}" onChange="{{ onTeamTabChange }}"></x-import>
+
+          <!-- Overview -->
+          <sc-if value="{{ teamTabOverview }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex; flex-direction:column; gap:16px;">
+              <div style="display:grid; grid-template-columns:repeat(6,1fr); gap:12px;">
+                <div style="background:var(--surface-panel); border:1px solid var(--border-subtle); border-radius:var(--radius-md); padding:12px 14px;">
+                  <div style="font:var(--text-label); color:var(--text-tertiary); text-transform:uppercase;">Roster Size</div>
+                  <div style="font:var(--text-heading-md); color:var(--text-primary);">{{ teamRosterSize }}</div>
+                </div>
+                <div style="background:var(--surface-panel); border:1px solid var(--border-subtle); border-radius:var(--radius-md); padding:12px 14px;">
+                  <div style="font:var(--text-label); color:var(--text-tertiary); text-transform:uppercase;">Avg Age</div>
+                  <div style="font:var(--text-heading-md); color:var(--text-primary);">{{ teamAvgAge }}</div>
+                </div>
+                <div style="background:var(--surface-panel); border:1px solid var(--border-subtle); border-radius:var(--radius-md); padding:12px 14px;">
+                  <div style="font:var(--text-label); color:var(--text-tertiary); text-transform:uppercase;">Team Strength</div>
+                  <div style="font:var(--text-heading-md); color:var(--text-primary);">{{ teamStrength }}</div>
+                </div>
+                <div style="background:var(--surface-panel); border:1px solid var(--border-subtle); border-radius:var(--radius-md); padding:12px 14px;">
+                  <div style="font:var(--text-label); color:var(--text-tertiary); text-transform:uppercase;">Offense</div>
+                  <div style="font:var(--text-heading-md); color:var(--text-primary);">{{ teamOffense }}</div>
+                </div>
+                <div style="background:var(--surface-panel); border:1px solid var(--border-subtle); border-radius:var(--radius-md); padding:12px 14px;">
+                  <div style="font:var(--text-label); color:var(--text-tertiary); text-transform:uppercase;">Defense</div>
+                  <div style="font:var(--text-heading-md); color:var(--text-primary);">{{ teamDefense }}</div>
+                </div>
+                <div style="background:var(--surface-panel); border:1px solid var(--border-subtle); border-radius:var(--radius-md); padding:12px 14px;">
+                  <div style="font:var(--text-label); color:var(--text-tertiary); text-transform:uppercase;">Chemistry</div>
+                  <div style="font:var(--text-heading-md); color:var(--text-primary);">{{ teamChemistry }}</div>
+                </div>
+              </div>
+
+              <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px;">
+                <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Panel" hint-size="100%,auto" title="Next Match" width="100%">
+                  <div style="display:flex; flex-direction:column; gap:8px;">
+                    <div style="font:var(--text-body); font-weight:600; color:var(--text-primary);">vs {{ teamNextMatch.opp }} ({{ teamNextMatch.loc }})</div>
+                    <div style="font:var(--text-body-sm); color:var(--text-tertiary);">{{ teamNextMatch.when }}</div>
+                    <div style="font:var(--text-body-sm); color:var(--text-secondary);">{{ teamNextMatch.note }}</div>
+                    <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Button" size="sm" hint-size="auto,30px" onClick="{{ goToMatch }}">Open Match Center</x-import>
+                  </div>
+                </x-import>
+                <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Panel" hint-size="100%,auto" title="Recent Form" width="100%">
+                  <div style="display:flex; flex-direction:column; gap:10px;">
+                    <div style="display:flex; gap:6px;">
+                      <sc-for list="{{ teamForm }}" as="f" hint-placeholder-count="5">
+                        <x-import component-from-global-scope="AtlasDesignSystem_b2128a.StatusPill" hint-size="auto,22px" tone="{{ f }}" label="{{ f }}"></x-import>
+                      </sc-for>
+                    </div>
+                    <div style="font:var(--text-body-sm); color:var(--text-secondary);">{{ teamPosition }}</div>
+                  </div>
+                </x-import>
+                <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Panel" hint-size="100%,auto" title="Alerts" width="100%">
+                  <div style="display:flex; flex-direction:column; gap:8px;">
+                    <sc-for list="{{ teamDepthWarnings }}" as="w" hint-placeholder-count="2">
+                      <div style="display:flex; gap:7px; align-items:flex-start; font:var(--text-body-sm); color:var(--text-secondary);">
+                        <i data-lucide="alert-triangle" style="width:13px;height:13px; color:var(--accent-warning); margin-top:2px; flex-shrink:0;"></i>
+                        <span>{{ w }}</span>
+                      </div>
+                    </sc-for>
+                    <sc-for list="{{ teamContractWarnings }}" as="w" hint-placeholder-count="1">
+                      <div style="display:flex; gap:7px; align-items:flex-start; font:var(--text-body-sm); color:var(--text-secondary);">
+                        <i data-lucide="file-clock" style="width:13px;height:13px; color:var(--accent-info); margin-top:2px; flex-shrink:0;"></i>
+                        <span>{{ w }}</span>
+                      </div>
+                    </sc-for>
+                  </div>
+                </x-import>
+              </div>
+
+              <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Panel" hint-size="100%,auto" title="Recent Results" width="100%">
+                <div style="display:flex; flex-direction:column;">
+                  <sc-for list="{{ teamRecentResults }}" as="g" hint-placeholder-count="5">
+                    <div style="display:flex; justify-content:space-between; padding:8px 2px; border-bottom:1px solid var(--border-subtle); font:var(--text-body-sm);">
+                      <span style="color:var(--text-tertiary); width:90px;">{{ g.date }}</span>
+                      <span style="flex:1; color:var(--text-primary);">vs {{ g.opp }} ({{ g.loc }})</span>
+                      <span style="font:var(--text-data-md); color:var(--text-primary); width:100px; text-align:right;">{{ g.result }}</span>
+                      <span style="color:var(--text-tertiary); width:130px; text-align:right;">{{ g.note }}</span>
+                    </div>
+                  </sc-for>
+                </div>
+              </x-import>
+            </div>
+          </sc-if>
+
+          <!-- Roster -->
+          <sc-if value="{{ teamTabRoster }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex; flex-direction:column; gap:12px;">
+              <sc-if value="{{ rosterHasValidationIssues }}" hint-placeholder-val="{{ false }}">
+                <div style="background:var(--accent-warning-wash); border:1px solid var(--accent-warning-muted); border-radius:var(--radius-md); padding:10px 14px; display:flex; flex-direction:column; gap:4px;">
+                  <sc-for list="{{ rosterValidationMessages }}" as="m" hint-placeholder-count="2">
+                    <div style="display:flex; gap:7px; align-items:center; font:var(--text-body-sm); color:var(--text-secondary);">
+                      <i data-lucide="alert-triangle" style="width:13px;height:13px; color:var(--accent-warning);"></i>
+                      <span>{{ m }}</span>
+                    </div>
+                  </sc-for>
+                </div>
+              </sc-if>
+
+              <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
+                <div style="display:flex; gap:8px; align-items:center;">
+                  <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Input" hint-size="220px,32px" size="sm" value="{{ rosterSearch }}" onChange="{{ onRosterSearch }}" placeholder="Search roster..."></x-import>
+                  <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Select" hint-size="150px,32px" size="sm" value="{{ rosterPosFilter }}" onChange="{{ onRosterPosFilter }}" options="{{ rosterPosOptions }}"></x-import>
+                </div>
+                <div style="display:flex; gap:4px; background:var(--gray-2); border-radius:var(--radius-sm); padding:3px;">
+                  <div onClick="{{ setRosterViewTable }}" style="{{ rosterViewIsTable ? tabActiveStyle : tabInactiveStyle }}">Table</div>
+                  <div onClick="{{ setRosterViewDepth }}" style="{{ rosterViewIsDepth ? tabActiveStyle : tabInactiveStyle }}">Depth Chart</div>
+                </div>
+              </div>
+
+              <sc-if value="{{ rosterViewIsTable }}" hint-placeholder-val="{{ true }}">
+                <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Panel" hint-size="100%,auto" title="Roster" width="100%">
+                  <table>
+                    <thead><tr style="font:var(--text-label); color:var(--text-tertiary); text-align:left;"><th style="padding:8px 6px;">#</th><th>Player</th><th>Pos</th><th>Age</th><th>OVR</th><th>Role</th><th>Potential</th><th>Form</th><th>Status</th><th>Contract</th><th>Salary</th><th>Nat.</th></tr></thead>
+                    <tbody>
+                    <sc-for list="{{ rosterRows }}" as="p" hint-placeholder-count="10">
+                      <tr onClick="{{ p.onOpen }}" style="border-top:1px solid var(--border-subtle); cursor:pointer;">
+                        <td style="padding:7px 6px; font:var(--text-data-sm); color:var(--text-tertiary);">{{ p.number }}</td>
+                        <td style="font:var(--text-body-sm); font-weight:600; color:var(--text-primary);">{{ p.name }}</td>
+                        <td style="font:var(--text-body-sm); color:var(--text-secondary);">{{ p.pos }}</td>
+                        <td style="font:var(--text-data-sm); color:var(--text-secondary);">{{ p.age }}</td>
+                        <td style="font:var(--text-data-md); color:var(--text-primary);">{{ p.ovr }}</td>
+                        <td style="font:var(--text-body-sm); color:var(--text-secondary);">{{ p.role }}</td>
+                        <td style="font:var(--text-data-sm); color:var(--text-tertiary);">{{ p.potential }}</td>
+                        <td style="font:var(--text-data-sm); color:var(--text-secondary);">{{ p.form }}</td>
+                        <td><x-import component-from-global-scope="AtlasDesignSystem_b2128a.Badge" tone="{{ p.statusTone }}" hint-size="auto,20px">{{ p.rosterStatus }}</x-import></td>
+                        <td style="font:var(--text-data-sm); color:var(--text-secondary);">{{ p.contractYears }} yr</td>
+                        <td style="font:var(--text-data-sm); color:var(--text-secondary);">${{ p.salary }}M</td>
+                        <td style="font:var(--text-body-sm); color:var(--text-secondary);">{{ p.nat }}</td>
+                      </tr>
+                    </sc-for>
+                    </tbody>
+                  </table>
+                </x-import>
+              </sc-if>
+
+              <sc-if value="{{ rosterViewIsDepth }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex; flex-direction:column; gap:14px;">
+                  <sc-for list="{{ depthGroups }}" as="grp" hint-placeholder-count="5">
+                    <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Panel" hint-size="100%,auto" title="{{ grp.label }}" width="100%">
+                      <div style="display:flex; flex-wrap:wrap; gap:8px;">
+                        <sc-for list="{{ grp.players }}" as="p" hint-placeholder-count="4">
+                          <div onClick="{{ p.onOpen }}" style="display:flex; align-items:center; gap:8px; padding:8px 10px; border:1px solid var(--border-subtle); border-radius:var(--radius-sm); cursor:pointer; min-width:170px;">
+                            <span style="font:var(--text-data-md); color:var(--text-tertiary); width:22px;">{{ p.number }}</span>
+                            <div style="flex:1;">
+                              <div style="font:var(--text-body-sm); font-weight:600; color:var(--text-primary);">{{ p.name }}</div>
+                              <div style="font:var(--text-data-sm); color:var(--text-tertiary);">OVR {{ p.ovr }}</div>
+                            </div>
+                            <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Badge" tone="{{ p.statusTone }}" hint-size="auto,18px">{{ p.rosterStatus }}</x-import>
+                          </div>
+                        </sc-for>
+                      </div>
+                    </x-import>
+                  </sc-for>
+                </div>
+              </sc-if>
+            </div>
+          </sc-if>
+
+          <!-- Lines -->
+          <sc-if value="{{ teamTabLines }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex; flex-direction:column; gap:14px;">
+              <div style="display:flex; gap:8px;">
+                <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Button" size="sm" hint-size="auto,30px" onClick="{{ onAutoLineup }}">Auto Lineup</x-import>
+                <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Button" variant="secondary" size="sm" hint-size="auto,30px" onClick="{{ onClearLineup }}">Clear Lineup</x-import>
+                <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Button" variant="secondary" size="sm" hint-size="auto,30px" onClick="{{ onRestoreLineup }}">Restore</x-import>
+                <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Button" variant="secondary" size="sm" hint-size="auto,30px" onClick="{{ onSaveLineup }}">Save</x-import>
+                <span style="font:var(--text-body-sm); color:var(--text-tertiary); align-self:center; margin-left:6px;">Drag players between slots and the pool below. Lock a player to protect them from Auto Lineup.</span>
+              </div>
+
+              <div style="display:flex; gap:16px; align-items:flex-start;">
+                <div style="flex:1; display:flex; flex-direction:column; gap:10px;">
+                  <sc-for list="{{ lineGroups }}" as="grp" hint-placeholder-count="8">
+                    <div style="display:flex; gap:14px; align-items:stretch; background:var(--surface-panel); border:1px solid var(--border-subtle); border-radius:var(--radius-md); padding:12px 14px;">
+                      <div style="width:110px; flex-shrink:0; display:flex; flex-direction:column; justify-content:center;">
+                        <div style="font:var(--text-label); letter-spacing:var(--text-tracking-wide); text-transform:uppercase; color:var(--text-tertiary);">{{ grp.label }}</div>
+                        <div style="{{ grp.chemLabelStyle }}">{{ grp.chem.label }}</div>
+                      </div>
+                      <div style="display:flex; gap:8px;">
+                        <sc-for list="{{ grp.slots }}" as="slot" hint-placeholder-count="3">
+                          <div draggable="{{ slot.dragEnabled }}" onDragStart="{{ slot.onDragStart }}" onDragOver="{{ slot.onDragOver }}" onDrop="{{ slot.onDrop }}" style="{{ slot.slotStyle }}">
+                            <div style="display:flex; justify-content:space-between; align-items:center;">
+                              <span style="font:var(--text-label); color:var(--text-tertiary);">{{ slot.pos }}</span>
+                              <sc-if value="{{ slot.player }}" hint-placeholder-val="{{ false }}">
+                                <div style="display:flex; gap:4px;">
+                                  <i onClick="{{ slot.onToggleLock }}" data-lucide="{{ slot.lockIcon }}" style="width:12px;height:12px; cursor:pointer; color:var(--text-tertiary);"></i>
+                                  <i onClick="{{ slot.onRemove }}" data-lucide="x" style="width:12px;height:12px; cursor:pointer; color:var(--text-tertiary);"></i>
+                                </div>
+                              </sc-if>
+                            </div>
+                            <sc-if value="{{ slot.player }}" hint-placeholder-val="{{ false }}">
+                              <div onClick="{{ slot.onOpenPlayer }}" style="font:var(--text-body-sm); font-weight:600; color:var(--text-primary); cursor:pointer;">{{ slot.player.name }}</div>
+                              <div style="font:var(--text-data-sm); color:var(--text-tertiary);">OVR {{ slot.player.ovr }}</div>
+                            </sc-if>
+                            <sc-if value="{{ slot.mismatch }}" hint-placeholder-val="{{ false }}">
+                              <div style="font:var(--text-data-sm); color:var(--accent-danger);">Position mismatch</div>
+                            </sc-if>
+                          </div>
+                        </sc-for>
+                      </div>
+                      <div style="flex:1; display:flex; flex-wrap:wrap; gap-column:10px; gap:4px 16px; align-items:center; font:var(--text-data-sm); color:var(--text-tertiary);">
+                        <span>Base {{ grp.chem.base }}</span>
+                        <span>Tactical {{ grp.chem.tacticalFit }}</span>
+                        <span>Coach {{ grp.chem.coachFit }}</span>
+                        <span>Roles {{ grp.chem.roleBalance }}</span>
+                        <span>{{ grp.chem.familiarity }}</span>
+                      </div>
+                    </div>
+                  </sc-for>
+                </div>
+
+                <div style="width:260px; flex-shrink:0; background:var(--surface-panel); border:1px solid var(--border-subtle); border-radius:var(--radius-md); padding:12px;">
+                  <div style="font:var(--text-label); letter-spacing:var(--text-tracking-wide); text-transform:uppercase; color:var(--text-tertiary); margin-bottom:8px;">Available Pool</div>
+                  <div style="display:flex; flex-direction:column; gap:6px; max-height:560px; overflow:auto;">
+                    <sc-for list="{{ lineupPool }}" as="p" hint-placeholder-count="6">
+                      <div draggable="true" onDragStart="{{ p.onDragStart }}" style="{{ p.cardStyle }}">
+                        <span style="font:var(--text-label); color:var(--text-tertiary); width:24px;">{{ p.pos }}</span>
+                        <div style="flex:1;">
+                          <div style="font:var(--text-body-sm); font-weight:600; color:var(--text-primary);">{{ p.name }}</div>
+                          <div style="font:var(--text-data-sm); color:var(--text-tertiary);">OVR {{ p.ovr }} · {{ p.rosterStatus }}</div>
+                        </div>
+                        <i onClick="{{ p.onToggleLock }}" data-lucide="{{ p.lockIcon }}" style="width:13px;height:13px; cursor:pointer; color:var(--text-tertiary);"></i>
+                      </div>
+                    </sc-for>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </sc-if>
+
+          <!-- Tactics -->
+          <sc-if value="{{ teamTabTactics }}" hint-placeholder-val="{{ false }}">
+            <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Panel" hint-size="100%,auto" title="Tactical Setup" width="100%">
+              <div style="display:flex; flex-direction:column; gap:12px; max-width:420px;">
+                <div>
+                  <div style="font:var(--text-label); color:var(--text-tertiary); margin-bottom:4px;">Tactical Style</div>
+                  <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Select" hint-size="260px,32px" value="{{ tacticsStyle }}" onChange="{{ onTacticsStyleChange }}" options="{{ tacticsStyleOptions }}"></x-import>
+                </div>
+                <x-import component-from-global-scope="AtlasDesignSystem_b2128a.StatMeter" hint-size="100%,auto" label="Forecheck Aggression" value="{{ 74 }}" max="{{ 100 }}" tone="primary"></x-import>
+                <x-import component-from-global-scope="AtlasDesignSystem_b2128a.StatMeter" hint-size="100%,auto" label="Defensive Discipline" value="{{ 61 }}" max="{{ 100 }}" tone="info"></x-import>
+                <x-import component-from-global-scope="AtlasDesignSystem_b2128a.StatMeter" hint-size="100%,auto" label="Pace" value="{{ 82 }}" max="{{ 100 }}" tone="success"></x-import>
+              </div>
+            </x-import>
+          </sc-if>
+
+          <!-- Schedule -->
+          <sc-if value="{{ teamTabSchedule }}" hint-placeholder-val="{{ false }}">
+            <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Panel" hint-size="100%,auto" title="Schedule" width="100%">
+              <div style="display:flex; flex-direction:column;">
+                <sc-for list="{{ teamSchedule }}" as="g" hint-placeholder-count="6">
+                  <div style="display:flex; justify-content:space-between; padding:8px 2px; border-bottom:1px solid var(--border-subtle); font:var(--text-body-sm);">
+                    <span style="color:var(--text-tertiary); width:90px;">{{ g.date }}</span>
+                    <span style="flex:1; color:var(--text-primary);">vs {{ g.opp }} ({{ g.loc }})</span>
+                    <span style="font:var(--text-data-md); color:var(--text-primary); width:110px; text-align:right;">{{ g.result }}</span>
+                    <span style="color:var(--text-tertiary); width:130px; text-align:right;">{{ g.note }}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </x-import>
+          </sc-if>
+
+          <!-- Statistics -->
+          <sc-if value="{{ teamTabStatistics }}" hint-placeholder-val="{{ false }}">
+            <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Panel" hint-size="100%,auto" title="Team Scoring Leaders" width="100%">
+              <x-import component-from-global-scope="AtlasDesignSystem_b2128a.StatsTable" hint-size="100%,240px" columns="{{ scorerColumns }}" rows="{{ teamStatsLeaders }}" highlightId="{{ 1 }}"></x-import>
+            </x-import>
+          </sc-if>
+
+          <!-- Transfers -->
+          <sc-if value="{{ teamTabTransfers }}" hint-placeholder-val="{{ false }}">
+            <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Panel" hint-size="100%,auto" title="Recent Transactions" width="100%">
+              <div style="display:flex; flex-direction:column; gap:9px;">
+                <sc-for list="{{ teamTransactions }}" as="t" hint-placeholder-count="3">
+                  <div style="display:flex; gap:8px; align-items:flex-start;">
+                    <i data-lucide="{{ t.icon }}" style="width:14px;height:14px; margin-top:2px; color:var(--text-tertiary); flex-shrink:0;"></i>
+                    <span style="font:var(--text-body-sm); color:var(--text-secondary);">{{ t.text }}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </x-import>
+          </sc-if>
+
+          <!-- Contracts -->
+          <sc-if value="{{ teamTabContracts }}" hint-placeholder-val="{{ false }}">
+            <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Panel" hint-size="100%,auto" title="Contracts" width="100%">
+              <table>
+                <thead><tr style="font:var(--text-label); color:var(--text-tertiary); text-align:left;"><th style="padding:8px 6px;">Player</th><th>Pos</th><th>Years Left</th><th>Cap Hit</th></tr></thead>
+                <tbody>
+                <sc-for list="{{ contractsRows }}" as="p" hint-placeholder-count="10">
+                  <tr style="border-top:1px solid var(--border-subtle);">
+                    <td style="padding:7px 6px; font:var(--text-body-sm); font-weight:600; color:var(--text-primary);">{{ p.name }}</td>
+                    <td style="font:var(--text-body-sm); color:var(--text-secondary);">{{ p.pos }}</td>
+                    <td style="font:var(--text-data-sm); color:var(--text-secondary);">{{ p.contractYears }}</td>
+                    <td style="font:var(--text-data-md); color:var(--text-primary);">${{ p.capHit }}M</td>
+                  </tr>
+                </sc-for>
+                </tbody>
+              </table>
+            </x-import>
+          </sc-if>
+
+          <!-- Prospects -->
+          <sc-if value="{{ teamTabProspects }}" hint-placeholder-val="{{ false }}">
+            <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Panel" hint-size="100%,auto" title="Prospects" width="100%">
+              <div style="display:flex; flex-wrap:wrap; gap:10px;">
+                <sc-for list="{{ prospectsRows }}" as="p" hint-placeholder-count="4">
+                  <div style="width:190px; border:1px solid var(--border-subtle); border-radius:var(--radius-md); padding:10px 12px;">
+                    <div style="font:var(--text-body-sm); font-weight:600; color:var(--text-primary);">{{ p.name }}</div>
+                    <div style="font:var(--text-data-sm); color:var(--text-tertiary);">{{ p.pos }} · Age {{ p.age }}</div>
+                    <div style="font:var(--text-data-sm); color:var(--text-tertiary);">CA {{ p.ovr }} · POT {{ p.potential }}</div>
+                  </div>
+                </sc-for>
+              </div>
+            </x-import>
+          </sc-if>
+
+          <!-- History -->
+          <sc-if value="{{ teamTabHistory }}" hint-placeholder-val="{{ false }}">
+            <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Panel" hint-size="100%,auto" title="Franchise History" width="100%">
+              <table>
+                <thead><tr style="font:var(--text-label); color:var(--text-tertiary); text-align:left;"><th style="padding:8px 6px;">Season</th><th>Result</th></tr></thead>
+                <tbody>
+                <sc-for list="{{ teamHistory }}" as="h" hint-placeholder-count="3">
+                  <tr style="border-top:1px solid var(--border-subtle);">
+                    <td style="padding:7px 6px; font:var(--text-data-md); color:var(--text-primary);">{{ h.season }}</td>
+                    <td style="font:var(--text-body-sm); color:var(--text-secondary);">{{ h.champion }} def. {{ h.runnerUp }}</td>
+                  </tr>
+                </sc-for>
+                </tbody>
+              </table>
+            </x-import>
+          </sc-if>
+
+        </div>
+      </sc-if>
+
+      <!-- ============ PLAYERS (world list) ============ -->
+      <sc-if value="{{ isPlayers }}" hint-placeholder-val="{{ false }}">
+        <div data-screen-label="Players" style="padding:20px; display:flex; flex-direction:column; gap:14px;">
+          <div style="font:var(--text-heading-lg); color:var(--text-primary);">Players</div>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Input" hint-size="260px,32px" size="sm" value="{{ playersSearch }}" onChange="{{ onPlayersSearch }}" placeholder="Search players..."></x-import>
+            <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Select" hint-size="160px,32px" size="sm" value="{{ playersFilterPos }}" onChange="{{ onPlayersFilterPos }}" options="{{ playersPosOptions }}"></x-import>
+          </div>
+          <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Panel" hint-size="100%,auto" title="All Players" width="100%">
+            <table>
+              <thead><tr style="font:var(--text-label); color:var(--text-tertiary); text-align:left;"><th style="padding:8px 6px;">Player</th><th>Team</th><th>Pos</th><th>Age</th><th>OVR</th><th>Role</th><th>Potential</th><th>Form</th><th>Status</th><th>Nat.</th></tr></thead>
+              <tbody>
+              <sc-for list="{{ playersRows }}" as="p" hint-placeholder-count="12">
+                <tr onClick="{{ p.onOpen }}" style="border-top:1px solid var(--border-subtle); cursor:pointer;">
+                  <td style="padding:7px 6px; font:var(--text-body-sm); font-weight:600; color:var(--text-primary);">{{ p.name }}</td>
+                  <td style="font:var(--text-body-sm); color:var(--text-secondary);">{{ p.team }}</td>
+                  <td style="font:var(--text-body-sm); color:var(--text-secondary);">{{ p.pos }}</td>
+                  <td style="font:var(--text-data-sm); color:var(--text-secondary);">{{ p.age }}</td>
+                  <td style="font:var(--text-data-md); color:var(--text-primary);">{{ p.ovr }}</td>
+                  <td style="font:var(--text-body-sm); color:var(--text-secondary);">{{ p.role }}</td>
+                  <td style="font:var(--text-data-sm); color:var(--text-tertiary);">{{ p.potential }}</td>
+                  <td style="font:var(--text-data-sm); color:var(--text-secondary);">{{ p.form }}</td>
+                  <td><x-import component-from-global-scope="AtlasDesignSystem_b2128a.Badge" tone="{{ p.statusTone }}" hint-size="auto,20px">{{ p.rosterStatus }}</x-import></td>
+                  <td style="font:var(--text-body-sm); color:var(--text-secondary);">{{ p.nat }}</td>
+                </tr>
+              </sc-for>
+              </tbody>
+            </table>
+          </x-import>
+        </div>
+      </sc-if>
+
+      <!-- ============ PLAYER DETAIL ============ -->
+      <sc-if value="{{ isPlayerDetail }}" hint-placeholder-val="{{ false }}">
+        <div data-screen-label="Player Detail" style="padding:20px; display:flex; flex-direction:column; gap:16px; max-width:1200px;">
+          <div style="display:flex; gap:18px; align-items:center; background:var(--surface-panel); border:1px solid var(--border-subtle); border-radius:var(--radius-lg); padding:18px 20px;">
+            <div style="width:72px; height:72px; border-radius:var(--radius-md); background:var(--gray-2); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+              <i data-lucide="user" style="width:32px;height:32px; color:var(--text-tertiary);"></i>
+            </div>
+            <div style="flex:1;">
+              <div style="font:var(--text-heading-lg); color:var(--text-primary);">{{ currentPlayer.name }}</div>
+              <div style="font:var(--text-body-sm); color:var(--text-tertiary);">{{ currentPlayer.nat }} · Age {{ currentPlayer.age }} · {{ currentPlayer.pos }} · Ironclad HC</div>
+            </div>
+            <div style="display:flex; gap:18px;">
+              <div style="text-align:center;">
+                <div style="font:var(--text-heading-md); color:var(--text-primary);">{{ currentPlayer.ovr }}</div>
+                <div style="font:var(--text-label); color:var(--text-tertiary); text-transform:uppercase;">CA</div>
+              </div>
+              <div style="text-align:center;">
+                <div style="font:var(--text-heading-md); color:var(--text-primary);">{{ currentPlayer.potential }}</div>
+                <div style="font:var(--text-label); color:var(--text-tertiary); text-transform:uppercase;">Potential</div>
+              </div>
+              <div style="text-align:center;">
+                <div style="font:var(--text-heading-md); color:var(--text-primary);">{{ currentPlayer.form }}</div>
+                <div style="font:var(--text-label); color:var(--text-tertiary); text-transform:uppercase;">Form</div>
+              </div>
+            </div>
+          </div>
+
+          <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Tabs" hint-size="100%,36px" items="{{ playerTabs }}" value="{{ playerTab }}" onChange="{{ onPlayerTabChange }}"></x-import>
+
+          <sc-if value="{{ playerTabProfile }}" hint-placeholder-val="{{ true }}">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+              <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Panel" hint-size="100%,auto" title="Identity" width="100%">
+                <div style="display:flex; flex-direction:column; gap:8px; font:var(--text-body-sm); color:var(--text-secondary);">
+                  <div>Primary Position: <strong style="color:var(--text-primary);">{{ currentPlayer.pos }}</strong></div>
+                  <div>Role: <strong style="color:var(--text-primary);">{{ currentPlayer.role }}</strong></div>
+                  <div>Current Team: <strong style="color:var(--text-primary);">Ironclad HC</strong></div>
+                  <div>Source: <strong style="color:var(--text-primary);">Real Initial Player</strong></div>
+                  <div>Draft: <strong style="color:var(--text-primary);">2023, Round 1, Pick 14 (Ironclad HC)</strong></div>
+                </div>
+              </x-import>
+              <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Panel" hint-size="100%,auto" title="Ratings" width="100%">
+                <div style="display:flex; flex-direction:column; gap:10px;">
+                  <x-import component-from-global-scope="AtlasDesignSystem_b2128a.StatMeter" hint-size="100%,auto" label="Offensive Rating" value="{{ 88 }}" max="{{ 100 }}" tone="primary"></x-import>
+                  <x-import component-from-global-scope="AtlasDesignSystem_b2128a.StatMeter" hint-size="100%,auto" label="Defensive Rating" value="{{ 71 }}" max="{{ 100 }}" tone="info"></x-import>
+                  <x-import component-from-global-scope="AtlasDesignSystem_b2128a.StatMeter" hint-size="100%,auto" label="Role Rating" value="{{ 85 }}" max="{{ 100 }}" tone="success"></x-import>
+                </div>
+              </x-import>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ playerTabAttributes }}" hint-placeholder-val="{{ false }}">
+            <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Panel" hint-size="100%,auto" title="Attributes" width="100%">
+              <sc-if value="{{ isGoalie }}" hint-placeholder-val="{{ false }}">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px 24px;">
+                  <sc-for list="{{ goalieAttrs }}" as="a" hint-placeholder-count="9">
+                    <x-import component-from-global-scope="AtlasDesignSystem_b2128a.StatMeter" hint-size="100%,auto" label="{{ a.label }}" value="{{ a.value }}" max="{{ 100 }}" tone="primary"></x-import>
+                  </sc-for>
+                </div>
+              </sc-if>
+              <sc-if value="{{ isSkater }}" hint-placeholder-val="{{ true }}">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px 24px;">
+                  <sc-for list="{{ skaterAttrs }}" as="a" hint-placeholder-count="9">
+                    <x-import component-from-global-scope="AtlasDesignSystem_b2128a.StatMeter" hint-size="100%,auto" label="{{ a.label }}" value="{{ a.value }}" max="{{ 100 }}" tone="primary"></x-import>
+                  </sc-for>
+                </div>
+              </sc-if>
+            </x-import>
+          </sc-if>
+
+          <sc-if value="{{ playerTabDevelopment }}" hint-placeholder-val="{{ false }}">
+            <div style="display:grid; grid-template-columns:2fr 1fr; gap:16px;">
+              <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Panel" hint-size="100%,auto" title="Development Timeline" width="100%">
+                <table>
+                  <thead><tr style="font:var(--text-label); color:var(--text-tertiary); text-align:left;"><th style="padding:6px;">Season</th><th>OVR</th><th>Role</th></tr></thead>
+                  <tbody>
+                  <sc-for list="{{ devTimeline }}" as="d" hint-placeholder-count="4">
+                    <tr style="border-top:1px solid var(--border-subtle);">
+                      <td style="padding:6px; font:var(--text-body-sm); color:var(--text-primary);">{{ d.season }}</td>
+                      <td style="font:var(--text-data-md); color:var(--text-primary);">{{ d.ovr }}</td>
+                      <td style="font:var(--text-body-sm); color:var(--text-secondary);">{{ d.role }}</td>
+                    </tr>
+                  </sc-for>
+                  </tbody>
+                </table>
+              </x-import>
+              <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Panel" hint-size="100%,auto" title="Development Risk" width="100%">
+                <div style="font:var(--text-body-sm); color:var(--text-secondary);">Estimated future development risk: <strong style="color:var(--accent-success);">{{ devRisk }}</strong></div>
+              </x-import>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ playerTabPreferences }}" hint-placeholder-val="{{ false }}">
+            <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Panel" hint-size="100%,auto" title="Preferences & Personality" width="100%">
+              <div style="display:flex; flex-direction:column; gap:8px; font:var(--text-body-sm); color:var(--text-secondary); max-width:420px;">
+                <div>Preferred Coaching Style: <strong style="color:var(--text-primary);">{{ playerPersonality.coachStyle }}</strong></div>
+                <div>Preferred Tactics: <strong style="color:var(--text-primary);">{{ playerPersonality.tactics }}</strong></div>
+                <div>Personality: <strong style="color:var(--text-primary);">{{ playerPersonality.personality }}</strong></div>
+                <x-import component-from-global-scope="AtlasDesignSystem_b2128a.StatMeter" hint-size="100%,auto" label="Hero / Clutch Rating" value="{{ playerPersonality.clutch }}" max="{{ 100 }}" tone="primary"></x-import>
+                <x-import component-from-global-scope="AtlasDesignSystem_b2128a.StatMeter" hint-size="100%,auto" label="Stability" value="{{ playerPersonality.stability }}" max="{{ 100 }}" tone="success"></x-import>
+              </div>
+            </x-import>
+          </sc-if>
+
+          <sc-if value="{{ playerTabStats }}" hint-placeholder-val="{{ false }}">
+            <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Panel" hint-size="100%,auto" title="Career Statistics — NHL" width="100%">
+              <x-import component-from-global-scope="AtlasDesignSystem_b2128a.StatsTable" hint-size="100%,220px" columns="{{ careerColumns }}" rows="{{ careerStats }}"></x-import>
+            </x-import>
+          </sc-if>
+
+          <sc-if value="{{ playerTabContract }}" hint-placeholder-val="{{ false }}">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+              <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Panel" hint-size="100%,auto" title="Contract" width="100%">
+                <div style="display:flex; flex-direction:column; gap:8px; font:var(--text-body-sm); color:var(--text-secondary);">
+                  <div>Team: <strong style="color:var(--text-primary);">Ironclad HC</strong></div>
+                  <div>Years Remaining: <strong style="color:var(--text-primary);">{{ currentPlayer.contractYears }}</strong></div>
+                  <div>Salary: <strong style="color:var(--text-primary);">${{ currentPlayer.salary }}M</strong></div>
+                </div>
+              </x-import>
+              <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Panel" hint-size="100%,auto" title="Transaction History" width="100%">
+                <div style="display:flex; flex-direction:column; gap:8px;">
+                  <sc-for list="{{ playerTransactionTimeline }}" as="t" hint-placeholder-count="2">
+                    <div style="font:var(--text-body-sm); color:var(--text-secondary);"><span style="color:var(--text-tertiary);">{{ t.date }}</span> — {{ t.text }}</div>
+                  </sc-for>
+                </div>
+              </x-import>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ playerTabEditor }}" hint-placeholder-val="{{ false }}">
+            <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Panel" hint-size="100%,auto" title="Commissioner Editor" width="100%">
+              <div style="display:flex; flex-direction:column; gap:12px; max-width:320px;">
+                <sc-for list="{{ editorFields }}" as="f" hint-placeholder-count="3">
+                  <div>
+                    <div style="font:var(--text-label); color:var(--text-tertiary); margin-bottom:4px;">{{ f.label }}</div>
+                    <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Input" hint-size="140px,32px" value="{{ f.value }}" size="sm"></x-import>
+                  </div>
+                </sc-for>
+                <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Button" size="sm" hint-size="auto,32px">Save & Recalculate</x-import>
+              </div>
+            </x-import>
+          </sc-if>
+        </div>
+      </sc-if>
+
+      <!-- ============ NATIONAL TEAMS ============ -->
+      <sc-if value="{{ isNationalTeams }}" hint-placeholder-val="{{ false }}">
+        <div data-screen-label="National Teams" style="padding:20px; display:flex; flex-direction:column; gap:14px;">
+          <div style="font:var(--text-heading-lg); color:var(--text-primary);">National Teams</div>
+          <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Panel" hint-size="100%,auto" title="World Rankings" width="100%">
+            <table>
+              <thead><tr style="font:var(--text-label); color:var(--text-tertiary); text-align:left;"><th style="padding:8px 6px;">Rank</th><th>Nation</th><th>Head Coach</th><th>Next Event</th></tr></thead>
+              <tbody>
+              <sc-for list="{{ nationalTeamsRows }}" as="n" hint-placeholder-count="6">
+                <tr style="border-top:1px solid var(--border-subtle);">
+                  <td style="padding:7px 6px; font:var(--text-data-md); color:var(--text-primary);">{{ n.ranking }}</td>
+                  <td style="font:var(--text-body-sm); font-weight:600; color:var(--text-primary);">{{ n.name }}</td>
+                  <td style="font:var(--text-body-sm); color:var(--text-secondary);">{{ n.coach }}</td>
+                  <td style="font:var(--text-body-sm); color:var(--text-secondary);">{{ n.nextEvent }}</td>
+                </tr>
+              </sc-for>
+              </tbody>
+            </table>
+          </x-import>
+        </div>
+      </sc-if>
+
+      <!-- ============ HISTORY ============ -->
+      <sc-if value="{{ isHistory }}" hint-placeholder-val="{{ false }}">
+        <div data-screen-label="History" style="padding:20px; display:flex; flex-direction:column; gap:14px;">
+          <div style="font:var(--text-heading-lg); color:var(--text-primary);">League History</div>
+          <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Panel" hint-size="100%,auto" title="NHL Champions" width="100%">
+            <table>
+              <thead><tr style="font:var(--text-label); color:var(--text-tertiary); text-align:left;"><th style="padding:8px 6px;">Season</th><th>Champion</th><th>Runner-up</th><th>MVP</th></tr></thead>
+              <tbody>
+              <sc-for list="{{ historyChampions }}" as="h" hint-placeholder-count="5">
+                <tr style="border-top:1px solid var(--border-subtle);">
+                  <td style="padding:7px 6px; font:var(--text-data-md); color:var(--text-primary);">{{ h.season }}</td>
+                  <td style="font:var(--text-body-sm); font-weight:600; color:var(--text-primary);">{{ h.champion }}</td>
+                  <td style="font:var(--text-body-sm); color:var(--text-secondary);">{{ h.runnerUp }}</td>
+                  <td style="font:var(--text-body-sm); color:var(--text-secondary);">{{ h.mvp }}</td>
+                </tr>
+              </sc-for>
+              </tbody>
+            </table>
+          </x-import>
+        </div>
+      </sc-if>
+
+      <!-- ============ TRANSFERS ============ -->
+      <sc-if value="{{ isTransfers }}" hint-placeholder-val="{{ false }}">
+        <div data-screen-label="Transfers" style="padding:20px; display:flex; flex-direction:column; gap:14px;">
+          <div style="font:var(--text-heading-lg); color:var(--text-primary);">Transfers</div>
+          <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Tabs" hint-size="100%,36px" items="{{ transfersTabs }}" value="{{ transfersTab }}" onChange="{{ onTransfersTabChange }}"></x-import>
+
+          <sc-if value="{{ transfersTabTransactions }}" hint-placeholder-val="{{ true }}">
+            <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Panel" hint-size="100%,auto" title="All Transactions" width="100%">
+              <div style="display:flex; flex-direction:column; gap:10px;">
+                <sc-for list="{{ allTransactions }}" as="t" hint-placeholder-count="8">
+                  <div style="display:flex; gap:10px; align-items:flex-start; padding-bottom:9px; border-bottom:1px solid var(--border-subtle);">
+                    <i data-lucide="{{ t.icon }}" style="width:14px;height:14px; margin-top:2px; color:var(--text-tertiary); flex-shrink:0;"></i>
+                    <div style="flex:1;">
+                      <div style="font:var(--text-body-sm); color:var(--text-secondary);">{{ t.text }}</div>
+                      <div style="font:var(--text-data-sm); color:var(--text-tertiary);">{{ t.date }} · {{ t.type }}</div>
+                    </div>
+                  </div>
+                </sc-for>
+              </div>
+            </x-import>
+          </sc-if>
+
+          <sc-if value="{{ transfersTabFreeAgents }}" hint-placeholder-val="{{ false }}">
+            <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Panel" hint-size="100%,auto" title="Free Agents" width="100%">
+              <table>
+                <thead><tr style="font:var(--text-label); color:var(--text-tertiary); text-align:left;"><th style="padding:8px 6px;">Player</th><th>Pos</th><th>Age</th><th>OVR</th><th>Potential</th><th>Exp. Salary</th><th>Interest</th><th></th></tr></thead>
+                <tbody>
+                <sc-for list="{{ freeAgentsRows }}" as="p" hint-placeholder-count="8">
+                  <tr style="border-top:1px solid var(--border-subtle);">
+                    <td style="padding:7px 6px; font:var(--text-body-sm); font-weight:600; color:var(--text-primary);">{{ p.name }}</td>
+                    <td style="font:var(--text-body-sm); color:var(--text-secondary);">{{ p.pos }}</td>
+                    <td style="font:var(--text-data-sm); color:var(--text-secondary);">{{ p.age }}</td>
+                    <td style="font:var(--text-data-md); color:var(--text-primary);">{{ p.ovr }}</td>
+                    <td style="font:var(--text-data-sm); color:var(--text-tertiary);">{{ p.potential }}</td>
+                    <td style="font:var(--text-data-sm); color:var(--text-secondary);">${{ p.salary }}M</td>
+                    <td style="font:var(--text-data-sm); color:var(--text-secondary);">{{ p.interest }} teams</td>
+                    <td><x-import component-from-global-scope="AtlasDesignSystem_b2128a.Button" variant="secondary" size="sm" hint-size="auto,26px">Sign</x-import></td>
+                  </tr>
+                </sc-for>
+                </tbody>
+              </table>
+            </x-import>
+          </sc-if>
+
+          <sc-if value="{{ transfersTabTradeCenter }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex; flex-direction:column; gap:14px;">
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+                <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Panel" hint-size="100%,auto" title="Ironclad HC Sends" width="100%">
+                  <div style="display:flex; flex-direction:column; gap:8px;">
+                    <sc-for list="{{ tradeAssetsA }}" as="a" hint-placeholder-count="2">
+                      <div style="display:flex; justify-content:space-between; padding:8px 10px; border:1px solid var(--border-subtle); border-radius:var(--radius-sm); font:var(--text-body-sm);">
+                        <span style="color:var(--text-primary);">{{ a.label }}</span>
+                        <span style="color:var(--text-tertiary);">{{ a.kind }}</span>
+                      </div>
+                    </sc-for>
+                  </div>
+                  <div style="margin-top:10px; font:var(--text-data-md); color:var(--text-primary);">Est. Value: {{ tradeValueA }}</div>
+                </x-import>
+                <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Panel" hint-size="100%,auto" title="Northgate Wolves Sends" width="100%">
+                  <div style="display:flex; flex-direction:column; gap:8px;">
+                    <sc-for list="{{ tradeAssetsB }}" as="a" hint-placeholder-count="2">
+                      <div style="display:flex; justify-content:space-between; padding:8px 10px; border:1px solid var(--border-subtle); border-radius:var(--radius-sm); font:var(--text-body-sm);">
+                        <span style="color:var(--text-primary);">{{ a.label }}</span>
+                        <span style="color:var(--text-tertiary);">{{ a.kind }}</span>
+                      </div>
+                    </sc-for>
+                  </div>
+                  <div style="margin-top:10px; font:var(--text-data-md); color:var(--text-primary);">Est. Value: {{ tradeValueB }}</div>
+                </x-import>
+              </div>
+              <sc-if value="{{ tradeImbalance }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex; align-items:center; gap:8px; background:var(--accent-warning-wash); border:1px solid var(--accent-warning-muted); border-radius:var(--radius-md); padding:10px 14px; font:var(--text-body-sm); color:var(--text-secondary);">
+                  <i data-lucide="alert-triangle" style="width:14px;height:14px; color:var(--accent-warning);"></i>
+                  <span>Trade value imbalance: Ironclad HC gives up 14 more points of value. This is a sandbox — the trade is not blocked.</span>
+                </div>
+              </sc-if>
+              <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Button" hint-size="auto,36px">Confirm Trade</x-import>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ transfersTabExpiring }}" hint-placeholder-val="{{ false }}">
+            <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Panel" hint-size="100%,auto" title="Expiring Contracts — Ironclad HC" width="100%">
+              <table>
+                <thead><tr style="font:var(--text-label); color:var(--text-tertiary); text-align:left;"><th style="padding:8px 6px;">Player</th><th>Pos</th><th>OVR</th><th>Salary</th></tr></thead>
+                <tbody>
+                <sc-for list="{{ expiringContracts }}" as="p" hint-placeholder-count="4">
+                  <tr style="border-top:1px solid var(--border-subtle);">
+                    <td style="padding:7px 6px; font:var(--text-body-sm); font-weight:600; color:var(--text-primary);">{{ p.name }}</td>
+                    <td style="font:var(--text-body-sm); color:var(--text-secondary);">{{ p.pos }}</td>
+                    <td style="font:var(--text-data-md); color:var(--text-primary);">{{ p.ovr }}</td>
+                    <td style="font:var(--text-data-sm); color:var(--text-secondary);">${{ p.salary }}M</td>
+                  </tr>
+                </sc-for>
+                </tbody>
+              </table>
+            </x-import>
+          </sc-if>
+
+          <sc-if value="{{ transfersTabDraftRights }}" hint-placeholder-val="{{ false }}">
+            <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Panel" hint-size="100%,auto" title="Draft Rights" width="100%">
+              <table>
+                <thead><tr style="font:var(--text-label); color:var(--text-tertiary); text-align:left;"><th style="padding:8px 6px;">Player</th><th>Pos</th><th>Nat.</th><th>Age</th><th>Rights Owner</th><th>Drafted</th></tr></thead>
+                <tbody>
+                <sc-for list="{{ draftRightsRows }}" as="p" hint-placeholder-count="3">
+                  <tr style="border-top:1px solid var(--border-subtle);">
+                    <td style="padding:7px 6px; font:var(--text-body-sm); font-weight:600; color:var(--text-primary);">{{ p.name }}</td>
+                    <td style="font:var(--text-body-sm); color:var(--text-secondary);">{{ p.pos }}</td>
+                    <td style="font:var(--text-body-sm); color:var(--text-secondary);">{{ p.nat }}</td>
+                    <td style="font:var(--text-data-sm); color:var(--text-secondary);">{{ p.age }}</td>
+                    <td style="font:var(--text-body-sm); color:var(--text-secondary);">{{ p.owner }}</td>
+                    <td style="font:var(--text-data-sm); color:var(--text-tertiary);">{{ p.drafted }}</td>
+                  </tr>
+                </sc-for>
+                </tbody>
+              </table>
+            </x-import>
+          </sc-if>
+
+          <sc-if value="{{ transfersTabSuggestions }}" hint-placeholder-val="{{ false }}">
+            <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Panel" hint-size="100%,auto" title="Suggestions" width="100%">
+              <div style="display:flex; flex-direction:column; gap:8px;">
+                <sc-for list="{{ suggestionsRows }}" as="s" hint-placeholder-count="2">
+                  <div style="display:flex; gap:8px; align-items:center; font:var(--text-body-sm); color:var(--text-secondary);">
+                    <i data-lucide="lightbulb" style="width:14px;height:14px; color:var(--accent-primary);"></i>
+                    <span>{{ s.text }}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </x-import>
+          </sc-if>
+        </div>
+      </sc-if>
+
+      <!-- ============ SETTINGS ============ -->
+      <sc-if value="{{ isSettings }}" hint-placeholder-val="{{ false }}">
+        <div data-screen-label="Settings" style="padding:20px; display:flex; flex-direction:column; gap:14px;">
+          <div style="font:var(--text-heading-lg); color:var(--text-primary);">Settings</div>
+          <div style="display:flex; gap:4px; background:var(--gray-2); border-radius:var(--radius-sm); padding:3px; width:fit-content;">
+            <div onClick="{{ setSettingsSectionBalance }}" style="{{ settingsSectionIsBalance ? tabActiveStyle : tabInactiveStyle }}">Game Balance</div>
+            <div onClick="{{ setSettingsSectionSystem }}" style="{{ settingsSectionIsBalance ? tabInactiveStyle : tabActiveStyle }}">System & Debug</div>
+          </div>
+
+          <div style="display:flex; gap:16px; align-items:flex-start;">
+            <div style="width:220px; flex-shrink:0; background:var(--surface-panel); border:1px solid var(--border-subtle); border-radius:var(--radius-md); padding:8px;">
+              <sc-for list="{{ settingsCategories }}" as="c" hint-placeholder-count="10">
+                <div onClick="{{ c.onClick }}" style="{{ c.rowStyle }}">{{ c.label }}</div>
+              </sc-for>
+            </div>
+
+            <div style="flex:1; display:flex; flex-direction:column; gap:12px;">
+              <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Panel" hint-size="100%,auto" title="{{ settingsCategoryLabel }}" width="100%">
+                <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap:14px;">
+                  <sc-for list="{{ settingsParams }}" as="p" hint-placeholder-count="3">
+                    <div style="display:flex; flex-direction:column; gap:8px; border:1px solid var(--border-subtle); border-radius:var(--radius-md); padding:12px 14px;">
+                      <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px;">
+                        <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                          <span style="font:var(--text-body-sm); font-weight:600; color:var(--text-primary);">{{ p.name }}</span>
+                          <sc-if value="{{ p.changed }}" hint-placeholder-val="{{ false }}">
+                            <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Tag" hint-size="auto,16px">Changed</x-import>
+                          </sc-if>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:8px; flex-shrink:0;">
+                          <span style="font:var(--text-data-md); color:var(--text-primary);">{{ p.value }}{{ p.unit }}</span>
+                          <x-import component-from-global-scope="AtlasDesignSystem_b2128a.IconButton" hint-size="26px,26px" title="Reset to default" icon="{{ p.resetIcon }}"></x-import>
+                        </div>
+                      </div>
+                      <div style="font:var(--text-body-sm); color:var(--text-tertiary);">{{ p.desc }}</div>
+                      <sc-if value="{{ p.hasBar }}" hint-placeholder-val="{{ false }}">
+                        <div>
+                          <div style="height:6px; border-radius:var(--radius-pill); background:var(--gray-5); overflow:hidden;">
+                            <div style="height:100%; width:{{ p.barPct }}%; background:var(--accent-primary);"></div>
+                          </div>
+                          <div style="display:flex; justify-content:space-between; font:var(--text-data-sm); color:var(--text-tertiary); margin-top:3px;">
+                            <span>{{ p.rangeMin }}</span>
+                            <span style="font:var(--text-body-sm); color:var(--text-tertiary);">Default {{ p.def }}{{ p.unit }}</span>
+                            <span>{{ p.rangeMax }}</span>
+                          </div>
+                        </div>
+                      </sc-if>
+                      <sc-if value="{{ p.noBar }}" hint-placeholder-val="{{ false }}">
+                        <div style="font:var(--text-body-sm); color:var(--text-tertiary);">Range: {{ p.range }} · Default: {{ p.def }}{{ p.unit }}</div>
+                      </sc-if>
+                    </div>
+                  </sc-for>
+                </div>
+              </x-import>
+
+              <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Panel" hint-size="100%,auto" title="Balance Presets" width="100%">
+                <table>
+                  <thead><tr style="font:var(--text-label); color:var(--text-tertiary); text-align:left;"><th style="padding:6px;">Preset</th><th>Used By</th><th></th></tr></thead>
+                  <tbody>
+                  <sc-for list="{{ balancePresets }}" as="pr" hint-placeholder-count="5">
+                    <tr style="border-top:1px solid var(--border-subtle);">
+                      <td style="padding:7px 6px; font:var(--text-body-sm); font-weight:600; color:var(--text-primary);">{{ pr.name }} <sc-if value="{{ pr.active }}" hint-placeholder-val="{{ false }}"><x-import component-from-global-scope="AtlasDesignSystem_b2128a.Badge" tone="primary" hint-size="auto,18px">Active</x-import></sc-if></td>
+                      <td style="font:var(--text-body-sm); color:var(--text-secondary);">{{ pr.usedBy }}</td>
+                      <td style="display:flex; gap:6px; justify-content:flex-end; padding:7px 6px;">
+                        <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Button" variant="secondary" size="sm" hint-size="auto,26px">Duplicate</x-import>
+                        <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Button" variant="secondary" size="sm" hint-size="auto,26px">Activate</x-import>
+                      </td>
+                    </tr>
+                  </sc-for>
+                  </tbody>
+                </table>
+              </x-import>
+
+              <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Panel" hint-size="100%,auto" title="Dangerous Actions" width="100%">
+                <div style="display:flex; gap:10px;">
+                  <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Button" variant="secondary" size="sm" hint-size="auto,30px">Run Backup Now</x-import>
+                  <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Button" variant="danger" size="sm" hint-size="auto,30px">Reset World Database</x-import>
+                </div>
+              </x-import>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- ============ SIMULATION LAB ============ -->
+      <sc-if value="{{ isSimLab }}" hint-placeholder-val="{{ false }}">
+        <div data-screen-label="Simulation Lab" style="padding:20px; display:flex; flex-direction:column; gap:14px;">
+          <div style="font:var(--text-heading-lg); color:var(--text-primary);">Simulation Lab</div>
+
+          <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Panel" hint-size="100%,auto" title="Setup" width="100%">
+            <div style="display:flex; gap:14px; align-items:flex-end; flex-wrap:wrap;">
+              <div>
+                <div style="font:var(--text-label); color:var(--text-tertiary); margin-bottom:4px;">Team A</div>
+                <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Select" hint-size="200px,32px" value="{{ simTeamA }}" onChange="{{ onSimTeamAChange }}" options="{{ simTeamAOptions }}"></x-import>
+              </div>
+              <div>
+                <div style="font:var(--text-label); color:var(--text-tertiary); margin-bottom:4px;">Team B</div>
+                <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Select" hint-size="200px,32px" value="{{ simTeamB }}" onChange="{{ onSimTeamBChange }}" options="{{ simTeamBOptions }}"></x-import>
+              </div>
+              <div>
+                <div style="font:var(--text-label); color:var(--text-tertiary); margin-bottom:4px;">Balance Preset</div>
+                <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Select" hint-size="170px,32px" value="{{ simPreset }}" onChange="{{ onSimPresetChange }}" options="{{ simPresetOptions }}"></x-import>
+              </div>
+              <div>
+                <div style="font:var(--text-label); color:var(--text-tertiary); margin-bottom:4px;">Simulations</div>
+                <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Select" hint-size="110px,32px" value="{{ simCount }}" onChange="{{ onSimCountChange }}" options="{{ simCountOptions }}"></x-import>
+              </div>
+              <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Button" hint-size="auto,34px" onClick="{{ onRunSimulation }}">Run Simulation</x-import>
+            </div>
+          </x-import>
+
+          <sc-if value="{{ simRan }}" hint-placeholder-val="{{ false }}">
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap:16px;">
+              <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Panel" hint-size="100%,auto" title="Outcome Summary" width="100%">
+                <div style="display:flex; flex-direction:column; gap:8px;">
+                  <x-import component-from-global-scope="AtlasDesignSystem_b2128a.StatMeter" hint-size="100%,auto" label="{{ simResultTeamA.name }} Win %" value="{{ simWinPctA }}" max="{{ 100 }}" tone="primary"></x-import>
+                  <x-import component-from-global-scope="AtlasDesignSystem_b2128a.StatMeter" hint-size="100%,auto" label="{{ simResultTeamB.name }} Win %" value="{{ simWinPctB }}" max="{{ 100 }}" tone="info"></x-import>
+                  <div style="font:var(--text-body-sm); color:var(--text-secondary); margin-top:4px;">Avg Score: {{ simAvgScoreA }} – {{ simAvgScoreB }} · Avg Shots: {{ simAvgShotsA }} – {{ simAvgShotsB }}</div>
+                  <div style="font:var(--text-body-sm); color:var(--text-secondary);">PP Efficiency: {{ simPPEffA }} vs {{ simPPEffB }}</div>
+                </div>
+              </x-import>
+              <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Panel" hint-size="100%,auto" title="Score Margin Distribution" width="100%">
+                <div style="display:flex; flex-direction:column; gap:6px;">
+                  <sc-for list="{{ simDistribution }}" as="d" hint-placeholder-count="4">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                      <span style="font:var(--text-body-sm); color:var(--text-secondary); width:80px;">{{ d.margin }}</span>
+                      <div style="flex:1; height:8px; background:var(--gray-2); border-radius:4px; overflow:hidden;">
+                        <div style="height:100%; background:var(--accent-primary); width:{{ d.pct }}%;"></div>
+                      </div>
+                      <span style="font:var(--text-data-sm); color:var(--text-tertiary); width:32px; text-align:right;">{{ d.pct }}%</span>
+                    </div>
+                  </sc-for>
+                </div>
+              </x-import>
+              <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Panel" hint-size="100%,auto" title="Top Producers" width="100%">
+                <div style="display:flex; flex-direction:column; gap:8px;">
+                  <sc-for list="{{ simTopProducers }}" as="p" hint-placeholder-count="2">
+                    <div style="display:flex; justify-content:space-between; font:var(--text-body-sm);">
+                      <span style="color:var(--text-primary);">{{ p.name }} <span style="color:var(--text-tertiary);">({{ p.team }})</span></span>
+                      <span style="color:var(--text-secondary);">{{ p.pts }}</span>
+                    </div>
+                  </sc-for>
+                </div>
+              </x-import>
+              <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Panel" hint-size="100%,auto" title="Anomalies" width="100%">
+                <div style="display:flex; flex-direction:column; gap:8px;">
+                  <sc-for list="{{ simAnomalies }}" as="a" hint-placeholder-count="1">
+                    <div style="display:flex; gap:8px; align-items:center; font:var(--text-body-sm); color:var(--text-secondary);">
+                      <i data-lucide="alert-triangle" style="width:14px;height:14px; color:var(--accent-warning);"></i>
+                      <span>{{ a.text }}</span>
+                    </div>
+                  </sc-for>
+                  <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Button" variant="secondary" size="sm" hint-size="auto,28px">Export Results</x-import>
+                </div>
+              </x-import>
+            </div>
+          </sc-if>
+        </div>
+      </sc-if>
+
+      <!-- ============ NHL DRAFT ============ -->
+      <sc-if value="{{ isDraft }}" hint-placeholder-val="{{ false }}">
+        <div data-screen-label="NHL Draft" style="padding:20px; display:flex; flex-direction:column; gap:14px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; background:var(--gradient-team-hero); border-radius:var(--radius-lg); padding:16px 20px; color:#fff;">
+            <div>
+              <div style="font:var(--text-heading-lg);">{{ draftYear }} NHL Draft — Round {{ draftRound }}</div>
+              <div style="font:var(--text-body-sm); opacity:0.85;">On the clock: {{ draftCurrentPick.team }} · Pick #{{ draftCurrentPick.pick }}</div>
+            </div>
+            <div style="display:flex; gap:8px; align-items:center;">
+              <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Select" hint-size="190px,32px" value="{{ draftStrategy }}" onChange="{{ onDraftStrategyChange }}" options="{{ draftStrategyOptions }}"></x-import>
+              <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Button" hint-size="auto,34px" onClick="{{ onConfirmPick }}" style="background:#fff; color:var(--accent-primary-active);">Confirm Pick</x-import>
+            </div>
+          </div>
+
+          <div style="display:flex; gap:16px; align-items:flex-start;">
+            <div style="width:250px; flex-shrink:0; background:var(--surface-panel); border:1px solid var(--border-subtle); border-radius:var(--radius-md); padding:10px;">
+              <div style="font:var(--text-label); color:var(--text-tertiary); text-transform:uppercase; margin-bottom:8px;">Draft Order</div>
+              <div style="display:flex; flex-direction:column; gap:2px; max-height:600px; overflow:auto;">
+                <sc-for list="{{ draftOrder }}" as="d" hint-placeholder-count="10">
+                  <div onClick="{{ d.onClick }}" style="{{ d.rowStyle }}">
+                    <span>#{{ d.pick }} {{ d.team }}</span>
+                    <sc-if value="{{ d.picked }}" hint-placeholder-val="{{ false }}"><i data-lucide="check" style="width:13px;height:13px;color:var(--accent-success);"></i></sc-if>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+
+            <div style="flex:1; background:var(--surface-panel); border:1px solid var(--border-subtle); border-radius:var(--radius-md); padding:10px;">
+              <div style="font:var(--text-label); color:var(--text-tertiary); text-transform:uppercase; margin-bottom:8px;">Available Prospects</div>
+              <table>
+                <thead><tr style="font:var(--text-label); color:var(--text-tertiary); text-align:left;"><th style="padding:6px;">Name</th><th>Pos</th><th>Age</th><th>Nat.</th><th>CA</th><th>Potential</th><th>Role</th><th>Confidence</th><th>Risk</th></tr></thead>
+                <tbody>
+                <sc-for list="{{ draftProspects }}" as="p" hint-placeholder-count="8">
+                  <tr onClick="{{ p.onSelect }}" style="{{ p.rowStyle }} border-top:1px solid var(--border-subtle);">
+                    <td style="padding:7px 6px; font:var(--text-body-sm); font-weight:600; color:var(--text-primary);">{{ p.name }}</td>
+                    <td style="font:var(--text-body-sm); color:var(--text-secondary);">{{ p.pos }}</td>
+                    <td style="font:var(--text-data-sm); color:var(--text-secondary);">{{ p.age }}</td>
+                    <td style="font:var(--text-body-sm); color:var(--text-secondary);">{{ p.nat }}</td>
+                    <td style="font:var(--text-data-md); color:var(--text-primary);">{{ p.ca }}</td>
+                    <td style="font:var(--text-data-sm); color:var(--text-tertiary);">{{ p.potential }}</td>
+                    <td style="font:var(--text-body-sm); color:var(--text-secondary);">{{ p.role }}</td>
+                    <td style="font:var(--text-body-sm); color:var(--text-secondary);">{{ p.confidence }}</td>
+                    <td style="font:var(--text-body-sm); color:var(--text-secondary);">{{ p.risk }}</td>
+                  </tr>
+                </sc-for>
+                </tbody>
+              </table>
+            </div>
+
+            <div style="width:280px; flex-shrink:0; background:var(--surface-panel); border:1px solid var(--border-subtle); border-radius:var(--radius-md); padding:14px;">
+              <div style="font:var(--text-heading-sm); color:var(--text-primary); margin-bottom:6px;">{{ draftSelectedProspectData.name }}</div>
+              <div style="font:var(--text-body-sm); color:var(--text-tertiary); margin-bottom:10px;">{{ draftSelectedProspectData.pos }} · {{ draftSelectedProspectData.nat }} · Age {{ draftSelectedProspectData.age }}</div>
+              <div style="display:flex; flex-direction:column; gap:6px; font:var(--text-body-sm); color:var(--text-secondary);">
+                <div>Estimated CA: <strong style="color:var(--text-primary);">{{ draftSelectedProspectData.ca }}</strong></div>
+                <div>Potential Range: <strong style="color:var(--text-primary);">{{ draftSelectedProspectData.potential }}</strong></div>
+                <div>Projected Role: <strong style="color:var(--text-primary);">{{ draftSelectedProspectData.role }}</strong></div>
+                <div>Scouting Confidence: <strong style="color:var(--text-primary);">{{ draftSelectedProspectData.confidence }}</strong></div>
+                <div>Development Risk: <strong style="color:var(--text-primary);">{{ draftSelectedProspectData.risk }}</strong></div>
+                <div style="margin-top:6px; padding-top:8px; border-top:1px solid var(--border-subtle);">Team Need: <strong style="color:var(--text-primary);">Center depth, RHD</strong></div>
+                <div>Recommendation: <strong style="color:var(--accent-success);">Strong Fit</strong></div>
+              </div>
+              <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Button" hint-size="100%,34px" onClick="{{ onConfirmPick }}" style="margin-top:12px;">Confirm Pick</x-import>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- ============ MATCH SCREEN ============ -->
+      <sc-if value="{{ isMatch }}" hint-placeholder-val="{{ false }}">
+        <div data-screen-label="Match Center" style="padding:20px; display:flex; flex-direction:column; gap:14px;">
+          <div style="background:var(--gradient-team-hero); border-radius:var(--radius-lg); padding:18px 24px; color:#fff; display:flex; justify-content:space-between; align-items:center;">
+            <div style="display:flex; align-items:center; gap:20px;">
+              <div style="text-align:right;">
+                <div style="font:var(--text-heading-md);">{{ matchHome }}</div>
+              </div>
+              <div style="font:var(--text-heading-lg); font-weight:800;">{{ matchScoreHome }} – {{ matchScoreAway }}</div>
+              <div>
+                <div style="font:var(--text-heading-md);">{{ matchAway }}</div>
+              </div>
+            </div>
+            <div style="text-align:right;">
+              <div style="font:var(--text-body-sm); opacity:0.85;">{{ matchPeriod }} · {{ matchClock }}</div>
+              <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Badge" tone="neutral" hint-size="auto,20px">{{ matchStrength }}</x-import>
+            </div>
+          </div>
+
+          <div style="display:flex; gap:8px;">
+            <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Button" size="sm" hint-size="auto,32px" onClick="{{ onSimEntireMatch }}">Simulate Entire Match</x-import>
+            <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Button" variant="secondary" size="sm" hint-size="auto,32px" onClick="{{ onSimPeriod }}">Simulate Period</x-import>
+            <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Button" variant="secondary" size="sm" hint-size="auto,32px" onClick="{{ onContinueMatch }}">Continue</x-import>
+            <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Button" variant="secondary" size="sm" hint-size="auto,32px" onClick="{{ onPauseMatch }}">Pause</x-import>
+            <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Button" variant="secondary" size="sm" hint-size="auto,32px" onClick="{{ onToggleDiagnostics }}">Diagnostics</x-import>
+          </div>
+
+          <div style="display:grid; grid-template-columns: 1.4fr 1fr; gap:16px; align-items:start;">
+            <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Panel" hint-size="100%,auto" title="Event Feed" width="100%">
+              <div style="display:flex; flex-direction:column; gap:8px; max-height:520px; overflow:auto;">
+                <sc-for list="{{ matchEvents }}" as="e" hint-placeholder-count="6">
+                  <div style="{{ e.rowStyle }}">
+                    <span style="font:var(--text-data-sm); color:var(--text-tertiary); width:60px; flex-shrink:0;">{{ e.time }}</span>
+                    <div>
+                      <div style="font:var(--text-body-sm); font-weight:600; color:var(--text-primary);">{{ e.type }} · {{ e.period }}</div>
+                      <div style="font:var(--text-body-sm); color:var(--text-secondary);">{{ e.desc }}</div>
+                    </div>
+                  </div>
+                </sc-for>
+              </div>
+            </x-import>
+
+            <div style="display:flex; flex-direction:column; gap:16px;">
+              <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Panel" hint-size="100%,auto" title="Team Comparison" width="100%">
+                <div style="display:flex; flex-direction:column; gap:8px; font:var(--text-body-sm); color:var(--text-secondary);">
+                  <div style="display:flex; justify-content:space-between;"><span>Shots</span><span style="color:var(--text-primary);">{{ matchShotsHome }} – {{ matchShotsAway }}</span></div>
+                  <sc-for list="{{ matchPeriodScoring }}" as="ps" hint-placeholder-count="3">
+                    <div style="display:flex; justify-content:space-between;"><span>{{ ps.period }} Scoring</span><span style="color:var(--text-primary);">{{ ps.home }} – {{ ps.away }}</span></div>
+                  </sc-for>
+                </div>
+              </x-import>
+              <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Panel" hint-size="100%,auto" title="Goalies" width="100%">
+                <div style="display:flex; flex-direction:column; gap:8px;">
+                  <sc-for list="{{ matchGoalies }}" as="g" hint-placeholder-count="2">
+                    <div style="display:flex; justify-content:space-between; font:var(--text-body-sm);">
+                      <span style="color:var(--text-primary);">{{ g.name }} <span style="color:var(--text-tertiary);">({{ g.team }})</span></span>
+                      <span style="color:var(--text-secondary);">{{ g.saves }}/{{ g.shots }} · {{ g.savePct }}</span>
+                    </div>
+                  </sc-for>
+                </div>
+              </x-import>
+              <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Panel" hint-size="100%,auto" title="Player Statistics" width="100%">
+                <x-import component-from-global-scope="AtlasDesignSystem_b2128a.StatsTable" hint-size="100%,180px" columns="{{ scorerColumns }}" rows="{{ matchPlayerStats }}"></x-import>
+              </x-import>
+            </div>
+          </div>
+
+          <sc-if value="{{ diagnosticsOpen }}" hint-placeholder-val="{{ false }}">
+            <div style="position:fixed; top:0; right:0; bottom:0; width:340px; background:var(--surface-panel); border-left:1px solid var(--border-subtle); box-shadow:var(--shadow-lg); padding:18px; overflow:auto; z-index:50;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+                <div style="font:var(--text-heading-sm); color:var(--text-primary);">Diagnostics</div>
+                <i onClick="{{ onToggleDiagnostics }}" data-lucide="x" style="width:16px;height:16px; cursor:pointer; color:var(--text-tertiary);"></i>
+              </div>
+              <div style="display:flex; flex-direction:column; gap:10px; font:var(--text-body-sm); color:var(--text-secondary);">
+                <div>Seed: <strong style="color:var(--text-primary);">{{ diagnosticsSeed }}</strong></div>
+                <div>Balance Preset: <strong style="color:var(--text-primary);">{{ diagnosticsPreset }}</strong></div>
+                <div style="font:var(--text-label); color:var(--text-tertiary); text-transform:uppercase; margin-top:6px;">Event Counts</div>
+                <sc-for list="{{ diagnosticsEventCounts }}" as="ec" hint-placeholder-count="4">
+                  <div style="display:flex; justify-content:space-between;"><span>{{ ec.label }}</span><span style="color:var(--text-primary);">{{ ec.value }}</span></div>
+                </sc-for>
+                <div style="font:var(--text-label); color:var(--text-tertiary); text-transform:uppercase; margin-top:6px;">Expected vs Actual Goals</div>
+                <div style="display:flex; justify-content:space-between;"><span>{{ matchHome }}</span><span style="color:var(--text-primary);">{{ diagnosticsExpGoals.home }} exp. / {{ diagnosticsExpGoals.actualHome }} actual</span></div>
+                <div style="display:flex; justify-content:space-between;"><span>{{ matchAway }}</span><span style="color:var(--text-primary);">{{ diagnosticsExpGoals.away }} exp. / {{ diagnosticsExpGoals.actualAway }} actual</span></div>
+                <div style="font:var(--text-label); color:var(--text-tertiary); text-transform:uppercase; margin-top:6px;">Warnings</div>
+                <sc-for list="{{ diagnosticsWarnings }}" as="w" hint-placeholder-count="1">
+                  <div style="display:flex; gap:6px; align-items:center;"><i data-lucide="alert-triangle" style="width:12px;height:12px; color:var(--accent-warning);"></i><span>{{ w }}</span></div>
+                </sc-for>
+              </div>
+            </div>
+          </sc-if>
+        </div>
+      </sc-if>
+
+      <!-- ============ SETUP WORLD ============ -->
+      <sc-if value="{{ isSetup }}" hint-placeholder-val="{{ false }}">
+        <div data-screen-label="Setup World" style="padding:40px; display:flex; justify-content:center;">
+          <div style="max-width:760px; width:100%; display:flex; flex-direction:column; gap:18px;">
+            <div style="text-align:center; display:flex; flex-direction:column; gap:6px;">
+              <i data-lucide="database" style="width:34px;height:34px; color:var(--accent-primary); margin:0 auto;"></i>
+              <div style="font:var(--text-heading-lg); color:var(--text-primary);">Database is empty</div>
+              <div style="font:var(--text-body-sm); color:var(--text-tertiary);">Initialize Hockey World from a prepared data snapshot before continuing.</div>
+            </div>
+
+            <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Panel" hint-size="100%,auto" title="Source Files" width="100%">
+              <div style="display:flex; flex-direction:column; gap:8px;">
+                <sc-for list="{{ setupSourceFiles }}" as="f" hint-placeholder-count="4">
+                  <div style="display:flex; justify-content:space-between; font:var(--text-body-sm); color:var(--text-secondary); padding:6px 0; border-bottom:1px solid var(--border-subtle);">
+                    <span style="color:var(--text-primary);">{{ f.name }}</span><span>{{ f.size }}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </x-import>
+
+            <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Panel" hint-size="100%,auto" title="Initialization Steps" width="100%">
+              <div style="display:flex; flex-direction:column; gap:6px;">
+                <sc-for list="{{ setupSteps }}" as="st" hint-placeholder-count="10">
+                  <div style="display:flex; align-items:center; gap:8px; font:var(--text-body-sm); color:var(--text-secondary);">
+                    <span style="font:var(--text-data-sm); color:var(--text-tertiary); width:20px;">{{ st.num }}</span>
+                    <i data-lucide="circle" style="width:12px;height:12px; color:var(--text-tertiary);"></i>
+                    <span>{{ st.label }}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </x-import>
+
+            <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Panel" hint-size="100%,auto" title="Validation Report" width="100%">
+              <div style="display:flex; flex-direction:column; gap:8px;">
+                <sc-for list="{{ setupValidation }}" as="v" hint-placeholder-count="4">
+                  <div style="display:flex; gap:8px; align-items:center; font:var(--text-body-sm); color:var(--text-secondary);">
+                    <i data-lucide="{{ v.icon }}" style="width:14px;height:14px; color:{{ v.iconColor }};"></i>
+                    <span>{{ v.text }}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </x-import>
+
+            <x-import component-from-global-scope="AtlasDesignSystem_b2128a.Button" hint-size="100%,42px" onClick="{{ onInitializeWorld }}">Initialize Hockey World</x-import>
+          </div>
+        </div>
+      </sc-if>
+
+    </div>
+  </div>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+
+// ===================== SAMPLE DATA =====================
+
+const NAV_ITEMS = [
+  { key: 'world', icon: 'layout-dashboard', label: 'World' },
+  { key: 'competitions', icon: 'trophy', label: 'Competitions' },
+  { key: 'teams', icon: 'shield', label: 'Teams' },
+  { key: 'players', icon: 'users', label: 'Players' },
+  { key: 'nationalTeams', icon: 'flag', label: 'National Teams' },
+  { key: 'transfers', icon: 'arrow-left-right', label: 'Transfers' },
+  { key: 'history', icon: 'book-open', label: 'History' },
+  { key: 'settings', icon: 'settings', label: 'Settings' },
+  { key: 'simLab', icon: 'flask-conical', label: 'Simulation Lab' },
+];
+
+const SEASON = '2026/27';
+const PHASE = 'NHL Playoffs · Semifinal';
+
+const SEASON_PHASES = [
+  { id: 1, label: 'Season Preparation', status: 'done' },
+  { id: 2, label: 'Aggregated Leagues', status: 'done' },
+  { id: 3, label: 'NHL Regular Season', status: 'done' },
+  { id: 4, label: 'NHL Playoffs', status: 'current' },
+  { id: 5, label: 'World Junior Championship', status: 'pending' },
+  { id: 6, label: 'World Championship / Olympics', status: 'pending' },
+  { id: 7, label: 'Season Review', status: 'pending' },
+  { id: 8, label: 'Annual Development', status: 'pending' },
+  { id: 9, label: 'Offseason', status: 'pending' },
+  { id: 10, label: 'NHL Draft', status: 'pending' },
+  { id: 11, label: 'Transfers and Roster Preparation', status: 'pending' },
+  { id: 12, label: 'Start Next Season', status: 'pending' },
+];
+
+const TEAMS = [
+  { id: 'ironclad', name: 'Ironclad HC', city: 'Ironclad', abbr: 'IRC', conf: 'Eastern', div: 'Atlantic', coach: 'D. Marsh', style: 'Aggressive Forecheck', country: 'USA', league: 'NHL' },
+  { id: 'northgate', name: 'Northgate Wolves', city: 'Northgate', abbr: 'NGW', conf: 'Eastern', div: 'Atlantic', coach: 'P. Ilves', style: 'Neutral Zone Trap', country: 'USA', league: 'NHL' },
+  { id: 'harbor', name: 'Harbor City HC', city: 'Harbor City', abbr: 'HCH', conf: 'Eastern', div: 'Atlantic', coach: 'R. Cato', style: 'Puck Possession', country: 'Canada', league: 'NHL' },
+  { id: 'summit', name: 'Summit Rangers', city: 'Summit', abbr: 'SUM', conf: 'Eastern', div: 'Atlantic', coach: 'K. Lund', style: 'Balanced', country: 'Canada', league: 'NHL' },
+  { id: 'redline', name: 'Redline Athletic', city: 'Redline', abbr: 'RLA', conf: 'Eastern', div: 'Atlantic', coach: 'J. Voss', style: 'Defensive Shell', country: 'USA', league: 'NHL' },
+  { id: 'bay', name: 'Bay Union', city: 'Bay', abbr: 'BAY', conf: 'Western', div: 'Pacific', coach: 'T. Okafor', style: 'Aggressive Forecheck', country: 'Canada', league: 'NHL' },
+  { id: 'frost', name: 'Frost Valley', city: 'Frost Valley', abbr: 'FRV', conf: 'Western', div: 'Pacific', coach: 'M. Halden', style: 'Puck Possession', country: 'Sweden', league: 'NHL' },
+  { id: 'coastal', name: 'Coastal HC', city: 'Coastal', abbr: 'CST', conf: 'Western', div: 'Pacific', coach: 'A. Reyes', style: 'Balanced', country: 'USA', league: 'NHL' },
+  { id: 'granite', name: 'Granite Peak', city: 'Granite Peak', abbr: 'GRP', conf: 'Western', div: 'Pacific', coach: 'S. Bergqvist', style: 'Neutral Zone Trap', country: 'Sweden', league: 'NHL' },
+  { id: 'sable', name: 'Sable Harbor', city: 'Sable Harbor', abbr: 'SBH', conf: 'Western', div: 'Pacific', coach: 'N. Kovac', style: 'Defensive Shell', country: 'Czechia', league: 'NHL' },
+];
+
+const STANDINGS_ATLANTIC = [
+  { team: 'Ironclad HC', gp: 82, w: 52, l: 22, otl: 8, pts: 112, diff: 61 },
+  { team: 'Northgate Wolves', gp: 82, w: 46, l: 27, otl: 9, pts: 101, diff: 28 },
+  { team: 'Harbor City HC', gp: 82, w: 39, l: 33, otl: 10, pts: 88, diff: 2 },
+  { team: 'Summit Rangers', gp: 82, w: 35, l: 38, otl: 9, pts: 79, diff: -14 },
+  { team: 'Redline Athletic', gp: 82, w: 28, l: 46, otl: 8, pts: 64, diff: -37 },
+];
+const STANDINGS_PACIFIC = [
+  { team: 'Bay Union', gp: 82, w: 49, l: 24, otl: 9, pts: 107, diff: 44 },
+  { team: 'Frost Valley', gp: 82, w: 47, l: 26, otl: 9, pts: 103, diff: 33 },
+  { team: 'Granite Peak', gp: 82, w: 41, l: 31, otl: 10, pts: 92, diff: 9 },
+  { team: 'Coastal HC', gp: 82, w: 33, l: 40, otl: 9, pts: 75, diff: -19 },
+  { team: 'Sable Harbor', gp: 82, w: 25, l: 49, otl: 8, pts: 58, diff: -51 },
+];
+const STANDINGS_ALL = STANDINGS_ATLANTIC.concat(STANDINGS_PACIFIC).slice().sort((a, b) => b.pts - a.pts);
+
+const PLAYOFF_BRACKET = [
+  { label: 'Quarterfinal', matchups: [
+    { top: { name: 'Ironclad HC', score: 4, winner: true }, bottom: { name: 'Redline Athletic', score: 1 } },
+    { top: { name: 'Northgate Wolves', score: 4, winner: true }, bottom: { name: 'Summit Rangers', score: 2 } },
+    { top: { name: 'Bay Union', score: 4, winner: true }, bottom: { name: 'Sable Harbor', score: 0 } },
+    { top: { name: 'Frost Valley', score: 4, winner: true }, bottom: { name: 'Granite Peak', score: 3 } },
+  ]},
+  { label: 'Semifinal', matchups: [
+    { top: { name: 'Ironclad HC', score: 3 }, bottom: { name: 'Northgate Wolves', score: 2 } },
+    { top: { name: 'Bay Union', score: 2 }, bottom: { name: 'Frost Valley', score: 2 } },
+  ]},
+  { label: 'Final', matchups: [ { top: {}, bottom: {} } ] },
+];
+
+const ROSTER_IRONCLAD = [
+  { id: 1, number: 17, name: 'A. Kessler', pos: 'C', age: 27, ovr: 87, role: 'Play-Driver', potential: '86–90', form: 84, rosterStatus: 'Active', contractYears: 2, salary: 8.2, nat: 'USA' },
+  { id: 2, number: 91, name: 'M. Doyle', pos: 'LW', age: 26, ovr: 85, role: 'Sniper', potential: '84–88', form: 78, rosterStatus: 'Active', contractYears: 3, salary: 7.4, nat: 'Canada' },
+  { id: 3, number: 22, name: 'J. Farrow', pos: 'RW', age: 24, ovr: 82, role: 'Two-Way Forward', potential: '80–86', form: 71, rosterStatus: 'Active', contractYears: 4, salary: 4.1, nat: 'Canada' },
+  { id: 4, number: 4, name: 'R. Novak', pos: 'D', age: 31, ovr: 81, role: 'Shutdown', potential: '80–82', form: 66, rosterStatus: 'Injured', contractYears: 1, salary: 5.6, nat: 'Czechia' },
+  { id: 5, number: 29, name: 'T. Whitfield', pos: 'G', age: 24, ovr: 84, role: 'Starter', potential: '83–89', form: 80, rosterStatus: 'Active', contractYears: 3, salary: 6.0, nat: 'USA' },
+  { id: 6, number: 8, name: 'D. Aro', pos: 'D', age: 29, ovr: 78, role: 'Physical', potential: '77–79', form: 58, rosterStatus: 'Suspended', contractYears: 2, salary: 3.2, nat: 'Finland' },
+  { id: 7, number: 41, name: 'K. Solberg', pos: 'C', age: 22, ovr: 79, role: 'Two-Way Forward', potential: '82–88', form: 75, rosterStatus: 'Active', contractYears: 2, salary: 1.4, nat: 'Sweden' },
+  { id: 8, number: 14, name: 'P. Renaud', pos: 'RW', age: 30, ovr: 80, role: 'Sniper', potential: '79–81', form: 69, rosterStatus: 'Active', contractYears: 1, salary: 4.8, nat: 'Canada' },
+  { id: 9, number: 27, name: 'H. Vance', pos: 'LW', age: 33, ovr: 76, role: 'Grinder', potential: '75–77', form: 60, rosterStatus: 'Active', contractYears: 1, salary: 2.1, nat: 'USA' },
+  { id: 10, number: 6, name: 'O. Lindqvist', pos: 'D', age: 25, ovr: 83, role: 'Puck-Mover', potential: '84–89', form: 77, rosterStatus: 'Active', contractYears: 4, salary: 6.5, nat: 'Sweden' },
+  { id: 11, number: 71, name: 'C. Marsh', pos: 'C', age: 20, ovr: 71, role: 'Prospect', potential: '78–85', form: 65, rosterStatus: 'Prospect', contractYears: 3, salary: 0.95, nat: 'USA' },
+  { id: 12, number: 52, name: 'B. Iversen', pos: 'RW', age: 22, ovr: 74, role: 'Prospect', potential: '76–82', form: 68, rosterStatus: 'Prospect', contractYears: 2, salary: 0.9, nat: 'Norway' },
+  { id: 13, number: 55, name: 'G. Petrov', pos: 'D', age: 34, ovr: 74, role: 'Stay-Home', potential: '73–75', form: 55, rosterStatus: 'Active', contractYears: 1, salary: 2.8, nat: 'Russia' },
+  { id: 14, number: 19, name: 'S. Okonkwo', pos: 'LW', age: 23, ovr: 77, role: 'Energy', potential: '78–83', form: 72, rosterStatus: 'Active', contractYears: 2, salary: 1.6, nat: 'Canada' },
+  { id: 15, number: 63, name: 'W. Tanaka', pos: 'RW', age: 28, ovr: 79, role: 'Two-Way Forward', potential: '78–80', form: 70, rosterStatus: 'Active', contractYears: 3, salary: 3.5, nat: 'Japan' },
+  { id: 16, number: 37, name: 'L. Duchesne', pos: 'C', age: 29, ovr: 83, role: 'Playmaker', potential: '82–85', form: 81, rosterStatus: 'Active', contractYears: 3, salary: 5.9, nat: 'Canada' },
+  { id: 17, number: 44, name: 'F. Bergman', pos: 'D', age: 26, ovr: 80, role: 'Two-Way Defender', potential: '80–84', form: 73, rosterStatus: 'Active', contractYears: 3, salary: 4.4, nat: 'Sweden' },
+  { id: 18, number: 77, name: 'N. Castellan', pos: 'LW', age: 21, ovr: 73, role: 'Prospect', potential: '77–84', form: 64, rosterStatus: 'Prospect', contractYears: 3, salary: 0.92, nat: 'USA' },
+  { id: 19, number: 5, name: 'Y. Petrenko', pos: 'D', age: 23, ovr: 76, role: 'Puck-Mover', potential: '79–85', form: 70, rosterStatus: 'Reserve', contractYears: 2, salary: 1.1, nat: 'Ukraine' },
+  { id: 20, number: 24, name: 'I. Halvorsen', pos: 'RW', age: 25, ovr: 78, role: 'Energy', potential: '78–81', form: 67, rosterStatus: 'Active', contractYears: 2, salary: 2.3, nat: 'Norway' },
+  { id: 21, number: 32, name: 'J. Marchetti', pos: 'G', age: 27, ovr: 79, role: 'Backup', potential: '78–82', form: 74, rosterStatus: 'Active', contractYears: 2, salary: 2.0, nat: 'Italy' },
+  { id: 22, number: 1, name: 'R. Beaudoin', pos: 'G', age: 20, ovr: 70, role: 'Prospect', potential: '76–88', form: 60, rosterStatus: 'Prospect', contractYears: 3, salary: 0.85, nat: 'Canada' },
+];
+
+const SCORERS = [
+  { id: 1, name: 'A. Kessler', gp: 62, g: 34, a: 41, pts: 75 },
+  { id: 2, name: 'M. Doyle', gp: 60, g: 29, a: 38, pts: 67 },
+  { id: 3, name: 'L. Duchesne', gp: 61, g: 22, a: 43, pts: 65 },
+  { id: 16, name: 'O. Lindqvist', gp: 62, g: 12, a: 39, pts: 51 },
+  { id: 8, name: 'P. Renaud', gp: 58, g: 26, a: 21, pts: 47 },
+];
+
+const TRANSACTIONS = [
+  { id: 1, icon: 'file-signature', text: 'Ironclad HC signs D. Aro to a 2-year, $3.2M extension.', type: 'Signing', date: '2026-07-10' },
+  { id: 2, icon: 'arrow-left-right', text: 'Trade: Northgate Wolves acquire RW P. Renaud from Redline Athletic for a 2027 3rd-round pick.', type: 'Trade', date: '2026-07-09' },
+  { id: 3, icon: 'user-x', text: 'Sable Harbor releases D G. Petrov.', type: 'Release', date: '2026-07-08' },
+  { id: 4, icon: 'arrow-up', text: 'Ironclad HC recalls C K. Solberg from reserve.', type: 'Promotion', date: '2026-07-07' },
+  { id: 5, icon: 'arrow-down', text: 'Bay Union assigns RW B. Iversen to reserve.', type: 'Demotion', date: '2026-07-06' },
+  { id: 6, icon: 'flag', text: 'Frost Valley acquires NHL rights to J. Almqvist (SWE).', type: 'Rights', date: '2026-07-05' },
+  { id: 7, icon: 'log-out', text: 'Veteran D S. Whitmore announces retirement after 14 seasons.', type: 'Retirement', date: '2026-07-04' },
+  { id: 8, icon: 'file-signature', text: 'Coastal HC signs free agent G M. Okafor to a 1-year, $1.1M deal.', type: 'Signing', date: '2026-07-03' },
+  { id: 9, icon: 'arrow-left-right', text: 'Trade: Granite Peak send a 2027 2nd-round pick to Harbor City HC for prospect C. Marsh rights.', type: 'Trade', date: '2026-07-02' },
+  { id: 10, icon: 'target', text: 'Ironclad HC selects C. Marsh 14th overall in the 2026 Draft.', type: 'Draft', date: '2025-06-28' },
+];
+
+const COMPETITIONS = [
+  { id: 'nhl-reg', name: 'NHL Regular Season', type: 'League', season: SEASON, mode: 'Detailed', stage: 'Complete', status: 'Completed', teams: 10, leader: 'Ironclad HC', kind: 'club', country: 'USA/Canada' },
+  { id: 'nhl-playoffs', name: 'NHL Playoffs', type: 'Playoff Bracket', season: SEASON, mode: 'Detailed', stage: 'Semifinal', status: 'Active', teams: 8, leader: 'Ironclad HC (leads 3–2)', kind: 'club', country: 'USA/Canada' },
+  { id: 'cel', name: 'Continental Elite League', type: 'League', season: SEASON, mode: 'Aggregated', stage: 'Complete', status: 'Completed', teams: 14, leader: 'Vasterhavn IK', kind: 'club', country: 'Sweden' },
+  { id: 'euro-cup', name: 'European Cup', type: 'Cup', season: SEASON, mode: 'Aggregated', stage: 'Complete', status: 'Completed', teams: 16, leader: 'Karpaty Lviv', kind: 'club', country: 'Multi' },
+  { id: 'wjc', name: 'World Junior Championship', type: 'National Tournament', season: SEASON, mode: 'Detailed', stage: 'Not Started', status: 'Upcoming', teams: 10, leader: '—', kind: 'national', country: 'Multi' },
+  { id: 'worlds', name: 'World Championship', type: 'National Tournament', season: SEASON, mode: 'Detailed', stage: 'Not Started', status: 'Upcoming', teams: 16, leader: '—', kind: 'national', country: 'Multi' },
+  { id: 'olympics', name: 'Olympic Winter Games', type: 'National Tournament', season: '2027/28', mode: 'Detailed', stage: 'Not Started', status: 'Upcoming', teams: 12, leader: '—', kind: 'national', country: 'Multi' },
+];
+
+const NATIONAL_TEAMS = [
+  { id: 'usa', name: 'United States', coach: 'B. Callahan', ranking: 1, nextEvent: 'World Championship — May 2027' },
+  { id: 'canada', name: 'Canada', coach: 'M. Trudel', ranking: 2, nextEvent: 'World Championship — May 2027' },
+  { id: 'sweden', name: 'Sweden', coach: 'L. Forsberg', ranking: 3, nextEvent: 'World Championship — May 2027' },
+  { id: 'czechia', name: 'Czechia', coach: 'P. Novotny', ranking: 4, nextEvent: 'World Junior Championship — Dec 2026' },
+  { id: 'finland', name: 'Finland', coach: 'A. Makinen', ranking: 5, nextEvent: 'World Junior Championship — Dec 2026' },
+  { id: 'russia', name: 'Russia', coach: 'V. Orlov', ranking: 6, nextEvent: 'Not Qualified' },
+];
+
+const HISTORY_CHAMPIONS = [
+  { season: '2025/26', champion: 'Bay Union', runnerUp: 'Ironclad HC', mvp: 'T. Halberg (Bay Union)' },
+  { season: '2024/25', champion: 'Ironclad HC', runnerUp: 'Frost Valley', mvp: 'A. Kessler (Ironclad HC)' },
+  { season: '2023/24', champion: 'Northgate Wolves', runnerUp: 'Granite Peak', mvp: 'E. Sorbo (Northgate Wolves)' },
+  { season: '2022/23', champion: 'Ironclad HC', runnerUp: 'Sable Harbor', mvp: 'M. Doyle (Ironclad HC)' },
+  { season: '2021/22', champion: 'Frost Valley', runnerUp: 'Harbor City HC', mvp: 'V. Halden (Frost Valley)' },
+];
+
+const FREE_AGENTS = [
+  { id: 101, name: 'C. Dubrow', pos: 'C', age: 29, ovr: 78, potential: '76–79', salary: 3.8, interest: 3 },
+  { id: 102, name: 'M. Okafor', pos: 'G', age: 26, ovr: 76, potential: '74–80', salary: 1.1, interest: 5 },
+  { id: 103, name: 'T. Halberg', pos: 'RW', age: 32, ovr: 82, potential: '80–82', salary: 5.5, interest: 4 },
+  { id: 104, name: 'V. Halden', pos: 'D', age: 30, ovr: 79, potential: '78–80', salary: 4.0, interest: 2 },
+  { id: 105, name: 'E. Sorbo', pos: 'LW', age: 34, ovr: 74, potential: '73–75', salary: 1.8, interest: 1 },
+  { id: 106, name: 'S. Whitmore', pos: 'D', age: 38, ovr: 68, potential: '67–68', salary: 0.8, interest: 0 },
+  { id: 107, name: 'J. Almqvist', pos: 'C', age: 21, ovr: 73, potential: '80–88', salary: 1.0, interest: 6 },
+  { id: 108, name: 'K. Rousseau', pos: 'RW', age: 27, ovr: 77, potential: '76–79', salary: 2.9, interest: 2 },
+];
+
+const DRAFT_PROSPECTS = [
+  { id: 201, name: 'E. Sandqvist', pos: 'C', age: 18, nat: 'Sweden', ca: 62, potential: '84–92', role: 'Play-Driver', confidence: 'High', risk: 'Low' },
+  { id: 202, name: 'J. McAllister', pos: 'D', age: 18, nat: 'Canada', ca: 58, potential: '82–89', role: 'Two-Way Defender', confidence: 'High', risk: 'Low' },
+  { id: 203, name: 'M. Kowalski', pos: 'LW', age: 18, nat: 'USA', ca: 56, potential: '80–90', role: 'Sniper', confidence: 'Medium', risk: 'Medium' },
+  { id: 204, name: 'A. Virtanen', pos: 'G', age: 19, nat: 'Finland', ca: 54, potential: '79–87', role: 'Starter', confidence: 'Medium', risk: 'Medium' },
+  { id: 205, name: 'T. Beliveau', pos: 'RW', age: 18, nat: 'Canada', ca: 55, potential: '78–86', role: 'Two-Way Forward', confidence: 'Medium', risk: 'Medium' },
+  { id: 206, name: 'D. Kuznetsov', pos: 'C', age: 18, nat: 'Russia', ca: 57, potential: '81–89', role: 'Playmaker', confidence: 'Low', risk: 'High' },
+  { id: 207, name: 'P. Novak Jr.', pos: 'D', age: 19, nat: 'Czechia', ca: 53, potential: '76–84', role: 'Puck-Mover', confidence: 'Medium', risk: 'Medium' },
+  { id: 208, name: 'L. Bergstrom', pos: 'LW', age: 18, nat: 'Sweden', ca: 51, potential: '75–85', role: 'Energy', confidence: 'Low', risk: 'High' },
+];
+
+const DRAFT_ORDER = [
+  { pick: 1, team: 'Sable Harbor', original: null },
+  { pick: 2, team: 'Redline Athletic', original: null },
+  { pick: 3, team: 'Coastal HC', original: null },
+  { pick: 4, team: 'Summit Rangers', original: null },
+  { pick: 5, team: 'Granite Peak', original: null },
+  { pick: 6, team: 'Harbor City HC', original: 'Northgate Wolves' },
+  { pick: 7, team: 'Frost Valley', original: null },
+  { pick: 8, team: 'Northgate Wolves', original: null },
+  { pick: 9, team: 'Bay Union', original: null },
+  { pick: 10, team: 'Ironclad HC', original: null },
+];
+
+const SETTINGS_CATEGORIES_BALANCE = [
+  { id: 'player-generation', label: 'Player Generation' },
+  { id: 'development', label: 'Development & Aging' },
+  { id: 'chemistry', label: 'Chemistry' },
+  { id: 'tactical-fit', label: 'Tactical Fit' },
+  { id: 'match-sim', label: 'Match Simulation' },
+  { id: 'goalies', label: 'Goalies' },
+  { id: 'scouting', label: 'Scouting' },
+  { id: 'draft', label: 'Draft' },
+  { id: 'contracts', label: 'Contracts & Transfers' },
+  { id: 'aggregated', label: 'Aggregated Leagues' },
+];
+const SETTINGS_CATEGORIES_SYSTEM = [
+  { id: 'randomness', label: 'Simulation Randomness' },
+  { id: 'seed', label: 'Random Seed' },
+  { id: 'events', label: 'Event Probabilities' },
+  { id: 'batch', label: 'Batch Simulation' },
+  { id: 'logging', label: 'Logging Detail' },
+  { id: 'commissioner', label: 'Commissioner Mode' },
+  { id: 'backup', label: 'Database Backup' },
+  { id: 'maintenance', label: 'Database Maintenance' },
+];
+const SETTINGS_PARAMS = {
+  'player-generation': [
+    { name: 'Youth CA baseline', desc: 'Average current ability of generated 18-year-olds.', value: 42, def: 40, range: '20–60', unit: 'CA', changed: true },
+    { name: 'Elite prospect chance', desc: 'Chance a generated prospect has 88+ potential.', value: 3.5, def: 3.0, range: '0–10', unit: '%', changed: true },
+    { name: 'Nationality pool weighting', desc: 'How strongly historical talent hotbeds bias generation.', value: 1.0, def: 1.0, range: '0.5–2.0', unit: '×', changed: false },
+  ],
+  'development': [
+    { name: 'Peak age', desc: 'Age at which most players hit peak ability.', value: 27, def: 27, range: '24–30', unit: 'yrs', changed: false },
+    { name: 'Decline rate (30+)', desc: 'Annual ability decline after age 30.', value: 1.8, def: 1.5, range: '0.5–4.0', unit: '%/yr', changed: true },
+    { name: 'Development risk variance', desc: 'Spread of the potential range shown to scouts.', value: 6, def: 5, range: '2–12', unit: 'pts', changed: true },
+  ],
+  'chemistry': [
+    { name: 'Line stability weight', desc: 'How much unchanged line assignments raise chemistry.', value: 0.6, def: 0.5, range: '0–1', unit: 'weight', changed: true },
+    { name: 'Role mismatch penalty', desc: 'Penalty applied when role doesn\u2019t fit assigned line.', value: 8, def: 8, range: '0–20', unit: 'pts', changed: false },
+  ],
+  'tactical-fit': [
+    { name: 'Coach style influence', desc: 'How strongly coach tactical style affects fit score.', value: 0.7, def: 0.6, range: '0–1', unit: 'weight', changed: true },
+  ],
+  'match-sim': [
+    { name: 'Base randomness', desc: 'Overall variance applied to expected outcomes.', value: 22, def: 20, range: '0–50', unit: '%', changed: true },
+    { name: 'Upset factor', desc: 'Chance weaker teams overperform expected strength.', value: 12, def: 10, range: '0–30', unit: '%', changed: true },
+  ],
+  'goalies': [
+    { name: 'Hot streak variance', desc: 'How much single-game goalie performance can swing.', value: 15, def: 15, range: '0–30', unit: '%', changed: false },
+  ],
+  'scouting': [
+    { name: 'Base scouting confidence', desc: 'Starting confidence before scouting investment.', value: 40, def: 40, range: '0–100', unit: '%', changed: false },
+  ],
+  'draft': [
+    { name: 'Lottery weighting', desc: 'How steeply odds favor the lowest-placed teams.', value: 1.0, def: 1.0, range: '0.5–2.0', unit: '×', changed: false },
+  ],
+  'contracts': [
+    { name: 'Salary cap', desc: 'League-wide annual salary cap.', value: 88, def: 88, range: '60–120', unit: '$M', changed: false },
+  ],
+  'aggregated': [
+    { name: 'Aggregated sim detail', desc: 'How many aggregated stats are tracked per team.', value: 2, def: 2, range: '1–3', unit: 'tier', changed: false },
+  ],
+  'randomness': [
+    { name: 'Global randomness multiplier', desc: 'Master multiplier over all randomness sources.', value: 1.1, def: 1.0, range: '0.5–2.0', unit: '×', changed: true },
+  ],
+  'seed': [
+    { name: 'Seed mode', desc: 'Fixed seed reproduces identical results; random seed varies each run.', value: 'Random', def: 'Random', range: 'Fixed / Random', unit: '', changed: false },
+  ],
+  'events': [
+    { name: 'Penalty frequency', desc: 'Average minor penalties called per game.', value: 7.2, def: 7.0, range: '4–12', unit: '/gm', changed: true },
+  ],
+  'batch': [
+    { name: 'Max batch size', desc: 'Largest number of simulations runnable at once.', value: 1000, def: 1000, range: '1–5000', unit: 'runs', changed: false },
+  ],
+  'logging': [
+    { name: 'Log verbosity', desc: 'Detail level written to the technical event log.', value: 'Standard', def: 'Standard', range: 'Minimal / Standard / Verbose', unit: '', changed: false },
+  ],
+  'commissioner': [
+    { name: 'Commissioner Mode', desc: 'Enables direct data editing and forced actions.', value: 'Enabled', def: 'Disabled', range: 'Enabled / Disabled', unit: '', changed: true },
+  ],
+  'backup': [
+    { name: 'Auto-backup interval', desc: 'How often the world database is backed up automatically.', value: 6, def: 12, range: '1–24', unit: 'hrs', changed: true },
+  ],
+  'maintenance': [
+    { name: 'Orphaned record cleanup', desc: 'Removes retired players\u2019 unused stat rows on next maintenance pass.', value: 'Off', def: 'Off', range: 'On / Off', unit: '', changed: false },
+  ],
+};
+
+const LINE_GROUPS = [
+  { id: 'f1', type: 'forward', label: 'Forward Line 1', slots: [{ id: 'f1-lw', pos: 'LW' }, { id: 'f1-c', pos: 'C' }, { id: 'f1-rw', pos: 'RW' }] },
+  { id: 'f2', type: 'forward', label: 'Forward Line 2', slots: [{ id: 'f2-lw', pos: 'LW' }, { id: 'f2-c', pos: 'C' }, { id: 'f2-rw', pos: 'RW' }] },
+  { id: 'f3', type: 'forward', label: 'Forward Line 3', slots: [{ id: 'f3-lw', pos: 'LW' }, { id: 'f3-c', pos: 'C' }, { id: 'f3-rw', pos: 'RW' }] },
+  { id: 'f4', type: 'forward', label: 'Forward Line 4', slots: [{ id: 'f4-lw', pos: 'LW' }, { id: 'f4-c', pos: 'C' }, { id: 'f4-rw', pos: 'RW' }] },
+  { id: 'd1', type: 'defense', label: 'Defense Pair 1', slots: [{ id: 'd1-ld', pos: 'D' }, { id: 'd1-rd', pos: 'D' }] },
+  { id: 'd2', type: 'defense', label: 'Defense Pair 2', slots: [{ id: 'd2-ld', pos: 'D' }, { id: 'd2-rd', pos: 'D' }] },
+  { id: 'd3', type: 'defense', label: 'Defense Pair 3', slots: [{ id: 'd3-ld', pos: 'D' }, { id: 'd3-rd', pos: 'D' }] },
+  { id: 'g', type: 'goalie', label: 'Goalies', slots: [{ id: 'g-starter', pos: 'G' }, { id: 'g-backup', pos: 'G' }] },
+];
+
+const DEFAULT_LINEUP = {
+  'f1-lw': 2, 'f1-c': 1, 'f1-rw': 3,
+  'f2-lw': 9, 'f2-c': 16, 'f2-rw': 8,
+  'f3-lw': 14, 'f3-c': 7, 'f3-rw': 15,
+  'f4-lw': 18, 'f4-c': 11, 'f4-rw': 20,
+  'd1-ld': 10, 'd1-rd': 17,
+  'd2-ld': 13, 'd2-rd': 19,
+  'd3-ld': null, 'd3-rd': null,
+  'g-starter': 5, 'g-backup': 21,
+};
+
+const CHEMISTRY_MOCK = {
+  f1: { base: 86, chem: 88, label: 'Elite', tacticalFit: 'Strong', coachFit: 'Strong', roleBalance: 'Balanced', familiarity: 'High — 3 seasons together', positives: ['Kessler–Doyle give-and-go chemistry', 'All three in preferred roles'], negatives: [] },
+  f2: { base: 80, chem: 74, label: 'Good', tacticalFit: 'Strong', coachFit: 'Good', roleBalance: 'Balanced', familiarity: 'Medium', positives: ['Duchesne playmaking suits both wingers'], negatives: ['Vance below tactical fit for aggressive forecheck'] },
+  f3: { base: 77, chem: 69, label: 'Average', tacticalFit: 'Average', coachFit: 'Average', roleBalance: 'Uneven', familiarity: 'Medium', positives: [], negatives: ['Two energy-role wingers stacked on one line'] },
+  f4: { base: 68, chem: 52, label: 'Weak', tacticalFit: 'Weak', coachFit: 'Weak', roleBalance: 'Uneven', familiarity: 'Low — first time together', positives: [], negatives: ['Two prospects sharing a line raises risk', 'Low tactical fit for current system'] },
+  d1: { base: 82, chem: 80, label: 'Good', tacticalFit: 'Strong', coachFit: 'Strong', roleBalance: 'Balanced', familiarity: 'High', positives: ['Puck-mover + two-way pairing complement each other'], negatives: [] },
+  d2: { base: 71, chem: 60, label: 'Average', tacticalFit: 'Average', coachFit: 'Average', roleBalance: 'Uneven', familiarity: 'Low', positives: [], negatives: ['Two stay-home defenders — no puck-mover'] },
+  d3: { base: 0, chem: 0, label: 'Incomplete', tacticalFit: '—', coachFit: '—', roleBalance: '—', familiarity: '—', positives: [], negatives: ['Pair incomplete — 2 empty slots'] },
+  g: { base: 82, chem: null, label: '', tacticalFit: 'Strong', coachFit: 'Good', roleBalance: '—', familiarity: 'High', positives: ['Whitfield workload managed well by Marchetti splits'], negatives: [] },
+};
+
+const TEAM_SCHEDULE = [
+  { id: 1, date: '2026-07-08', opp: 'Northgate Wolves', loc: 'Home', result: 'Scheduled', note: 'Semifinal G6' },
+  { id: 2, date: '2026-07-05', opp: 'Northgate Wolves', loc: 'Away', result: 'W 4–2', note: 'Semifinal G5' },
+  { id: 3, date: '2026-07-03', opp: 'Northgate Wolves', loc: 'Home', result: 'W 5–1', note: 'Semifinal G4' },
+  { id: 4, date: '2026-07-01', opp: 'Northgate Wolves', loc: 'Away', result: 'W 3–1', note: 'Semifinal G3' },
+  { id: 5, date: '2026-06-29', opp: 'Northgate Wolves', loc: 'Home', result: 'W 3–2 OT', note: 'Semifinal G2' },
+  { id: 6, date: '2026-06-27', opp: 'Northgate Wolves', loc: 'Away', result: 'W 4–3', note: 'Semifinal G1' },
+];
+
+const BALANCE_PRESETS = [
+  { id: 'standard', name: 'Standard', active: true, usedBy: 'Current world' },
+  { id: 'low-rand', name: 'Low Randomness', active: false, usedBy: '—' },
+  { id: 'high-var', name: 'High Variance', active: false, usedBy: '—' },
+  { id: 'dev-test', name: 'Development Test', active: false, usedBy: '2025/26 test branch' },
+  { id: 'scoring-test', name: 'Scoring Test', active: false, usedBy: '—' },
+];
+
+// ===================== COMPONENT =====================
+
+class Component extends DCLogic {
+  state = {
+    screen: 'world',
+    commissioner: true,
+    searchValue: '',
+    compFilterKind: 'All',
+    compFilterMode: 'All',
+    compFilterStatus: 'All',
+    teamId: 'ironclad',
+    teamTab: 'overview',
+    rosterView: 'table',
+    compId: 'nhl-playoffs',
+    compTab: 'overview',
+    playerId: 1,
+    playerTab: 'profile',
+    transfersTab: 'transactions',
+    settingsSection: 'balance',
+    settingsCategory: 'player-generation',
+    playersFilterPos: 'All',
+    lockedPlayers: {},
+    draftPickIndex: 5,
+    draftSelectedProspect: 201,
+    simTeamA: 'ironclad',
+    simTeamB: 'bay',
+    simCount: 100,
+    simRan: false,
+    rosterSearch: '',
+    rosterPosFilter: 'All',
+    lineup: { ...DEFAULT_LINEUP },
+    draggedId: null,
+    lockedIds: {},
+    diagnosticsOpen: false,
+  };
+  toggleDiagnostics() { this.setState({ diagnosticsOpen: !this.state.diagnosticsOpen }); }
+
+  componentDidMount() {
+    this._iconTick();
+  }
+  componentDidUpdate() {
+    this._iconTick();
+  }
+  _iconTick() {
+    if (window.lucide) {
+      requestAnimationFrame(() => window.lucide.createIcons({ attrs: { 'stroke-width': 1.75 } }));
+    }
+  }
+
+  go(screen) { this.setState({ screen }); }
+  toggleCommissioner(e) { this.setState({ commissioner: !!(e && e.target ? e.target.checked : !this.state.commissioner) }); }
+
+  dropOnSlot(slotId) {
+    const draggedId = this.state.draggedId;
+    if (!draggedId) return;
+    const lineup = { ...this.state.lineup };
+    const fromSlot = Object.keys(lineup).find(k => lineup[k] === draggedId);
+    const displaced = lineup[slotId];
+    if (fromSlot) lineup[fromSlot] = displaced || null;
+    lineup[slotId] = draggedId;
+    this.setState({ lineup, draggedId: null });
+  }
+  removeFromSlot(slotId) {
+    const lineup = { ...this.state.lineup };
+    lineup[slotId] = null;
+    this.setState({ lineup });
+  }
+  toggleLock(playerId) {
+    const lockedIds = { ...this.state.lockedIds };
+    lockedIds[playerId] = !lockedIds[playerId];
+    this.setState({ lockedIds });
+  }
+  autoLineup() {
+    const order = { C: 0, LW: 1, RW: 2, D: 3, G: 4 };
+    const locked = this.state.lockedIds;
+    const eligible = ROSTER_IRONCLAD.filter(p => p.rosterStatus === 'Active' || p.rosterStatus === 'Reserve')
+      .sort((a, b) => b.ovr - a.ovr);
+    const lineup = { ...this.state.lineup };
+    // keep locked players in place
+    const lockedAssignments = {};
+    Object.keys(lineup).forEach(slotId => {
+      const pid = lineup[slotId];
+      if (pid && locked[pid]) lockedAssignments[slotId] = pid;
+    });
+    const bySlotType = {
+      C: ['f1-c', 'f2-c', 'f3-c', 'f4-c'],
+      LW: ['f1-lw', 'f2-lw', 'f3-lw', 'f4-lw'],
+      RW: ['f1-rw', 'f2-rw', 'f3-rw', 'f4-rw'],
+      D: ['d1-ld', 'd1-rd', 'd2-ld', 'd2-rd', 'd3-ld', 'd3-rd'],
+      G: ['g-starter', 'g-backup'],
+    };
+    const newLineup = {};
+    Object.keys(lineup).forEach(k => { newLineup[k] = lockedAssignments[k] || null; });
+    const usedIds = new Set(Object.values(newLineup).filter(Boolean));
+    Object.keys(bySlotType).forEach(pos => {
+      const slots = bySlotType[pos].filter(s => !newLineup[s]);
+      const candidates = eligible.filter(p => p.pos === pos && !usedIds.has(p.id));
+      slots.forEach((slotId, i) => {
+        if (candidates[i]) { newLineup[slotId] = candidates[i].id; usedIds.add(candidates[i].id); }
+      });
+    });
+    this.setState({ lineup: newLineup });
+  }
+
+  icon(name, size) {
+    return React.createElement('i', { 'data-lucide': name, style: { width: (size || 14) + 'px', height: (size || 14) + 'px', display: 'block' } });
+  }
+
+  renderVals() {
+    const s = this.state;
+    const go = (scr) => () => this.go(scr);
+    const icon = (name, size) => this.icon(name, size);
+
+    const navItems = NAV_ITEMS.map(item => {
+      const active = s.screen === item.key || (item.key === 'teams' && s.screen === 'teamDetail') || (item.key === 'competitions' && s.screen === 'competitionDetail') || (item.key === 'players' && s.screen === 'playerDetail');
+      return {
+        ...item,
+        onClick: go(item.key === 'teams' ? 'teamDetail' : (item.key === 'competitions' ? 'competitions' : item.key)),
+        rowStyle: {
+          display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 10px',
+          borderRadius: 'var(--radius-sm)', cursor: 'pointer',
+          background: active ? 'var(--accent-primary-wash)' : 'transparent',
+          color: active ? 'var(--accent-primary)' : 'var(--text-secondary)',
+          font: active ? '600 var(--text-size-sm)/1 var(--font-sans)' : 'var(--text-body-sm)',
+        },
+      };
+    });
+
+    const breadcrumbMap = {
+      world: 'World Dashboard',
+      competitions: 'Competitions',
+      competitionDetail: 'Competitions / ' + (COMPETITIONS.find(c => c.id === s.compId) || {}).name,
+      teamDetail: 'Teams / ' + (TEAMS.find(t => t.id === s.teamId) || {}).name,
+      players: 'Players',
+      playerDetail: 'Players / ' + (ROSTER_IRONCLAD.find(p => p.id === s.playerId) || {}).name,
+      nationalTeams: 'National Teams',
+      transfers: 'Transfers',
+      history: 'History',
+      settings: 'Settings',
+      simLab: 'Simulation Lab',
+      draft: 'NHL Draft',
+      match: 'Match Center',
+      setup: 'Setup World',
+    };
+
+    const phaseSteps = SEASON_PHASES.map(p => ({
+      num: p.id,
+      label: p.label,
+      icon: p.status === 'done' ? 'check' : (p.status === 'current' ? 'play' : 'circle'),
+      pillStyle: {
+        display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 10px', whiteSpace: 'nowrap',
+        borderRadius: 'var(--radius-pill)', font: 'var(--text-body-sm)',
+        border: p.status === 'current' ? '1px solid var(--accent-primary)' : '1px solid var(--border-subtle)',
+        background: p.status === 'done' ? 'var(--accent-success-wash)' : (p.status === 'current' ? 'var(--accent-primary-wash)' : 'var(--surface-panel)'),
+        color: p.status === 'done' ? 'var(--accent-success)' : (p.status === 'current' ? 'var(--accent-primary)' : 'var(--text-tertiary)'),
+      },
+    }));
+
+    return {
+      navItems,
+      commissioner: s.commissioner,
+      toggleCommissioner: (e) => this.toggleCommissioner(e),
+      season: SEASON,
+      phase: PHASE,
+      breadcrumb: breadcrumbMap[s.screen] || 'World Dashboard',
+      nowrapStyle: { whiteSpace: 'nowrap' },
+      tabActiveStyle: { padding: '5px 12px', borderRadius: 'var(--radius-sm)', background: 'var(--surface-panel)', boxShadow: 'var(--shadow-sm)', font: '600 var(--text-size-sm)/1 var(--font-sans)', color: 'var(--text-primary)', cursor: 'pointer' },
+      tabInactiveStyle: { padding: '5px 12px', borderRadius: 'var(--radius-sm)', font: 'var(--text-body-sm)', color: 'var(--text-tertiary)', cursor: 'pointer' },
+      searchValue: s.searchValue,
+      onSearchChange: (e) => this.setState({ searchValue: e.target.value }),
+      recommendedActionShort: 'Simulate Next',
+      recommendedActionTitle: 'Simulate Semifinal — Game 6',
+      recommendedActionSubtitle: 'Ironclad HC leads Northgate Wolves 3–2 in the NHL Playoffs semifinal.',
+      goToRecommendedAction: go('competitionDetail'),
+      goToSettings: go('settings'),
+      playIcon: icon('play', 14),
+      bellIcon: icon('bell', 16),
+
+      isWorld: s.screen === 'world',
+      isCompetitions: s.screen === 'competitions',
+      isCompetitionDetail: s.screen === 'competitionDetail',
+
+      compFilterKind: s.compFilterKind,
+      compFilterKindOptions: [{ value: 'All', label: 'All Competitions' }, { value: 'club', label: 'Club' }, { value: 'national', label: 'National Team' }],
+      onCompFilterKind: (e) => this.setState({ compFilterKind: e.target.value }),
+      compFilterMode: s.compFilterMode,
+      compFilterModeOptions: [{ value: 'All', label: 'All Modes' }, { value: 'Detailed', label: 'Detailed' }, { value: 'Aggregated', label: 'Aggregated' }],
+      onCompFilterMode: (e) => this.setState({ compFilterMode: e.target.value }),
+      compFilterStatus: s.compFilterStatus,
+      compFilterStatusOptions: [{ value: 'All', label: 'All Status' }, { value: 'Active', label: 'Active' }, { value: 'Completed', label: 'Completed' }, { value: 'Upcoming', label: 'Upcoming' }],
+      onCompFilterStatus: (e) => this.setState({ compFilterStatus: e.target.value }),
+
+      filteredCompetitions: COMPETITIONS.filter(c =>
+        (s.compFilterKind === 'All' || c.kind === s.compFilterKind) &&
+        (s.compFilterMode === 'All' || c.mode === s.compFilterMode) &&
+        (s.compFilterStatus === 'All' || c.status === s.compFilterStatus)
+      ).map(c => ({
+        ...c,
+        statusTone: c.status === 'Active' ? 'primary' : (c.status === 'Completed' ? 'success' : 'info'),
+        modeIcon: c.mode === 'Detailed' ? 'microscope' : 'layers',
+        onOpen: () => this.setState({ screen: 'competitionDetail', compId: c.id }),
+        actionLabel: c.status === 'Active' ? 'Simulate Next' : (c.status === 'Upcoming' ? 'Prepare Participants' : 'View Recap'),
+      })),
+
+      // ---- Competition Detail ----
+      currentCompetition: (() => {
+        const c = COMPETITIONS.find(x => x.id === s.compId) || COMPETITIONS[1];
+        return c;
+      })(),
+      compTabs: [
+        { value: 'overview', label: 'Overview' },
+        { value: 'participants', label: 'Participants' },
+        { value: 'standings', label: 'Standings / Groups' },
+        { value: 'schedule', label: 'Schedule & Results' },
+        { value: 'playoffs', label: 'Playoffs' },
+        { value: 'playerStats', label: 'Player Statistics' },
+        { value: 'teamStats', label: 'Team Statistics' },
+        { value: 'awards', label: 'Awards' },
+        { value: 'history', label: 'History' },
+      ],
+      compTab: s.compTab,
+      onCompTabChange: (v) => this.setState({ compTab: v }),
+      compTabOverview: s.compTab === 'overview',
+      compTabParticipants: s.compTab === 'participants',
+      compTabStandings: s.compTab === 'standings',
+      compTabSchedule: s.compTab === 'schedule',
+      compTabPlayoffs: s.compTab === 'playoffs',
+      compTabPlayerStats: s.compTab === 'playerStats',
+      compTabTeamStats: s.compTab === 'teamStats',
+      compTabAwards: s.compTab === 'awards',
+      compTabHistory: s.compTab === 'history',
+
+      standingsAtlantic: STANDINGS_ATLANTIC,
+      standingsPacific: STANDINGS_PACIFIC,
+      playoffBracket: PLAYOFF_BRACKET,
+      compParticipants: TEAMS.map(t => ({ ...t })),
+      compScorers: SCORERS,
+      compSchedule: [
+        { id: 1, date: '2026-07-05', home: 'Ironclad HC', away: 'Northgate Wolves', score: '4–2', note: 'Semifinal G5' },
+        { id: 2, date: '2026-07-03', home: 'Northgate Wolves', away: 'Ironclad HC', score: '1–5', note: 'Semifinal G4' },
+        { id: 3, date: '2026-07-01', home: 'Ironclad HC', away: 'Northgate Wolves', score: '3–1', note: 'Semifinal G3' },
+        { id: 4, date: '2026-06-29', home: 'Northgate Wolves', away: 'Ironclad HC', score: '2–3 OT', note: 'Semifinal G2' },
+        { id: 5, date: '2026-06-27', home: 'Ironclad HC', away: 'Northgate Wolves', score: '4–3', note: 'Semifinal G1' },
+        { id: 6, date: '2026-07-08', home: 'Ironclad HC', away: 'Northgate Wolves', score: 'Scheduled', note: 'Semifinal G6' },
+      ],
+      compAwards: [
+        { award: 'Playoff MVP (projected)', player: 'A. Kessler', team: 'Ironclad HC' },
+        { award: 'Top Goaltender', player: 'T. Whitfield', team: 'Ironclad HC' },
+        { award: 'Best Defenseman', player: 'O. Lindqvist', team: 'Ironclad HC' },
+      ],
+      compHistory: HISTORY_CHAMPIONS,
+      scorerColumns: [{ key: 'name', label: 'Player' }, { key: 'gp', label: 'GP' }, { key: 'g', label: 'G' }, { key: 'a', label: 'A' }, { key: 'pts', label: 'PTS' }],
+      compActions: [
+        { label: 'Simulate Next Match', icon: 'play', primary: 'primary', disabledVal: false, style: {} },
+        { label: 'Simulate Series', icon: 'fast-forward', primary: 'secondary', disabledVal: false, style: {} },
+        { label: 'Complete Competition', icon: 'flag', primary: 'secondary', disabledVal: true, style: {} },
+      ],
+      onCompAction: () => {},
+
+      // ================= TEAM DETAIL =================
+      isTeamDetail: s.screen === 'teamDetail',
+      currentTeam: TEAMS.find(t => t.id === s.teamId) || TEAMS[0],
+      teamTabs: [
+        { value: 'overview', label: 'Overview' },
+        { value: 'roster', label: 'Roster' },
+        { value: 'lines', label: 'Lines' },
+        { value: 'tactics', label: 'Tactics' },
+        { value: 'schedule', label: 'Schedule' },
+        { value: 'statistics', label: 'Statistics' },
+        { value: 'transfers', label: 'Transfers' },
+        { value: 'contracts', label: 'Contracts' },
+        { value: 'prospects', label: 'Prospects' },
+        { value: 'history', label: 'History' },
+      ],
+      teamTab: s.teamTab,
+      onTeamTabChange: (v) => this.setState({ teamTab: v }),
+      teamTabOverview: s.teamTab === 'overview',
+      teamTabRoster: s.teamTab === 'roster',
+      teamTabLines: s.teamTab === 'lines',
+      teamTabTactics: s.teamTab === 'tactics',
+      teamTabSchedule: s.teamTab === 'schedule',
+      teamTabStatistics: s.teamTab === 'statistics',
+      teamTabTransfers: s.teamTab === 'transfers',
+      teamTabContracts: s.teamTab === 'contracts',
+      teamTabProspects: s.teamTab === 'prospects',
+      teamTabHistory: s.teamTab === 'history',
+
+      teamRosterSize: ROSTER_IRONCLAD.length,
+      teamAvgAge: (ROSTER_IRONCLAD.reduce((a, p) => a + p.age, 0) / ROSTER_IRONCLAD.length).toFixed(1),
+      teamStrength: 84,
+      teamOffense: 87,
+      teamDefense: 79,
+      teamChemistry: 74,
+      teamForm: ['win', 'win', 'otl', 'win', 'loss'],
+      teamPosition: '1st — Atlantic Division (112 PTS)',
+      teamDepthWarnings: [
+        'Only 4 healthy defensemen active — Pair 3 is incomplete.',
+        'R. Novak (D) is Injured and unavailable for the next match.',
+      ],
+      teamContractWarnings: [
+        'P. Renaud, H. Vance and G. Petrov all expire after this season.',
+      ],
+      teamNextMatch: { opp: 'Northgate Wolves', loc: 'Home', when: 'Sat · 7:00 PM · Ironclad Arena', note: 'Semifinal Game 6 — series tied 3–3' },
+      teamRecentResults: TEAM_SCHEDULE.filter(g => g.result !== 'Scheduled').slice(0, 5),
+      goToTeamRoster: () => this.setState({ screen: 'teamDetail', teamTab: 'roster' }),
+      goToTeamLines: () => this.setState({ screen: 'teamDetail', teamTab: 'lines' }),
+      goToMatch: go('match'),
+
+      // ---- Roster tab ----
+      rosterView: s.rosterView,
+      setRosterViewTable: () => this.setState({ rosterView: 'table' }),
+      setRosterViewDepth: () => this.setState({ rosterView: 'depth' }),
+      rosterViewIsTable: s.rosterView === 'table',
+      rosterViewIsDepth: s.rosterView === 'depth',
+      rosterSearch: s.rosterSearch,
+      onRosterSearch: (e) => this.setState({ rosterSearch: e.target.value }),
+      rosterPosFilter: s.rosterPosFilter,
+      rosterPosOptions: [{ value: 'All', label: 'All Positions' }, { value: 'C', label: 'Center' }, { value: 'LW', label: 'Left Wing' }, { value: 'RW', label: 'Right Wing' }, { value: 'D', label: 'Defense' }, { value: 'G', label: 'Goalie' }],
+      onRosterPosFilter: (e) => this.setState({ rosterPosFilter: e.target.value }),
+      rosterRows: ROSTER_IRONCLAD.filter(p =>
+        (s.rosterPosFilter === 'All' || p.pos === s.rosterPosFilter) &&
+        (s.rosterSearch === '' || p.name.toLowerCase().includes(s.rosterSearch.toLowerCase()))
+      ).map(p => ({
+        ...p,
+        statusTone: p.rosterStatus === 'Active' ? 'success' : (p.rosterStatus === 'Injured' ? 'danger' : (p.rosterStatus === 'Suspended' ? 'warning' : 'info')),
+        onOpen: () => this.setState({ screen: 'playerDetail', playerId: p.id, playerTab: 'profile' }),
+      })),
+      rosterHasValidationIssues: true,
+      rosterValidationMessages: [
+        'Defense corps: only 4 active — recommend at least 6 for full pairs.',
+        'D. Aro is Suspended and cannot be selected for the next lineup.',
+      ],
+
+      depthGroups: ['C', 'LW', 'RW', 'D', 'G'].map(pos => ({
+        pos,
+        label: pos === 'C' ? 'Centers' : pos === 'LW' ? 'Left Wings' : pos === 'RW' ? 'Right Wings' : pos === 'D' ? 'Defensemen' : 'Goalies',
+        players: ROSTER_IRONCLAD.filter(p => p.pos === pos).map(p => ({
+          ...p,
+          statusTone: p.rosterStatus === 'Active' ? 'success' : (p.rosterStatus === 'Injured' ? 'danger' : (p.rosterStatus === 'Suspended' ? 'warning' : 'info')),
+          onOpen: () => this.setState({ screen: 'playerDetail', playerId: p.id, playerTab: 'profile' }),
+        })),
+      })),
+
+      // ---- Lines tab ----
+      lineGroups: LINE_GROUPS.map(group => {
+        const chem = CHEMISTRY_MOCK[group.id];
+        return {
+          ...group,
+          chem,
+          chemLabelStyle: { font: 'var(--text-data-md)', color: chem.chem >= 80 ? 'var(--accent-success)' : chem.chem >= 65 ? 'var(--accent-primary)' : chem.chem >= 1 ? 'var(--accent-warning)' : 'var(--text-tertiary)' },
+          slots: group.slots.map(slot => {
+            const pid = s.lineup[slot.id];
+            const player = pid ? ROSTER_IRONCLAD.find(p => p.id === pid) : null;
+            const mismatch = player && player.pos !== slot.pos;
+            const locked = pid && s.lockedIds[pid];
+            return {
+              ...slot,
+              player,
+              mismatch,
+              locked,
+              dragEnabled: !!player,
+              lockIcon: locked ? 'lock' : 'lock-open',
+              onDrop: (e) => { if (e && e.preventDefault) e.preventDefault(); this.dropOnSlot(slot.id); },
+              onDragOver: (e) => { if (e && e.preventDefault) e.preventDefault(); },
+              onDragStart: () => { if (player) this.setState({ draggedId: player.id }); },
+              onRemove: () => this.removeFromSlot(slot.id),
+              onToggleLock: () => player && this.toggleLock(player.id),
+              onOpenPlayer: () => player && this.setState({ screen: 'playerDetail', playerId: player.id, playerTab: 'profile' }),
+              slotStyle: {
+                display: 'flex', flexDirection: 'column', gap: '2px', width: '150px', minHeight: '58px', padding: '8px 10px',
+                borderRadius: 'var(--radius-md)', cursor: player ? 'grab' : 'default',
+                border: mismatch ? '1px solid var(--accent-danger)' : (player ? '1px solid var(--border-default)' : '1px dashed var(--border-strong)'),
+                background: player ? 'var(--surface-panel)' : 'var(--gray-1)',
+              },
+            };
+          }),
+        };
+      }),
+      lineupPool: ROSTER_IRONCLAD.filter(p => !Object.values(s.lineup).includes(p.id) && p.pos !== undefined).map(p => ({
+        ...p,
+        locked: !!s.lockedIds[p.id],
+        lockIcon: s.lockedIds[p.id] ? 'lock' : 'lock-open',
+        onDragStart: () => this.setState({ draggedId: p.id }),
+        onToggleLock: () => this.toggleLock(p.id),
+        cardStyle: {
+          display: 'flex', alignItems: 'center', gap: '8px', padding: '7px 9px', borderRadius: 'var(--radius-sm)',
+          border: '1px solid var(--border-subtle)', background: 'var(--surface-panel)', cursor: 'grab',
+          opacity: p.rosterStatus === 'Injured' || p.rosterStatus === 'Suspended' ? 0.55 : 1,
+        },
+      })),
+      onAutoLineup: () => this.autoLineup(),
+      onClearLineup: () => this.setState({ lineup: { 'f1-lw': null, 'f1-c': null, 'f1-rw': null, 'f2-lw': null, 'f2-c': null, 'f2-rw': null, 'f3-lw': null, 'f3-c': null, 'f3-rw': null, 'f4-lw': null, 'f4-c': null, 'f4-rw': null, 'd1-ld': null, 'd1-rd': null, 'd2-ld': null, 'd2-rd': null, 'd3-ld': null, 'd3-rd': null, 'g-starter': null, 'g-backup': null } }),
+      onSaveLineup: () => {},
+      onRestoreLineup: () => this.setState({ lineup: { ...DEFAULT_LINEUP } }),
+
+      // ---- Tactics tab (lightweight) ----
+      tacticsStyleOptions: [{ value: 'Aggressive Forecheck', label: 'Aggressive Forecheck' }, { value: 'Neutral Zone Trap', label: 'Neutral Zone Trap' }, { value: 'Puck Possession', label: 'Puck Possession' }, { value: 'Balanced', label: 'Balanced' }, { value: 'Defensive Shell', label: 'Defensive Shell' }],
+      tacticsStyle: 'Aggressive Forecheck',
+      onTacticsStyleChange: () => {},
+
+      // ---- Schedule tab ----
+      teamSchedule: TEAM_SCHEDULE,
+
+      // ---- Statistics tab ----
+      teamStatsLeaders: SCORERS,
+
+      // ---- Transfers tab (team-scoped) ----
+      teamTransactions: TRANSACTIONS.filter(t => t.text.includes('Ironclad')),
+
+      // ---- Contracts tab ----
+      contractsRows: ROSTER_IRONCLAD.map(p => ({ ...p, capHit: p.salary })),
+
+      // ---- Prospects tab ----
+      prospectsRows: ROSTER_IRONCLAD.filter(p => p.rosterStatus === 'Prospect'),
+
+      // ---- History tab ----
+      teamHistory: HISTORY_CHAMPIONS.filter(h => h.champion === 'Ironclad HC' || h.runnerUp === 'Ironclad HC'),
+
+      // ================= PLAYERS (world-wide list) =================
+      isPlayers: s.screen === 'players',
+      playersSearch: s.rosterSearch,
+      onPlayersSearch: (e) => this.setState({ rosterSearch: e.target.value }),
+      playersFilterPos: s.playersFilterPos,
+      playersPosOptions: [{ value: 'All', label: 'All Positions' }, { value: 'C', label: 'Center' }, { value: 'LW', label: 'Left Wing' }, { value: 'RW', label: 'Right Wing' }, { value: 'D', label: 'Defense' }, { value: 'G', label: 'Goalie' }],
+      onPlayersFilterPos: (e) => this.setState({ playersFilterPos: e.target.value }),
+      playersRows: ROSTER_IRONCLAD.filter(p =>
+        (s.playersFilterPos === 'All' || p.pos === s.playersFilterPos) &&
+        (s.rosterSearch === '' || p.name.toLowerCase().includes(s.rosterSearch.toLowerCase()))
+      ).map(p => ({
+        ...p,
+        team: 'Ironclad HC',
+        statusTone: p.rosterStatus === 'Active' ? 'success' : (p.rosterStatus === 'Injured' ? 'danger' : (p.rosterStatus === 'Suspended' ? 'warning' : 'info')),
+        onOpen: () => this.setState({ screen: 'playerDetail', playerId: p.id, playerTab: 'profile' }),
+      })),
+
+      // ================= PLAYER DETAIL =================
+      isPlayerDetail: s.screen === 'playerDetail',
+      currentPlayer: ROSTER_IRONCLAD.find(p => p.id === s.playerId) || ROSTER_IRONCLAD[0],
+      isGoalie: (ROSTER_IRONCLAD.find(p => p.id === s.playerId) || ROSTER_IRONCLAD[0]).pos === 'G',
+      isSkater: (ROSTER_IRONCLAD.find(p => p.id === s.playerId) || ROSTER_IRONCLAD[0]).pos !== 'G',
+      playerTabs: [
+        { value: 'profile', label: 'Profile' },
+        { value: 'attributes', label: 'Attributes' },
+        { value: 'development', label: 'Development' },
+        { value: 'preferences', label: 'Preferences & Personality' },
+        { value: 'stats', label: 'Career Statistics' },
+        { value: 'contract', label: 'Contract & Team' },
+      ].concat(s.commissioner ? [{ value: 'editor', label: 'Editor' }] : []),
+      playerTab: s.playerTab,
+      onPlayerTabChange: (v) => this.setState({ playerTab: v }),
+      playerTabProfile: s.playerTab === 'profile',
+      playerTabAttributes: s.playerTab === 'attributes',
+      playerTabDevelopment: s.playerTab === 'development',
+      playerTabPreferences: s.playerTab === 'preferences',
+      playerTabStats: s.playerTab === 'stats',
+      playerTabContract: s.playerTab === 'contract',
+      playerTabEditor: s.playerTab === 'editor' && s.commissioner,
+
+      skaterAttrs: [
+        { label: 'Stickhandling', value: 84 }, { label: 'Shooting', value: 88 }, { label: 'Passing', value: 79 },
+        { label: 'Strength', value: 72 }, { label: 'Speed', value: 81 }, { label: 'Balance', value: 76 },
+        { label: 'Aggression', value: 68 }, { label: 'Offensive Awareness', value: 90 }, { label: 'Defensive Awareness', value: 70 },
+      ],
+      goalieAttrs: [
+        { label: 'Reflexes', value: 88 }, { label: 'Positioning', value: 85 }, { label: 'Rebound Control', value: 79 },
+        { label: 'Glove', value: 82 }, { label: 'Blocker', value: 78 }, { label: 'Movement', value: 80 },
+        { label: 'Puck Handling', value: 71 }, { label: 'Consistency', value: 74 }, { label: 'Stamina', value: 86 },
+      ],
+
+      devTimeline: [
+        { season: '2023/24', ovr: 79, role: 'Two-Way Forward' },
+        { season: '2024/25', ovr: 82, role: 'Play-Driver' },
+        { season: '2025/26', ovr: 85, role: 'Play-Driver' },
+        { season: '2026/27', ovr: 87, role: 'Play-Driver' },
+      ],
+      devRisk: 'Low',
+
+      playerPersonality: {
+        coachStyle: 'Structured / Systems-Oriented',
+        tactics: 'Puck Possession',
+        personality: 'Professional',
+        clutch: 82,
+        stability: 88,
+      },
+
+      careerStats: [
+        { season: '2023/24', level: 'NHL', gp: 74, g: 24, a: 31, pts: 55 },
+        { season: '2024/25', level: 'NHL', gp: 79, g: 30, a: 36, pts: 66 },
+        { season: '2025/26', level: 'NHL', gp: 81, g: 32, a: 39, pts: 71 },
+        { season: '2026/27', level: 'NHL', gp: 62, g: 34, a: 41, pts: 75 },
+      ],
+      careerColumns: [{ key: 'season', label: 'Season' }, { key: 'level', label: 'Level' }, { key: 'gp', label: 'GP' }, { key: 'g', label: 'G' }, { key: 'a', label: 'A' }, { key: 'pts', label: 'PTS' }],
+
+      playerTransactionTimeline: [
+        { date: '2023-06-24', text: 'Drafted 14th overall by Ironclad HC.' },
+        { date: '2025-07-02', text: 'Signed 3-year, $19.5M extension with Ironclad HC.' },
+      ],
+
+      editorFields: [
+        { key: 'ca', label: 'Current Ability', value: 87 },
+        { key: 'shooting', label: 'Shooting', value: 88 },
+        { key: 'form', label: 'Form', value: 84 },
+      ],
+
+      // ================= NATIONAL TEAMS =================
+      isNationalTeams: s.screen === 'nationalTeams',
+      nationalTeamsRows: NATIONAL_TEAMS,
+
+      // ================= HISTORY =================
+      isHistory: s.screen === 'history',
+      historyChampions: HISTORY_CHAMPIONS,
+
+      // ================= TRANSFERS =================
+      isTransfers: s.screen === 'transfers',
+      transfersTab: s.transfersTab,
+      onTransfersTabChange: (v) => this.setState({ transfersTab: v }),
+      transfersTabs: [
+        { value: 'transactions', label: 'Transactions' },
+        { value: 'freeAgents', label: 'Free Agents' },
+        { value: 'tradeCenter', label: 'Trade Center' },
+        { value: 'expiring', label: 'Expiring Contracts' },
+        { value: 'draftRights', label: 'Draft Rights' },
+        { value: 'suggestions', label: 'Suggestions' },
+      ],
+      transfersTabTransactions: s.transfersTab === 'transactions',
+      transfersTabFreeAgents: s.transfersTab === 'freeAgents',
+      transfersTabTradeCenter: s.transfersTab === 'tradeCenter',
+      transfersTabExpiring: s.transfersTab === 'expiring',
+      transfersTabDraftRights: s.transfersTab === 'draftRights',
+      transfersTabSuggestions: s.transfersTab === 'suggestions',
+
+      allTransactions: TRANSACTIONS,
+      freeAgentsRows: FREE_AGENTS,
+      expiringContracts: ROSTER_IRONCLAD.filter(p => p.contractYears === 1),
+      draftRightsRows: [
+        { name: 'J. Almqvist', pos: 'C', nat: 'Sweden', age: 21, owner: 'Frost Valley', drafted: '2024, Rd 3' },
+        { name: 'D. Kuznetsov', pos: 'C', nat: 'Russia', age: 18, owner: 'Unclaimed', drafted: 'Available 2026' },
+      ],
+      suggestionsRows: [
+        { text: 'Sable Harbor could target C. Dubrow (FA) to fill top-6 center need.', tone: 'info' },
+        { text: 'Ironclad HC has cap flexibility to extend O. Lindqvist early.', tone: 'success' },
+      ],
+
+      tradeTeamAOptions: TEAMS.map(t => ({ value: t.id, label: t.name })),
+      tradeTeamA: 'ironclad',
+      tradeTeamB: 'northgate',
+      onTradeTeamAChange: () => {},
+      onTradeTeamBChange: () => {},
+      tradeAssetsA: [
+        { label: 'P. Renaud (RW, 80 OVR)', kind: 'Player' },
+        { label: '2027 3rd-Round Pick', kind: 'Pick' },
+      ],
+      tradeAssetsB: [
+        { label: 'K. Rousseau (RW, 77 OVR)', kind: 'Player' },
+      ],
+      tradeValueA: 62,
+      tradeValueB: 48,
+      tradeImbalance: true,
+
+      // ================= SETTINGS =================
+      isSettings: s.screen === 'settings',
+      settingsSection: s.settingsSection,
+      setSettingsSectionBalance: () => this.setState({ settingsSection: 'balance', settingsCategory: 'player-generation' }),
+      setSettingsSectionSystem: () => this.setState({ settingsSection: 'system', settingsCategory: 'randomness' }),
+      settingsSectionIsBalance: s.settingsSection === 'balance',
+      settingsCategories: (s.settingsSection === 'balance' ? SETTINGS_CATEGORIES_BALANCE : SETTINGS_CATEGORIES_SYSTEM).map(c => ({
+        ...c,
+        onClick: () => this.setState({ settingsCategory: c.id }),
+        rowStyle: {
+          padding: '8px 10px', borderRadius: 'var(--radius-sm)', cursor: 'pointer', font: 'var(--text-body-sm)',
+          background: s.settingsCategory === c.id ? 'var(--accent-primary-wash)' : 'transparent',
+          color: s.settingsCategory === c.id ? 'var(--accent-primary)' : 'var(--text-secondary)',
+          fontWeight: s.settingsCategory === c.id ? 600 : 400,
+        },
+      })),
+      settingsCategoryLabel: ((s.settingsSection === 'balance' ? SETTINGS_CATEGORIES_BALANCE : SETTINGS_CATEGORIES_SYSTEM).find(c => c.id === s.settingsCategory) || {}).label,
+      settingsParams: (SETTINGS_PARAMS[s.settingsCategory] || []).map(p => {
+        const m = typeof p.range === 'string' ? p.range.match(/(-?\d+(?:\.\d+)?)\s*[–-]\s*(-?\d+(?:\.\d+)?)/) : null;
+        let barPct = null, rangeMin = null, rangeMax = null;
+        if (m && typeof p.value === 'number') {
+          rangeMin = parseFloat(m[1]);
+          rangeMax = parseFloat(m[2]);
+          barPct = Math.max(0, Math.min(100, ((p.value - rangeMin) / (rangeMax - rangeMin)) * 100));
+        }
+        return {
+          ...p,
+          resetIcon: icon('rotate-ccw', 14),
+          hasBar: barPct !== null,
+          noBar: barPct === null,
+          barPct,
+          rangeMin,
+          rangeMax,
+        };
+      }),
+      balancePresets: BALANCE_PRESETS,
+
+      // ================= SIMULATION LAB =================
+      isSimLab: s.screen === 'simLab',
+      simTeamAOptions: TEAMS.map(t => ({ value: t.id, label: t.name })),
+      simTeamA: s.simTeamA,
+      onSimTeamAChange: (e) => this.setState({ simTeamA: e.target.value }),
+      simTeamBOptions: TEAMS.map(t => ({ value: t.id, label: t.name })),
+      simTeamB: s.simTeamB,
+      onSimTeamBChange: (e) => this.setState({ simTeamB: e.target.value }),
+      simCountOptions: [{ value: '1', label: '1' }, { value: '10', label: '10' }, { value: '100', label: '100' }, { value: '1000', label: '1000' }],
+      simCount: String(s.simCount),
+      onSimCountChange: (e) => this.setState({ simCount: Number(e.target.value) }),
+      simPresetOptions: BALANCE_PRESETS.map(p => ({ value: p.id, label: p.name })),
+      simPreset: 'standard',
+      onSimPresetChange: () => {},
+      onRunSimulation: () => this.setState({ simRan: true }),
+      simRan: s.simRan,
+      simResultTeamA: TEAMS.find(t => t.id === s.simTeamA) || TEAMS[0],
+      simResultTeamB: TEAMS.find(t => t.id === s.simTeamB) || TEAMS[1],
+      simWinPctA: 58,
+      simWinPctB: 42,
+      simAvgScoreA: '3.4',
+      simAvgScoreB: '2.7',
+      simAvgShotsA: 31.2,
+      simAvgShotsB: 27.8,
+      simPPEffA: '22%',
+      simPPEffB: '18%',
+      simDistribution: [
+        { margin: '1 goal', pct: 34 }, { margin: '2 goals', pct: 29 }, { margin: '3+ goals', pct: 22 }, { margin: 'OT/SO', pct: 15 },
+      ],
+      simTopProducers: [
+        { name: 'A. Kessler', team: 'Ironclad HC', pts: '1.18/gm' },
+        { name: 'T. Halberg', team: 'Bay Union', pts: '0.94/gm' },
+      ],
+      simAnomalies: [
+        { text: 'Upset rate (Team B win %) is 6pts above expected strength differential.', tone: 'warning' },
+      ],
+
+      // ================= NHL DRAFT =================
+      isDraft: s.screen === 'draft',
+      draftYear: 2026,
+      draftRound: 1,
+      draftOrder: DRAFT_ORDER.map((d, i) => ({
+        ...d,
+        picked: i < s.draftPickIndex,
+        current: i === s.draftPickIndex,
+        onClick: () => this.setState({ draftPickIndex: i }),
+        rowStyle: {
+          display: 'flex', justifyContent: 'space-between', padding: '7px 9px', borderRadius: 'var(--radius-sm)',
+          background: i === s.draftPickIndex ? 'var(--accent-primary-wash)' : 'transparent',
+          border: i === s.draftPickIndex ? '1px solid var(--accent-primary)' : '1px solid transparent',
+          font: 'var(--text-body-sm)', color: i < s.draftPickIndex ? 'var(--text-tertiary)' : 'var(--text-primary)', cursor: 'pointer',
+        },
+      })),
+      draftCurrentPick: DRAFT_ORDER[s.draftPickIndex] || DRAFT_ORDER[0],
+      draftProspects: DRAFT_PROSPECTS.map(p => ({
+        ...p,
+        selected: p.id === s.draftSelectedProspect,
+        onSelect: () => this.setState({ draftSelectedProspect: p.id }),
+        rowStyle: {
+          cursor: 'pointer',
+          background: p.id === s.draftSelectedProspect ? 'var(--accent-primary-wash)' : 'transparent',
+        },
+      })),
+      draftSelectedProspectData: DRAFT_PROSPECTS.find(p => p.id === s.draftSelectedProspect) || DRAFT_PROSPECTS[0],
+      onConfirmPick: () => this.setState({ draftPickIndex: Math.min(s.draftPickIndex + 1, DRAFT_ORDER.length - 1) }),
+      draftStrategyOptions: [{ value: 'bpa', label: 'Best Player Available' }, { value: 'upside', label: 'High Upside' }, { value: 'need', label: 'Team Need' }, { value: 'risk', label: 'Low Risk' }],
+      draftStrategy: 'bpa',
+      onDraftStrategyChange: () => {},
+
+      // ================= MATCH SCREEN =================
+      isMatch: s.screen === 'match',
+      matchHome: 'Ironclad HC',
+      matchAway: 'Northgate Wolves',
+      matchScoreHome: 4,
+      matchScoreAway: 2,
+      matchPeriod: 'Final',
+      matchClock: '00:00',
+      matchStrength: '5v5',
+      matchShotsHome: 34,
+      matchShotsAway: 27,
+      matchPeriodScoring: [
+        { period: '1st', home: 1, away: 0 }, { period: '2nd', home: 2, away: 1 }, { period: '3rd', home: 1, away: 1 },
+      ],
+      matchEvents: [
+        { time: '18:42', period: '3rd', type: 'Goal', desc: 'A. Kessler (Ironclad HC) scores on the power play, assisted by M. Doyle.', prominent: true },
+        { time: '15:10', period: '3rd', type: 'Penalty', desc: 'D. Aro (Ironclad HC) — 2 min, Tripping.', prominent: true },
+        { time: '11:03', period: '3rd', type: 'Save', desc: 'T. Whitfield stops a breakaway attempt from the slot.', prominent: false },
+        { time: '07:44', period: '3rd', type: 'Shot', desc: 'M. Doyle shot from the point, wide right.', prominent: false },
+        { time: '02:12', period: '3rd', type: 'Goal', desc: 'P. Renaud (Northgate Wolves) scores off a rebound.', prominent: true },
+      ].map(e => ({
+        ...e,
+        rowStyle: {
+          display: 'flex', gap: '10px', alignItems: 'flex-start', padding: '8px 10px', borderRadius: 'var(--radius-sm)',
+          background: e.prominent ? 'var(--accent-primary-wash)' : 'transparent',
+          borderLeft: e.prominent ? '3px solid var(--accent-primary)' : '3px solid transparent',
+        },
+      })),
+      matchPlayerStats: SCORERS,
+      matchGoalies: [
+        { name: 'T. Whitfield', team: 'Ironclad HC', saves: 25, shots: 27, savePct: '.926' },
+        { name: 'J. Bouchard', team: 'Northgate Wolves', saves: 30, shots: 34, savePct: '.882' },
+      ],
+      onSimEntireMatch: () => {},
+      onSimPeriod: () => {},
+      onContinueMatch: () => {},
+      onPauseMatch: () => {},
+      diagnosticsOpen: s.diagnosticsOpen,
+      onToggleDiagnostics: () => this.toggleDiagnostics(),
+      diagnosticsSeed: '48291-A',
+      diagnosticsPreset: 'Standard v1.4',
+      diagnosticsEventCounts: [
+        { label: 'Shots', value: 61 }, { label: 'Faceoffs', value: 58 }, { label: 'Zone Entries', value: 142 }, { label: 'Turnovers', value: 39 },
+      ],
+      diagnosticsExpGoals: { home: '3.6', away: '2.3', actualHome: 4, actualAway: 2 },
+      diagnosticsWarnings: ['Line 4 usage 2 min below target ice time.'],
+
+      // ================= SETUP WORLD =================
+      isSetup: s.screen === 'setup',
+      setupSteps: [
+        'Countries and name pools', 'League structure', 'NHL teams', 'Aggregated leagues', 'Real player import',
+        'Coaches', 'Global season', 'Competition definitions', 'Initial competition editions', 'Default balance preset',
+      ].map((label, i) => ({ label, num: i + 1, status: 'pending' })),
+      setupSourceFiles: [
+        { name: 'countries.csv', size: '4 KB' }, { name: 'nhl_teams.csv', size: '12 KB' },
+        { name: 'players_initial.csv', size: '2.4 MB' }, { name: 'coaches.csv', size: '38 KB' },
+      ],
+      setupValidation: [
+        { text: '11 leagues detected across 6 countries.', tone: 'success', icon: 'check-circle-2', iconColor: 'var(--accent-success)' },
+        { text: '412 teams parsed.', tone: 'success', icon: 'check-circle-2', iconColor: 'var(--accent-success)' },
+        { text: '9,840 players parsed.', tone: 'success', icon: 'check-circle-2', iconColor: 'var(--accent-success)' },
+        { text: '3 duplicate player IDs found in players_initial.csv — will be skipped.', tone: 'warning', icon: 'alert-triangle', iconColor: 'var(--accent-warning)' },
+      ],
+      onInitializeWorld: () => {},
+
+      phaseSteps,
+      hasWarnings: true,
+      warnings: [
+        { text: 'Harbor City HC roster has only 1 healthy goalie.', href: '#', onClick: go('teamDetail') },
+        { text: 'World Junior Championship rosters not yet finalized — 4 teams incomplete.', href: '#', onClick: go('competitions') },
+      ],
+      recentCompetitions: [
+        { name: 'NHL Regular Season', detail: SEASON + ' · Champion: Ironclad HC', status: 'Complete' },
+        { name: 'Continental Elite League', detail: SEASON + ' · Champion: Vasterhavn IK', status: 'Complete' },
+        { name: 'European Cup', detail: SEASON + ' · Champion: Karpaty Lviv', status: 'Complete' },
+      ],
+      leaders: [
+        { name: 'A. Kessler', team: 'Ironclad HC', cat: 'Points', value: '75' },
+        { name: 'T. Whitfield', team: 'Ironclad HC', cat: 'Save %', value: '.924' },
+        { name: 'M. Doyle', team: 'Ironclad HC', cat: 'Goals', value: '29' },
+        { name: 'O. Lindqvist', team: 'Ironclad HC', cat: 'Assists (D)', value: '39' },
+      ],
+      latestResults: [
+        { home: 'IRC', away: 'NGW', homeScore: 4, awayScore: 2, note: 'Semifinal G5', homeStyle: 'font-weight:700;color:var(--text-primary)', awayStyle: 'color:var(--text-secondary)' },
+        { home: 'BAY', away: 'FRV', homeScore: 2, awayScore: 2, note: 'Semifinal G4 · OT', homeStyle: 'color:var(--text-secondary)', awayStyle: 'color:var(--text-secondary)' },
+        { home: 'NGW', away: 'IRC', homeScore: 1, awayScore: 5, note: 'Semifinal G4', homeStyle: 'color:var(--text-secondary)', awayStyle: 'font-weight:700;color:var(--text-primary)' },
+        { home: 'FRV', away: 'BAY', homeScore: 3, awayScore: 1, note: 'Semifinal G3', homeStyle: 'font-weight:700;color:var(--text-primary)', awayStyle: 'color:var(--text-secondary)' },
+      ],
+      dashboardTransactions: TRANSACTIONS.slice(0, 4),
+      upcomingIntl: [
+        { name: 'World Junior Championship', window: 'Dec 26, 2026 – Jan 5, 2027', status: 'Rosters Pending' },
+        { name: 'World Championship', window: 'May 8 – 24, 2027', status: 'Scheduling' },
+      ],
+      quickLinks: [
+        { icon: 'trophy', label: 'NHL Playoffs', onClick: go('competitionDetail') },
+        { icon: 'shield', label: 'Teams', onClick: go('teamDetail') },
+        { icon: 'users', label: 'Players', onClick: go('players') },
+        { icon: 'target', label: 'NHL Draft', onClick: go('draft') },
+        { icon: 'settings', label: 'Settings', onClick: go('settings') },
+      ],
+    };
+  }
+}
+
+</script>
+</body>
+</html>

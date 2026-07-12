@@ -1,0 +1,26 @@
+/* ==========================================================================
+   ATLAS — EFFECTS TOKENS (v2 — light shell)
+   Shadows are soft and low-contrast (cards sit on a light gray app bg, not a
+   dark viewport) — never dark/tactical. No blur except the modal scrim.
+   Gradients are minimal: one optional team-color hero wash for banners —
+   never used on cards, tables, or buttons.
+   ========================================================================== */
+
+:root {
+  --shadow-sm: 0 1px 2px var(--shadow-color); /* @kind other */
+  --shadow-md: 0 4px 12px var(--shadow-color); /* @kind other */
+  --shadow-lg: 0 12px 32px var(--shadow-color); /* @kind other */
+  --shadow-focus: 0 0 0 2px var(--surface-app), 0 0 0 4px var(--accent-primary); /* @kind other */
+  --shadow-inset-line: inset 0 1px 0 rgba(255, 255, 255, 0.6); /* @kind other */
+
+  --blur-scrim: blur(2px); /* @kind other */
+
+  --ease-standard: cubic-bezier(0.2, 0.8, 0.2, 1); /* @kind other */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1); /* @kind other */
+  --duration-fast: 100ms; /* @kind other */
+  --duration-normal: 160ms; /* @kind other */
+  --duration-slow: 240ms; /* @kind other */
+
+  /* Hero-banner only — team-color wash, never on cards/tables/buttons */
+  --gradient-team-hero: linear-gradient(135deg, var(--accent-primary) 0%, var(--team-6) 100%); /* @kind other */
+}

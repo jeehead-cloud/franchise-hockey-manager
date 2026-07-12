@@ -7,85 +7,10 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model League {
-  id        String   @id @default(cuid())
-  name      String   @unique
+/// Bootstrap-only model so Prisma + SQLite wiring exists in F1.
+/// Gameplay entities (League, Team, Player, Coach, …) arrive in later milestones.
+model AppMeta {
+  id        String   @id @default("default")
   createdAt DateTime @default(now())
-  teams     Team[]
-}
-
-model Team {
-  id         String   @id @default(cuid())
-  name       String
-  city       String
-  conference String
-  division   String
-  leagueId   String
-  league     League   @relation(fields: [leagueId], references: [id], onDelete: Cascade)
-  players    Player[]
-  createdAt  DateTime @default(now())
-
-  @@unique([leagueId, city, name])
-  @@index([leagueId])
-}
-
-model Player {
-  id        String  @id @default(cuid())
-  teamId    String
-  team      Team    @relation(fields: [teamId], references: [id], onDelete: Cascade)
-
-  firstName   String
-  surname     String
-  nationality String
-  position    String
-  age         Int
-
-  // Growth engine (frozen at generation)
-  startTotal       Float
-  devRate          Float
-  risk             Float
-  bonusPotential   Float
-  currentDevState  Float
-  stabPlus         Float
-  stabMinus        Float
-  currentStabState Float
-  ageAdj           Float
-  currTotal        Float
-
-  offensePct Float
-  defencePct Float
-  offence    Float
-  defence    Float
-
-  // Skater attributes (null for goalies)
-  sth   Float?
-  sho   Float?
-  pas   Float?
-  str   Float?
-  spd   Float?
-  bal   Float?
-  agg   Float?
-  ofAw  Float?
-  defAw Float?
-
-  // Goalie placeholder attrs as JSON (null for skaters)
-  // TODO(PLAYER_MODEL.md §7 item 5): promote to first-class columns once designed
-  goalieAttributes String?
-
-  preferredCoachingStyle String
-  preferredTactics       String
-  personality            String
-  heroRating             Int
-  nationalTeam           Int
-
-  role       String?
-  roleRating Float?
-
-  curOverTot Float?
-  overPot    Float?
-
-  createdAt DateTime @default(now())
-
-  @@index([teamId])
-  @@index([position])
+  updatedAt DateTime @updatedAt
 }

@@ -1,0 +1,50 @@
+<!-- @dsCard group="Components" viewport="700x420" name="Feedback" subtitle="Badge, Tag, Toast, Dialog" -->
+<html><head>
+<link rel="stylesheet" href="../../styles.css">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>body{margin:0;background:var(--surface-app);}</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { Badge, Tag, Toast, Dialog, Button } = window.AtlasDesignSystem_b2128a;
+
+function Row({children}) { return <div style={{display:"flex",gap:12,alignItems:"center",padding:"14px 16px",borderBottom:"1px solid var(--border-subtle)"}}>{children}</div>; }
+
+function Demo() {
+  const [open, setOpen] = React.useState(false);
+  return (
+    <div>
+      <Row>
+        <Badge tone="neutral">Idle</Badge>
+        <Badge tone="info">Scouting</Badge>
+        <Badge tone="success">Saved</Badge>
+        <Badge tone="danger">Under Attack</Badge>
+        <Badge tone="primary">Selected</Badge>
+      </Row>
+      <Row>
+        <Tag>Forest</Tag>
+        <Tag onRemove={()=>{}}>Cavalry</Tag>
+        <Tag onRemove={()=>{}}>Turn 14</Tag>
+      </Row>
+      <Row style={{display:"block"}}>
+        <Toast tone="danger" title="Under Attack" message="Settlement 'Ashford' is being raided." onClose={()=>{}} />
+      </Row>
+      <Row>
+        <Button onClick={()=>setOpen(true)}>Open Dialog</Button>
+      </Row>
+      <Dialog open={open} title="Delete Scenario?" onClose={()=>setOpen(false)} footer={<>
+        <Button variant="secondary" onClick={()=>setOpen(false)}>Cancel</Button>
+        <Button variant="danger" onClick={()=>setOpen(false)}>Delete</Button>
+      </>}>
+        This cannot be undone.
+      </Dialog>
+    </div>
+  );
+}
+ReactDOM.createRoot(document.getElementById("root")).render(<Demo />);
+</script>
+</body></html>

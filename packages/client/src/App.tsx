@@ -1,23 +1,30 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
-import { RosterPage } from './pages/RosterPage';
+import { AppShell } from './components/layout/AppShell';
+import { CompetitionsPage } from './pages/CompetitionsPage';
+import { NotFoundPage } from './pages/NotFoundPage';
+import { PlayersPage } from './pages/PlayersPage';
+import { SettingsPage } from './pages/SettingsPage';
+import { SetupPage } from './pages/SetupPage';
+import { SimulationLabPage } from './pages/SimulationLabPage';
 import { TeamsPage } from './pages/TeamsPage';
+import { WorldPage } from './pages/WorldPage';
 
 export function App() {
   return (
     <BrowserRouter>
-      <div className="mx-auto max-w-7xl px-4 py-6">
-        <nav className="mb-6 border-b border-slate-800 pb-3">
-          <span className="text-lg font-semibold tracking-tight text-white">
-            Franchise Hockey Manager
-          </span>
-          <span className="ml-3 text-xs text-slate-500">MVP skeleton</span>
-        </nav>
-        <Routes>
-          <Route path="/" element={<TeamsPage />} />
-          <Route path="/teams/:id" element={<RosterPage />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </div>
+      <Routes>
+        <Route path="/setup" element={<SetupPage />} />
+        <Route element={<AppShell />}>
+          <Route path="/" element={<Navigate to="/world" replace />} />
+          <Route path="/world" element={<WorldPage />} />
+          <Route path="/competitions" element={<CompetitionsPage />} />
+          <Route path="/teams" element={<TeamsPage />} />
+          <Route path="/players" element={<PlayersPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/simulation-lab" element={<SimulationLabPage />} />
+          <Route path="*" element={<NotFoundPage />} />
+        </Route>
+      </Routes>
     </BrowserRouter>
   );
 }

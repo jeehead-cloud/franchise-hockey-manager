@@ -1,7 +1,7 @@
 # Franchise Hockey Manager — Current Status
 
 **Status:** Active
-**Last updated:** 2026-07-10
+**Last updated:** 2026-07-12
 **Repository:** `https://github.com/jeehead-cloud/franchise-hockey-manager`
 **Local repository path:** `C:\Projects\franchise-hockey-manager`
 
@@ -12,52 +12,45 @@
 
 ## 1. Current Development Phase
 
-**MVP scaffold running locally; core scaffold committed on `main`.** The monorepo (`packages/engine`, `packages/server`, `packages/client`) is scaffolded and verified end-to-end: Prisma seed creates one NHL league with 32 real teams and generated rosters (~674 players), Fastify serves `GET /api/teams` and `GET /api/teams/:id`, and the React client lists teams and shows per-team rosters. Chemistry/tactics fit (M3) and game/season simulation (M4) are not started. Several product docs (`PROJECT.md`, `ARCHITECTURE.md`, `PLAYER_MODEL.md`, `PRODUCT_RULES.md`, `DEPLOYMENT.md`) remain untracked in the working tree.
+**F1 — Monorepo and Application Shell: complete and ready to commit/push.** Working TypeScript monorepo with `@fhm/engine`, `@fhm/server`, and `@fhm/client`. Server exposes `GET /health` with Prisma/SQLite wiring (`AppMeta` only). Client uses Atlas design tokens adapted from `design/system` and ships the approved shell + placeholder routes. No gameplay systems (leagues, teams, players, generation, chemistry, simulation) are implemented.
+
+**Note:** An earlier pre-F1 scaffold briefly added League/Team/Player seed + generator code; that gameplay surface was removed to align with F1 scope. Leftover `data/` name-pool / NHL team JSON may remain on disk for later milestones but is unused by F1.
+
+**Docs gap:** `PRODUCT_STRUCTURE.md` and `FOUNDATION_IMPLEMENTATION_PLAN.md` were referenced by the F1 prompt but are not present in the repository.
 
 ---
 
 ## 2. Milestone Status
 
-### M1 — Leagues, Teams & Rosters (Active)
-
-Scope: monorepo scaffolding, Prisma schema for League/Team/Player, seed data for real NHL teams, initial roster generation wired end-to-end (generate → persist → display).
+### F1 — Monorepo and Application Shell (Done)
 
 Implemented:
-- npm workspaces monorepo with `@fhm/engine`, `@fhm/server`, `@fhm/client`.
-- Prisma schema: `League`, `Team`, `Player` (SQLite); initial migration applied.
-- Seed: 1× "NHL" league, 32 current NHL teams (`data/nhl-teams.json`), ~20–22 players per team (~674 total).
-- REST: `GET /api/teams`, `GET /api/teams/:id` (team + roster).
-- Client: Teams page (all 32) and Roster page (name, position, age, Curr.Total, role, role rating, 9 attrs).
-- Starter national name pools under `data/names/` (Canada, USA, Russia, Sweden, Finland, Czechia).
+- npm workspaces: `packages/engine`, `packages/server`, `packages/client`
+- Root `build`, `typecheck`, `dev` (concurrently server+client), plus package scripts
+- Engine: pure TS package with `getEngineInfo()` wiring export only
+- Server: Fastify bootstrap, CORS, error handler, graceful shutdown, `GET /health`, Prisma + SQLite (`AppMeta`)
+- Client: React + Vite + Tailwind + React Router; Atlas token CSS copied into `packages/client/src/styles/tokens`; adapted UI primitives (Button, Badge, Panel, Tabs, empty/loading/error, connection status)
+- Shell nav: World, Competitions, Teams, Players, Settings, Simulation Lab; Setup outside shell; `/` → `/world`; unknown routes → not-found
+- Health status pill in sidebar (and Setup); `VITE_API_URL` optional; Vite proxies `/health`
+- Approved design references preserved under `design/system` and `design/screens` (runtime does not import those trees)
 
-Not yet done / known gaps:
-- No `Coach` entity on Team yet (needed before chemistry/tactics fit).
-- Prisma `package.json#prisma` seed config triggers a deprecation warning (Prisma 7 config migration pending).
-- Remaining product documentation files still untracked (see §1).
+Not in F1 (intentional):
+- All gameplay entities and APIs
+- Player generation / attributes / roles
+- Chemistry, tactics, lineups, match/season simulation
+- World import / Commissioner editing / auth / deploy
 
-### M2 — Player Generation & Attributes (Active)
+### M1 — Leagues, Teams & Rosters (Not started)
 
-Scope: full generator per `PLAYER_MODEL.md` — 9 attributes, offense/defense split, dev-state/stability draws (frozen at generation, per `PRODUCT_RULES.md` §4), archetype/role derivation, aging curve applied over time.
+Gameplay data model and real-world seed belong here / later foundation milestones — not present after F1 alignment.
 
-Implemented:
-- `generatePlayer` in `@fhm/engine`: identity, growth engine (Start.Total, Dev.rate, Risk/Bonus Pot., dev-state & stability draws, Curr.Total via age-adjusted formula), offense/defense split, 9 core attributes, archetype/role derivation (forward + defenseman pair tables), role rating.
-- Randomness frozen at generation time (plain object with concrete numbers persisted via Prisma).
-- Config: `aging-curve.json` (PLAYER_MODEL.md §6 table), `role-thresholds.json` (pair → role + role-rating weights), `dev-variance.json`.
-- Goalies: distinct placeholder attribute set (reflexes, positioning, rebound control, puck handling, consistency) — not the spreadsheet fixed-50/50 stub.
+### M2 — Player Generation & Attributes (Not started)
 
-Known gaps / placeholders:
-- Goalie model unfinished — `TODO(PLAYER_MODEL.md §7 item 5)`; no goalie archetypes.
-- Attribute-vs-Curr.Total scaling is a temporary age-growth approximation (`PLAYER_MODEL.md` §7 item 2) — not a finalized rule.
-- Role-rating per-role weight tables are approximate placeholders (full spreadsheet weights were unavailable).
-- `Cur.Over.Tot.` / `Over.Pot.` computed & stored; compact R/P display purpose undecided (`PLAYER_MODEL.md` §7 items 3–4).
-- Stability drift across seasons undecided (`PLAYER_MODEL.md` §7 item 6) — currently frozen once at generation.
-- Face-offs field not implemented (`PLAYER_MODEL.md` §7 item 7).
+Engine generator intentionally absent in F1.
 
 ### M3 — Chemistry & Tactics Fit (Not started)
 
-Scope: the core non-linear performance engine — line synergy, coach-style/tactics fit modifiers, contextual modifiers.
-
-Implemented: nothing yet. This is the project's central design challenge (`PROJECT.md` §1) and should not be rushed once started. Blocked on adding a `Coach` entity so player preferred style/tactics can be compared to team coach.
+Not started.
 
 ### M4 — Season Simulation Engine (Not started)
 
@@ -73,35 +66,31 @@ Not started.
 
 ### M7 — Automation & AI GMs (Queued)
 
-Not started. No design work done beyond the high-level mention in `PROJECT.md`.
+Not started.
 
 ### M8 — Server Deployment & Multiplayer (Queued)
 
-Not started. Hosting provider and domain are undecided — see `DEPLOYMENT.md`.
+Not started. Hosting undecided — see `DEPLOYMENT.md`.
 
 ---
 
 ## 3. Known Bugs / Limitations Worth Remembering
 
-- **Goalie model** is a minimal distinct placeholder only (`PLAYER_MODEL.md` §7 item 5); not first-class.
-- **9 core attributes vs. Curr.Total**: MVP grows base rolls with age using the growth term; true scaling rule still open (`PLAYER_MODEL.md` §7 item 2).
-- **Role-rating weights** in `role-thresholds.json` are approximate, not verified against the full spreadsheet tables.
-- **`Cur.Over.Tot.` / `Over.Pot.` / R / P**: parallel rating numbers; UI purpose not decided (`PLAYER_MODEL.md` §7 items 3–4).
-- **Stability drift** across seasons not designed (`PLAYER_MODEL.md` §7 item 6).
-- **Face-offs** not implemented (`PLAYER_MODEL.md` §7 item 7).
-- **No Coach entity** yet — required before M3 chemistry/tactics fit.
-- **Prisma seed config deprecation warning** (`package.json#prisma` → Prisma 7 config file).
-- Name pools are small starter lists, not production-scale national pools.
-- Several product docs remain untracked in the working tree (`PROJECT.md`, `ARCHITECTURE.md`, `PLAYER_MODEL.md`, `PRODUCT_RULES.md`, `DEPLOYMENT.md`).
+- No gameplay data or domain Prisma models yet (`AppMeta` bootstrap only).
+- Design screen extras (National Teams, Transfers, History nav) not wired as F1 routes — F1 nav follows the required six areas + Setup.
+- Atlas JSX under `design/system` is reference/adapted, not imported as a package; Lucide via `lucide-react` (not CDN).
+- `PRODUCT_STRUCTURE.md` / `FOUNDATION_IMPLEMENTATION_PLAN.md` missing from repo.
+- Early MVP gameplay code and seed were removed for F1; do not treat old CURRENT_STATUS “M1/M2 Active” entries as current behavior.
+- Windows `localhost` vs `127.0.0.1` quirks: server defaults to `127.0.0.1`; Vite proxy targets `127.0.0.1:3000`.
+- Name-pool / NHL JSON under `data/` is unused leftover pending later milestones.
 
 ---
 
 ## 4. Nearest Next Steps
 
-1. Track/commit the remaining product documentation set when the owner requests it.
-2. Add a **Coach** entity (philosophy + tactics) on Team, matching player preferred-style fields.
-3. Begin **M3 — Chemistry & Tactics Fit** (line synergy, coach-style/tactics fit, config-driven weights).
-4. Resolve open M2 design questions as they block sim feel (attribute scaling, goalie model, role-rating weight fidelity) — do not block M3 on polishing every §7 item first.
+1. Proceed to **F2** (per foundation plan once available) — core domain / world data — **do not** reintroduce premature full generator without the plan.
+2. Add missing foundation docs (`PRODUCT_STRUCTURE.md`, `FOUNDATION_IMPLEMENTATION_PLAN.md`) if they exist outside the repo.
+3. Keep Atlas screen designs under `design/` as visual references when building real World/Teams/Players pages.
 
 ---
 
@@ -111,19 +100,33 @@ Not started. Hosting provider and domain are undecided — see `DEPLOYMENT.md`.
 > Keep approximately the latest 3 months. Older entries may be pruned when they are no longer needed to understand the current state.
 > This is **not** a commit-by-commit or command-by-command log — skip trivial formatting-only noise.
 
+### 2026-07-12 — F1 reviewed and validated for main
+
+- Work completed: Full F1 review (no gameplay leakage; design/ preserved; secrets/db/dist excluded); typecheck/build/health/proxy re-validated; F1 scaffold committed to `main`
+- Files/areas affected: F1 packages, `design/`, docs (`CURRENT_STATUS`, `ARCHITECTURE`, `DEPLOYMENT`, `README`)
+- Validation: typecheck PASS; root/engine/server/client build PASS; `/health` PASS; Vite proxy `/health` PASS; `git diff --check` PASS
+- Remaining limitations or follow-up: next milestone is F2; foundation plan docs still missing from repo
+
+### 2026-07-12 — F1 Monorepo and Application Shell
+
+- Work completed: Realigned monorepo to F1 — stripped early gameplay (League/Team/Player, generator, team APIs); minimal engine export; Fastify `/health` + Prisma `AppMeta`; Atlas-based client shell and placeholder routes; root `dev`/`build`/`typecheck`; docs updated.
+- Files/areas affected: `packages/*`, root `package.json`, `README.md`, `CURRENT_STATUS.md`, `ARCHITECTURE.md`, `DEPLOYMENT.md`; `design/` retained as reference
+- Validation: install PASS; engine/server/client/root build PASS; typecheck PASS; `/health` PASS; routes + Vite proxy PASS; `git diff --check` PASS (CRLF warnings only); brief UI open of `/world`
+- Remaining limitations or follow-up: no gameplay; missing foundation plan docs
+
 ### 2026-07-10 — Mandatory end-of-iteration status maintenance + dual history tracks
 
-- Work completed: Expanded `AI_AGENTS.md` §12–§13 so every prompt ends with a CURRENT_STATUS review; restructured this file with Recent / Significant histories; recorded the policy as a Significant change.
+- Work completed: Expanded `AI_AGENTS.md` §12–§13; Recent / Significant histories in CURRENT_STATUS
 - Files/areas affected: `AI_AGENTS.md`, `CURRENT_STATUS.md`
-- Validation: documentation review for contradictions; `git diff --check` on the two files (see iteration summary)
-- Remaining limitations or follow-up: none for the workflow itself; M1–M8 implementation status unchanged by this docs-only change
+- Validation: documentation review
+- Remaining limitations or follow-up: none for the workflow itself
 
-### 2026-07-10 — MVP scaffold committed (engine / server / client)
+### 2026-07-10 — Early MVP scaffold (superseded by F1)
 
-- Work completed: Monorepo MVP with seeded NHL teams/rosters, Fastify team APIs, React teams/roster UI; committed as `c7fd064`
-- Files/areas affected: `packages/*`, `data/*`, root workspace config, `README.md`
-- Validation: prior iteration reported install/seed/API/client PASS
-- Remaining limitations or follow-up: see §3 (goalie placeholder, attr scaling, no Coach, etc.)
+- Work completed: Temporary League/Team/Player seed + roster UI + generator (commit `c7fd064`)
+- Files/areas affected: `packages/*`, `data/*`
+- Validation: prior install/seed/API checks
+- Remaining limitations or follow-up: **Superseded** — gameplay surface removed in F1 alignment (2026-07-12)
 
 ---
 
@@ -133,19 +136,26 @@ Not started. Hosting provider and domain are undecided — see `DEPLOYMENT.md`.
 > Entries in this section must **never** be removed merely because of age.
 > Agents decide independently whether an iteration belongs here; the owner need not request it.
 
+### 2026-07-12 — F1 foundation: shell without gameplay
+
+- Significance: Establishes the lasting monorepo + client-server + Atlas shell baseline; explicitly defers all gameplay systems
+- Decision or milestone: F1 complete — health API, Prisma wiring without domain entities, design-token-driven application shell and placeholder IA
+- Lasting impact: Later milestones extend engine/server/client rather than reinventing the shell; early premature gameplay scaffold was rolled back to match foundation scope
+- Related files/areas: `packages/engine`, `packages/server`, `packages/client`, `design/`, `ARCHITECTURE.md`, `DEPLOYMENT.md`
+
 ### 2026-07-10 — Mandatory end-of-iteration CURRENT_STATUS maintenance
 
 - Significance: Permanently changes how every future Cursor/AI-agent iteration is closed out
-- Decision or milestone: After every prompt, agents must review and (when needed) update `CURRENT_STATUS.md`, maintain newest-first **Recent** (~3 months) and **Significant** (permanent) histories, classify significance themselves, and report the maintenance result before claiming completion
-- Lasting impact: Future sessions inherit an honest snapshot + durable decision log; failed/incomplete work must be recorded when it changes known state
+- Decision or milestone: Dual Recent (~3 months) / Significant (permanent) histories; agents classify significance; report maintenance before claiming completion
+- Lasting impact: Honest snapshot + durable decision log across sessions
 - Related files/areas: `AI_AGENTS.md` §12–§13, `CURRENT_STATUS.md` §5–§7
 
-### 2026-07-10 — MVP monorepo scaffold (M1/M2 Active)
+### 2026-07-10 — First monorepo commit on main (historical)
 
-- Significance: First runnable end-to-end product loop in the repository
-- Decision or milestone: Client-server monorepo with pure engine generator, Prisma/SQLite seed of 32 NHL teams, roster UI; randomness frozen at generation (vs spreadsheet live recalc)
-- Lasting impact: Baseline architecture and data model for all later milestones; open M2 design gaps carried forward in §3
-- Related files/areas: `packages/engine`, `packages/server`, `packages/client`, `data/`, commit `c7fd064`
+- Significance: Repository moved from docs-only to runnable packages (later realigned by F1)
+- Decision or milestone: Initial client-server monorepo commit `c7fd064`
+- Lasting impact: Workspace layout and stack choice carried forward; domain seed content did not
+- Related files/areas: commit `c7fd064`
 
 ---
 

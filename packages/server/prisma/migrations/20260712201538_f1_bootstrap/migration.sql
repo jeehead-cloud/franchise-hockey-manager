@@ -1,0 +1,6 @@
+-- CreateTable
+CREATE TABLE "AppMeta" (
+    "id" TEXT NOT NULL PRIMARY KEY DEFAULT 'default',
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL
+);
