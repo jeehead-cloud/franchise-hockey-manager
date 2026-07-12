@@ -1,11 +1,13 @@
 # Franchise Hockey Manager — Architecture
 
 **Status:** Active
-**Last updated:** 2026-07-12
+**Last updated:** 2026-07-13
 **Repository:** `https://github.com/jeehead-cloud/franchise-hockey-manager`
 
 > Technical source of truth for stack, monorepo structure, data flow, and config-driven balance.
 > For game behavior, see `PRODUCT_RULES.md` and `PLAYER_MODEL.md`. For status, see `CURRENT_STATUS.md`.
+
+F7 adds a pure engine readiness evaluator consumed by server team/world summaries. Coach, tactic, and roster-status commissioner writes remain transactional and append audit records; no lineup or chemistry logic is included.
 
 ---
 

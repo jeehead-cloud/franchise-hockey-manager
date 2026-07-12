@@ -32,7 +32,7 @@ describe('F3 loader', () => {
   it('loads the development fixture manifest and files', () => {
     const dataset = loadDataset(fixtureDir);
     expect(dataset.manifest.datasetId).toBe('fhm-f3-minimal-fixture-v1');
-    expect(dataset.manifest.schemaVersion).toBe(2);
+    expect(dataset.manifest.schemaVersion).toBe(3);
     expect(dataset.countries.length).toBeGreaterThan(0);
     expect(dataset.players.length).toBeGreaterThan(0);
   });
@@ -72,6 +72,19 @@ describe('F3 loader', () => {
     }
   });
 
+  it('rejects schemaVersion 2 with a clear migration message', () => {
+    const dir = copyFixtureToTemp();
+    try {
+      const path = join(dir, 'manifest.json');
+      const manifest = JSON.parse(readFileSync(path, 'utf8'));
+      manifest.schemaVersion = 2;
+      writeFileSync(path, JSON.stringify(manifest, null, 2));
+      expect(() => loadDataset(dir)).toThrow(/schemaVersion 3|schemaVersion: 2/i);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it('rejects schemaVersion 1 with a clear migration message', () => {
     const dir = copyFixtureToTemp();
     try {
@@ -81,7 +94,7 @@ describe('F3 loader', () => {
       >;
       manifest.schemaVersion = 1;
       writeFileSync(join(dir, 'manifest.json'), JSON.stringify(manifest), 'utf8');
-      expect(() => loadDataset(dir)).toThrow(/schemaVersion 2|schemaVersion: 1/i);
+      expect(() => loadDataset(dir)).toThrow(/schemaVersion 3|schemaVersion: 1/i);
     } finally {
       cleanupTempDir(dir);
     }
@@ -212,6 +225,10 @@ describe('F3 validation', () => {
         currentTeamExternalId: 'team-frostbite',
         coachingStyle: 'DEMOCRATIC',
         tacticalStyle: 'SPEED',
+        overallCoaching: 10,
+        playerDevelopment: 10,
+        offense: 10,
+        defense: 10,
       });
       writeFileSync(join(dir, 'coaches.json'), JSON.stringify(coaches), 'utf8');
       const report = validateDataset(loadDataset(dir));
@@ -289,7 +306,7 @@ describe('F3 preview / initialize / idempotency', () => {
     expect(result.created.leagues).toBe(1);
     expect(result.created.teams).toBe(3);
     expect(result.created.players).toBe(6);
-    expect(result.created.coaches).toBe(1);
+    expect(result.created.coaches).toBe(2);
     expect(result.created.competitions).toBe(1);
     expect(result.created.competitionEditions).toBe(1);
 
@@ -325,7 +342,7 @@ describe('F3 preview / initialize / idempotency', () => {
     const meta = await prisma.appMeta.findUnique({ where: { id: 'default' } });
     expect(meta?.worldInitialized).toBe(true);
     expect(meta?.worldDatasetId).toBe('fhm-f3-minimal-fixture-v1');
-    expect(meta?.worldSchemaVersion).toBe(2);
+    expect(meta?.worldSchemaVersion).toBe(3);
   });
 
   it('rolls back partial data after injected failure', async () => {

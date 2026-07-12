@@ -173,6 +173,10 @@ export interface WorldSummary {
     playersByRosterStatus: Record<string, number>;
     teamsWithoutPlayers: number;
     teamsWithoutCoaches: number;
+    teamsWithoutTacticalStyle?: number;
+    readyTeams?: number;
+    warningTeams?: number;
+    notReadyTeams?: number;
   };
   competitionEditions: Array<{
     id: string;
@@ -210,7 +214,13 @@ export interface TeamListItem {
     lastName: string;
     coachingStyle?: string;
     tacticalStyle?: string;
+    overallCoaching?: number | null;
+    playerDevelopment?: number | null;
+    offense?: number | null;
+    defense?: number | null;
   } | null;
+  tacticalStyle?: string | null;
+  readinessStatus?: 'READY' | 'WARNING' | 'NOT_READY';
 }
 
 export interface TeamDetail extends TeamListItem {
@@ -225,6 +235,15 @@ export interface TeamDetail extends TeamListItem {
     ageReference: { rule: string; referenceDate: string; seasonStartYear: number } | null;
   };
   roster: PlayerListItem[];
+  readiness?: { status: 'READY' | 'WARNING' | 'NOT_READY'; checks: Array<{ code: string; label: string; result: string; explanation: string }>; counts: Record<string, number> };
+}
+
+export interface CoachItem {
+  id: string; firstName: string; lastName: string; nationalityCountryId: string | null;
+  currentTeamId: string | null; coachingStyle: string; tacticalStyle: string;
+  overallCoaching: number | null; playerDevelopment: number | null; offense: number | null; defense: number | null;
+  currentTeam?: { id: string; name: string; shortName: string | null } | null;
+  updatedAt: string;
 }
 
 export type PlayerModelStatus = 'COMPLETE' | 'INCOMPLETE';
@@ -387,6 +406,12 @@ export async function getTeams(
 
 export async function getTeam(id: string, signal?: AbortSignal): Promise<{ item: TeamDetail }> {
   return getJson(`/api/teams/${id}`, signal);
+}
+export async function getCoaches(params: Record<string, string | number | undefined | null> = {}, signal?: AbortSignal): Promise<Paginated<CoachItem>> {
+  return getJson(`/api/coaches${qs(params)}`, signal);
+}
+export async function getCoach(id: string, signal?: AbortSignal): Promise<{ item: CoachItem }> {
+  return getJson(`/api/coaches/${id}`, signal);
 }
 
 export async function getPlayers(
@@ -583,3 +608,22 @@ export async function getPlayerAuditLog(
 ): Promise<Paginated<PlayerAuditItem>> {
   return commissionerGetJson(`/api/commissioner/players/${id}/audit${qs(params)}`, signal);
 }
+
+export interface CommissionerCoachPayload {
+  expectedUpdatedAt?: string; reason: string;
+  identity: { firstName: string; lastName: string; nationalityCountryId: string | null };
+  styles: { coachingStyle: string; tacticalStyle: string };
+  ratings: { overallCoaching: number; playerDevelopment: number; offense: number; defense: number };
+  currentTeamId: string | null; replaceExisting?: boolean; moveFromOtherTeam?: boolean;
+}
+async function commissionerWrite<T>(path: string, method: 'POST' | 'PATCH', payload: unknown): Promise<T> {
+  const res = await fetch(`${apiBase()}${path}`, { method, headers: { 'Content-Type': 'application/json', [COMMISSIONER_HEADER]: 'enabled', 'X-FHM-Commissioner-Source': 'ui' }, body: JSON.stringify(payload) });
+  if (!res.ok) { const err = new Error(await readError(res)) as Error & { status?: number }; err.status = res.status; throw err; }
+  return res.json() as Promise<T>;
+}
+export const getCommissionerCoach = (id: string) => commissionerGetJson<{ item: CoachItem }>(`/api/commissioner/coaches/${id}`);
+export const createCommissionerCoach = (payload: CommissionerCoachPayload) => commissionerWrite<{ item: CoachItem }>('/api/commissioner/coaches', 'POST', payload);
+export const updateCommissionerCoach = (id: string, payload: CommissionerCoachPayload) => commissionerWrite<{ item: CoachItem }>(`/api/commissioner/coaches/${id}`, 'PATCH', payload);
+export const getCommissionerTeamSetup = (id: string) => commissionerGetJson<{ item: { id: string; tacticalStyle: string | null; updatedAt: string; coach: CoachItem | null; readiness: TeamDetail['readiness'] } }>(`/api/commissioner/teams/${id}/setup`);
+export const updateCommissionerTeamSetup = (id: string, payload: { expectedUpdatedAt: string; reason: string; headCoachId: string | null; tacticalStyle: string | null; replaceExisting?: boolean; moveFromOtherTeam?: boolean }) => commissionerWrite<{ item: unknown }>(`/api/commissioner/teams/${id}/setup`, 'PATCH', payload);
+export const updateTeamRosterStatus = (id: string, payload: { playerId: string; rosterStatus: string; expectedUpdatedAt: string; reason: string }) => commissionerWrite<{ item: unknown }>(`/api/commissioner/teams/${id}/roster-status`, 'PATCH', payload);

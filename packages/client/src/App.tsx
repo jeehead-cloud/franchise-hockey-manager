@@ -12,6 +12,10 @@ import { SimulationLabPage } from './pages/SimulationLabPage';
 import { TeamDetailPage } from './pages/TeamDetailPage';
 import { TeamsPage } from './pages/TeamsPage';
 import { WorldPage } from './pages/WorldPage';
+import { CoachesPage } from './pages/CoachesPage';
+import { CoachDetailPage } from './pages/CoachDetailPage';
+import { CoachEditPage } from './pages/CoachEditPage';
+import { CoachNewPage } from './pages/CoachNewPage';
 import { CommissionerProvider } from './lib/commissioner';
 
 export function App() {
@@ -27,6 +31,10 @@ export function App() {
             <Route path="/competitions/:competitionId" element={<CompetitionDetailPage />} />
             <Route path="/teams" element={<TeamsPage />} />
             <Route path="/teams/:teamId" element={<TeamDetailPage />} />
+            <Route path="/coaches" element={<CoachesPage />} />
+            <Route path="/coaches/new" element={<CoachNewPage />} />
+            <Route path="/coaches/:coachId" element={<CoachDetailPage />} />
+            <Route path="/coaches/:coachId/edit" element={<CoachEditPage />} />
             <Route path="/players" element={<PlayersPage />} />
             <Route path="/players/:playerId" element={<PlayerDetailPage />} />
             <Route path="/players/:playerId/edit" element={<PlayerEditPage />} />

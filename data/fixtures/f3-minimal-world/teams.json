@@ -6,7 +6,8 @@
     "city": "Frostbite Bay",
     "teamType": "CLUB",
     "countryExternalId": "NAV",
-    "leagueExternalId": "league-fhl"
+    "leagueExternalId": "league-fhl",
+    "tacticalStyle": "SYSTEM"
   },
   {
     "externalId": "team-cedar",
@@ -15,7 +16,8 @@
     "city": "Cedar Rapids",
     "teamType": "CLUB",
     "countryExternalId": "NAV",
-    "leagueExternalId": "league-fhl"
+    "leagueExternalId": "league-fhl",
+    "tacticalStyle": "PHYSICAL"
   },
   {
     "externalId": "team-owls",
@@ -24,6 +26,7 @@
     "city": "Glacier City",
     "teamType": "CLUB",
     "countryExternalId": "SGL",
-    "leagueExternalId": "league-fhl"
+    "leagueExternalId": "league-fhl",
+    "tacticalStyle": "SPEED"
   }
 ]

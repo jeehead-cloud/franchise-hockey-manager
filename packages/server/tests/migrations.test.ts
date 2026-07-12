@@ -39,7 +39,7 @@ describe('Migrations', () => {
     }
   });
 
-  it('records F1–F6 migrations in history', async () => {
+  it('records F1–F7 migrations in history', async () => {
     const { url, dir } = createTempDatabaseUrl();
     try {
       migrateTempDatabase(url);
@@ -53,6 +53,7 @@ describe('Migrations', () => {
       expect(names.some((n) => n.includes('f3_source_metadata_and_init'))).toBe(true);
       expect(names.some((n) => n.includes('f5_player_model'))).toBe(true);
       expect(names.some((n) => n.includes('f6_commissioner_audit'))).toBe(true);
+      expect(names.some((n) => n.includes('f7_coaches_tactics_team_setup'))).toBe(true);
       await prisma.$disconnect();
     } finally {
       cleanupTempDir(dir);

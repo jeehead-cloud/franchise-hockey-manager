@@ -29,3 +29,21 @@ export type * from './players/types.js';
 
 export { deriveGoalieModel, deriveGoalieRole } from './goalies/index.js';
 export { deriveGoalieRatings, computeRoleRating, weightedRating } from './players/ratings.js';
+
+export {
+  evaluateTeamReadiness,
+  summarizeRoster,
+  TEAM_READINESS_THRESHOLDS,
+  isAvailableForReadiness,
+  positionGroup,
+} from './team-setup/index.js';
+
+export type {
+  TeamReadinessStatus,
+  TeamReadinessRosterMember,
+  TeamReadinessInput,
+  TeamReadinessCheck,
+  TeamReadinessCounts,
+  TeamReadinessResult,
+  RosterPositionGroup,
+} from './team-setup/index.js';

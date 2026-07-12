@@ -3,7 +3,7 @@ import { z } from 'zod';
 const nonEmpty = z.string().trim().min(1);
 const attr = z.number().int().min(1).max(20);
 
-export const CURRENT_DATASET_SCHEMA_VERSION = 2 as const;
+export const CURRENT_DATASET_SCHEMA_VERSION = 3 as const;
 
 export const manifestSchema = z.object({
   datasetId: nonEmpty,
@@ -49,6 +49,7 @@ export const teamRowSchema = z.object({
   teamType: z.enum(['CLUB', 'NATIONAL']),
   countryExternalId: nonEmpty,
   leagueExternalId: nonEmpty.nullable().optional(),
+  tacticalStyle: z.enum(['COMBINATIONAL', 'PHYSICAL', 'SPEED', 'SYSTEM', 'FORECHECKING']),
 });
 
 const skaterAttributesSchema = z.object({
@@ -165,6 +166,10 @@ export const coachRowSchema = z.object({
     'HANDS_OFF',
   ]),
   tacticalStyle: z.enum(['COMBINATIONAL', 'PHYSICAL', 'SPEED', 'SYSTEM', 'FORECHECKING']),
+  overallCoaching: attr,
+  playerDevelopment: attr,
+  offense: attr,
+  defense: attr,
 });
 
 export const competitionRowSchema = z.object({

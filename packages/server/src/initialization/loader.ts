@@ -86,19 +86,25 @@ export function loadManifest(dir: string): Manifest {
       if (version === 1) {
         throw new SetupError(
           'DatasetParseError',
-          'Unsupported schemaVersion: 1 — F5 requires schemaVersion 2 (complete player model). Migrate the dataset or use the F5 fixture.',
+          'Unsupported schemaVersion: 1 — F7 requires schemaVersion 3 (coach ratings + team tactics). Migrate the dataset or use the current fixture.',
           422,
           { file: 'manifest.json', schemaVersion: version },
         );
       }
-      if (version !== 2) {
+      if (version === 2) {
         throw new SetupError(
           'DatasetParseError',
-          `Unsupported schemaVersion: ${String(version)} (expected 2)`,
+          'Unsupported schemaVersion: 2 — F7 requires schemaVersion 3 (coach ratings + team tacticalStyle). Migrate the dataset or use the current fixture.',
           422,
           { file: 'manifest.json', schemaVersion: version },
         );
       }
+      throw new SetupError(
+        'DatasetParseError',
+        `Unsupported schemaVersion: ${String(version)} (expected 3)`,
+        422,
+        { file: 'manifest.json', schemaVersion: version },
+      );
     }
     throw new SetupError('DatasetParseError', formatZod(parsed.error, 'manifest.json'), 422, {
       file: 'manifest.json',

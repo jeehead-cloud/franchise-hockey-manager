@@ -21,6 +21,7 @@ export function TeamDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [notFound, setNotFound] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState<'overview' | 'roster' | 'setup'>('overview');
 
   useEffect(() => {
     const controller = new AbortController();
@@ -91,15 +92,14 @@ export function TeamDetailPage() {
       <Tabs
         items={[
           { value: 'overview', label: 'Overview' },
-          { value: 'roster', label: 'Roster', disabled: true },
-          { value: 'lines', label: 'Lines', disabled: true },
-          { value: 'tactics', label: 'Tactics', disabled: true },
+          { value: 'roster', label: 'Roster' },
+          { value: 'setup', label: 'Setup' },
         ]}
-        value="overview"
-        onChange={() => undefined}
+        value={tab}
+        onChange={(value) => setTab(value as typeof tab)}
       />
 
-      <div
+      {tab === 'overview' ? <div
         style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
@@ -141,9 +141,14 @@ export function TeamDetailPage() {
           <Row label="Dataset" value={team.sourceDataset ?? '—'} />
           <Row label="Source updated" value={team.sourceUpdatedAt ?? '—'} />
         </Panel>
-      </div>
+      </div> : null}
 
-      <Panel
+      {tab === 'overview' && team.readiness ? <Panel title="Readiness">
+        <Badge tone={team.readiness.status === 'READY' ? 'success' : team.readiness.status === 'WARNING' ? 'warning' : 'danger'}>{team.readiness.status}</Badge>
+        {team.readiness.checks.map((check) => <Row key={check.code} label={check.label} value={`${check.result} · ${check.explanation}`} />)}
+      </Panel> : null}
+
+      {tab === 'roster' ? <Panel
         title="Roster preview"
         actions={
           <Link
@@ -185,7 +190,14 @@ export function TeamDetailPage() {
             ))}
           </DataTable>
         )}
-      </Panel>
+      </Panel> : null}
+      {tab === 'setup' ? <Panel title="Team setup">
+        <Row label="Tactical style" value={team.tacticalStyle ?? 'Not configured'} />
+        <Row label="Head coach" value={team.coach ? `${team.coach.firstName} ${team.coach.lastName}` : 'Unassigned'} />
+        <p style={{ margin: '12px 0 0', font: 'var(--text-body-sm)', color: 'var(--text-tertiary)' }}>
+          Enable Commissioner Mode to change tactics, head coach assignment, or player roster status.
+        </p>
+      </Panel> : null}
     </div>
   );
 }

@@ -1,12 +1,14 @@
 # Franchise Hockey Manager — Product Rules
 
 **Status:** Active
-**Last updated:** 2026-07-10
+**Last updated:** 2026-07-13
 **Repository:** `https://github.com/jeehead-cloud/franchise-hockey-manager`
 
 > This document defines game-design invariants: rules that must remain true across the generator, the chemistry/tactics engine, and the season simulation.
 > These are not implementation suggestions — they are behavioral constraints that future features must respect unless the owner explicitly changes them.
 > For the detailed player attribute/growth model this document builds on, see `PLAYER_MODEL.md`.
+
+F7 readiness is an administrative structural check only: PROSPECT players are excluded, while coach assignment, tactical style, available positional depth, and complete player models are reported without creating lineups or chemistry effects.
 
 ---
 

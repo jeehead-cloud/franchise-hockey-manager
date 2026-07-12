@@ -1,6 +1,7 @@
 import { prisma } from '../db/client.js';
 import { getSetupStatus } from '../initialization/index.js';
 import { mapCompetitionEdition } from '../mappers.js';
+import { buildTeamReadiness } from './team-readiness.js';
 
 export interface WorldWarning {
   code: string;
@@ -57,6 +58,42 @@ export async function getWorldSummary() {
       worldSeason: { select: { id: true, label: true } },
     },
   });
+  const readinessTeams = await prisma.team.findMany({
+    select: {
+      tacticalStyle: true,
+      coach: { select: { id: true } },
+      players: {
+        select: {
+          primaryPosition: true,
+          rosterStatus: true,
+          preferredCoachingStyle: true,
+          preferredTactics: true,
+          personality: true,
+          heroRating: true,
+          stability: true,
+          developmentRate: true,
+          developmentRisk: true,
+          potentialFloor: true,
+          potentialCeiling: true,
+          publicPotentialEstimate: true,
+          skaterAttributes: true,
+          goalieAttributes: true,
+        },
+      },
+    },
+  });
+  const readinessCounts = { readyTeams: 0, warningTeams: 0, notReadyTeams: 0 };
+  for (const team of readinessTeams) {
+    const status = buildTeamReadiness({
+      hasHeadCoach: Boolean(team.coach),
+      tacticalStyle: team.tacticalStyle,
+      players: team.players,
+    }).status;
+    if (status === 'READY') readinessCounts.readyTeams += 1;
+    else if (status === 'WARNING') readinessCounts.warningTeams += 1;
+    else readinessCounts.notReadyTeams += 1;
+  }
+  const teamsWithoutTacticalStyle = readinessTeams.filter((team) => !team.tacticalStyle).length;
 
   const warnings: WorldWarning[] = [];
   if (!setup.initialized) {
@@ -185,6 +222,8 @@ export async function getWorldSummary() {
       },
       teamsWithoutPlayers,
       teamsWithoutCoaches,
+      teamsWithoutTacticalStyle,
+      ...readinessCounts,
     },
     competitionEditions: editions.map(mapCompetitionEdition),
     warnings,

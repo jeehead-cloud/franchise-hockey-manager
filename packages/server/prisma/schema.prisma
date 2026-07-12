@@ -132,6 +132,8 @@ enum PublicPotentialEstimate {
 
 enum CommissionerAuditEntityType {
   PLAYER
+  COACH
+  TEAM
 }
 
 enum CommissionerAuditAction {
@@ -139,6 +141,12 @@ enum CommissionerAuditAction {
   MODEL_COMPLETED
   POSITION_MODEL_CONVERTED
   TEAM_ASSIGNMENT_CHANGED
+  COACH_UPDATED
+  COACH_CREATED
+  HEAD_COACH_ASSIGNED
+  HEAD_COACH_UNASSIGNED
+  TEAM_TACTICS_UPDATED
+  PLAYER_ROSTER_STATUS_CHANGED
 }
 
 enum CommissionerAuditSource {
@@ -204,18 +212,20 @@ model League {
 }
 
 model Team {
-  id              String    @id @default(cuid())
+  id              String         @id @default(cuid())
   name            String
   shortName       String?
   city            String?
   teamType        TeamType
   countryId       String
   leagueId        String?
+  /// Team-wide tactical configuration (separate from coach.tacticalStyle).
+  tacticalStyle   TacticalStyle?
   externalId      String?
   sourceDataset   String?
   sourceUpdatedAt DateTime?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
 
   country Country @relation(fields: [countryId], references: [id], onDelete: Restrict)
   league  League? @relation(fields: [leagueId], references: [id], onDelete: Restrict)
@@ -318,6 +328,11 @@ model Coach {
   currentTeamId        String?       @unique
   coachingStyle        CoachingStyle
   tacticalStyle        TacticalStyle
+  /// F7 coach ratings (1–20). Nullable for legacy F6 rows until reimport/backfill.
+  overallCoaching      Int?
+  playerDevelopment    Int?
+  offense              Int?
+  defense              Int?
   externalId           String?
   sourceDataset        String?
   sourceUpdatedAt      DateTime?

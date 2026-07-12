@@ -173,6 +173,15 @@ export function WorldPage() {
             <Stat key={k} label={`Players ${k}`} value={v} />
           ))}
         </Panel>
+        {data.structure.readyTeams !== undefined ? (
+          <Panel title="Team readiness">
+            <Stat label="Ready" value={data.structure.readyTeams ?? 0} />
+            <Stat label="Warnings" value={data.structure.warningTeams ?? 0} />
+            <Stat label="Not ready" value={data.structure.notReadyTeams ?? 0} />
+            <Stat label="No tactical style" value={data.structure.teamsWithoutTacticalStyle ?? 0} />
+            <Stat label="No head coach" value={data.structure.teamsWithoutCoaches} />
+          </Panel>
+        ) : null}
 
         <Panel title="Competition editions">
           {data.competitionEditions.length === 0 ? (

@@ -17,7 +17,7 @@ npm run db:generate --workspace=@fhm/server
 npm run db:migrate --workspace=@fhm/server
 ```
 
-`db:migrate` applies Prisma migrations to local SQLite (`packages/server/prisma/dev.db`). F1 → F2 → F3 → F5 player model → **F6 Commissioner audit**. Do not commit `*.db` files.
+`db:migrate` applies Prisma migrations to local SQLite (`packages/server/prisma/dev.db`). F1 → F2 → F3 → F5 player model → F6 Commissioner audit → **F7 team setup/readiness**. Do not commit `*.db` files.
 
 ## Run locally
 

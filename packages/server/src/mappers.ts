@@ -94,6 +94,7 @@ export function mapTeam(row: {
   teamType: string;
   countryId: string;
   leagueId: string | null;
+  tacticalStyle?: string | null;
   externalId?: string | null;
   sourceDataset?: string | null;
   sourceUpdatedAt?: Date | null;
@@ -111,6 +112,7 @@ export function mapTeam(row: {
     teamType: row.teamType,
     countryId: row.countryId,
     leagueId: row.leagueId,
+    tacticalStyle: row.tacticalStyle ?? null,
     ...sourceMeta(row),
     createdAt: iso(row.createdAt),
     updatedAt: iso(row.updatedAt),
@@ -188,13 +190,17 @@ export function mapCoach(row: {
   currentTeamId: string | null;
   coachingStyle: string;
   tacticalStyle: string;
+  overallCoaching?: number | null;
+  playerDevelopment?: number | null;
+  offense?: number | null;
+  defense?: number | null;
   externalId?: string | null;
   sourceDataset?: string | null;
   sourceUpdatedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
   nationality?: { id: string; name: string; code: string } | null;
-  currentTeam?: { id: string; name: string } | null;
+  currentTeam?: { id: string; name: string; shortName?: string | null } | null;
 }) {
   return {
     id: row.id,
@@ -204,6 +210,10 @@ export function mapCoach(row: {
     currentTeamId: row.currentTeamId,
     coachingStyle: row.coachingStyle,
     tacticalStyle: row.tacticalStyle,
+    overallCoaching: row.overallCoaching ?? null,
+    playerDevelopment: row.playerDevelopment ?? null,
+    offense: row.offense ?? null,
+    defense: row.defense ?? null,
     ...sourceMeta(row),
     createdAt: iso(row.createdAt),
     updatedAt: iso(row.updatedAt),
@@ -217,7 +227,11 @@ export function mapCoach(row: {
         ? null
         : undefined,
     currentTeam: row.currentTeam
-      ? { id: row.currentTeam.id, name: row.currentTeam.name }
+      ? {
+          id: row.currentTeam.id,
+          name: row.currentTeam.name,
+          shortName: row.currentTeam.shortName ?? null,
+        }
       : row.currentTeam === null
         ? null
         : undefined,

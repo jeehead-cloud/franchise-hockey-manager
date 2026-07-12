@@ -36,7 +36,7 @@ export function SettingsPage() {
             </Badge>
           </div>
           <p style={{ margin: 0, font: 'var(--text-body-sm)', color: 'var(--text-secondary)' }}>
-            Commissioner Mode is a local administrative sandbox for correcting players. It defaults
+            Commissioner Mode is a local administrative sandbox for correcting players, coaches, and team setup. It defaults
             off on every page load, is not persisted, and is not a user-account permission system.
             Write requests send <code>X-FHM-Commissioner-Mode: enabled</code> — a safety boundary,
             not authentication.
@@ -64,7 +64,8 @@ export function SettingsPage() {
             <li>Edit players, attributes, profile, potential, and team assignment</li>
             <li>Derived ratings and roles recalculate on the server</li>
             <li>Every successful edit creates an immutable audit record</li>
-            <li>Coaches, tactics, lineups, and transactions remain out of scope</li>
+            <li>Edit coaches, tactical style, head coach assignment, and roster status</li>
+            <li>Lineups, chemistry, and transactions remain out of scope</li>
           </ul>
         </div>
       </Panel>

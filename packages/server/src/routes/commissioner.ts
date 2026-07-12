@@ -7,12 +7,30 @@ import {
   CommissionerHttpError,
   commissionerErrorBody,
 } from '../commissioner/errors.js';
-import { commissionerPlayerEditSchema } from '../commissioner/schemas.js';
+import {
+  commissionerCoachCreateSchema,
+  commissionerCoachEditSchema,
+  commissionerPlayerEditSchema,
+  commissionerRosterStatusSchema,
+  commissionerTeamSetupSchema,
+} from '../commissioner/schemas.js';
 import {
   getCommissionerPlayer,
   listPlayerAudit,
   updateCommissionerPlayer,
 } from '../services/commissioner-players.js';
+import {
+  createCommissionerCoach,
+  getCommissionerCoach,
+  listCoachAudit,
+  updateCommissionerCoach,
+} from '../services/commissioner-coaches.js';
+import {
+  getCommissionerTeamSetup,
+  listTeamAudit,
+  updateCommissionerTeamSetup,
+  updateTeamRosterStatus,
+} from '../services/commissioner-teams.js';
 import { detailResponse, notFound, paginatedResponse } from '../http.js';
 
 function assertCommissionerAccess(request: { headers: Record<string, string | string[] | undefined> }) {
@@ -96,5 +114,36 @@ export async function registerCommissionerRoutes(app: FastifyInstance) {
     } catch (err) {
       return sendCommissionerError(reply, err);
     }
+  });
+
+  const sourceFor = (request: { headers: Record<string, string | string[] | undefined> }) =>
+    (Array.isArray(request.headers['x-fhm-commissioner-source']) ? request.headers['x-fhm-commissioner-source'][0] : request.headers['x-fhm-commissioner-source']) === 'ui'
+      ? 'COMMISSIONER_UI' as const : 'COMMISSIONER_API' as const;
+  const invalid = (reply: { status: (code: number) => { send: (body: unknown) => unknown } }, message: string, issues: { path: PropertyKey[]; message: string }[]) =>
+    reply.status(400).send({ error: 'InvalidRequest', message, details: issues.map((i) => ({ path: i.path.join('.'), message: i.message })) });
+
+  app.get('/api/commissioner/coaches/:id', async (request, reply) => {
+    try { assertCommissionerAccess(request); const item = await getCommissionerCoach((request.params as { id: string }).id); return item ? detailResponse(item) : reply.status(404).send(notFound('Coach')); } catch (err) { return sendCommissionerError(reply, err); }
+  });
+  app.post('/api/commissioner/coaches', async (request, reply) => {
+    try { assertCommissionerAccess(request); const parsed = commissionerCoachCreateSchema.safeParse(request.body); if (!parsed.success) return invalid(reply, 'Invalid Commissioner coach create payload', parsed.error.issues); return createCommissionerCoach(parsed.data, sourceFor(request)); } catch (err) { return sendCommissionerError(reply, err); }
+  });
+  app.patch('/api/commissioner/coaches/:id', async (request, reply) => {
+    try { assertCommissionerAccess(request); const parsed = commissionerCoachEditSchema.safeParse(request.body); if (!parsed.success) return invalid(reply, 'Invalid Commissioner coach edit payload', parsed.error.issues); return updateCommissionerCoach((request.params as { id: string }).id, parsed.data, sourceFor(request)); } catch (err) { return sendCommissionerError(reply, err); }
+  });
+  app.get('/api/commissioner/coaches/:id/audit', async (request, reply) => {
+    try { assertCommissionerAccess(request); const result = await listCoachAudit((request.params as { id: string }).id, request.query as Record<string, unknown>); return result ? paginatedResponse(result) : reply.status(404).send(notFound('Coach')); } catch (err) { return sendCommissionerError(reply, err); }
+  });
+  app.get('/api/commissioner/teams/:id/setup', async (request, reply) => {
+    try { assertCommissionerAccess(request); const item = await getCommissionerTeamSetup((request.params as { id: string }).id); return item ? detailResponse(item) : reply.status(404).send(notFound('Team')); } catch (err) { return sendCommissionerError(reply, err); }
+  });
+  app.patch('/api/commissioner/teams/:id/setup', async (request, reply) => {
+    try { assertCommissionerAccess(request); const parsed = commissionerTeamSetupSchema.safeParse(request.body); if (!parsed.success) return invalid(reply, 'Invalid Commissioner team setup payload', parsed.error.issues); return updateCommissionerTeamSetup((request.params as { id: string }).id, parsed.data, sourceFor(request)); } catch (err) { return sendCommissionerError(reply, err); }
+  });
+  app.patch('/api/commissioner/teams/:id/roster-status', async (request, reply) => {
+    try { assertCommissionerAccess(request); const parsed = commissionerRosterStatusSchema.safeParse(request.body); if (!parsed.success) return invalid(reply, 'Invalid roster status payload', parsed.error.issues); return updateTeamRosterStatus((request.params as { id: string }).id, parsed.data, sourceFor(request)); } catch (err) { return sendCommissionerError(reply, err); }
+  });
+  app.get('/api/commissioner/teams/:id/audit', async (request, reply) => {
+    try { assertCommissionerAccess(request); const result = await listTeamAudit((request.params as { id: string }).id, request.query as Record<string, unknown>); return result ? paginatedResponse(result) : reply.status(404).send(notFound('Team')); } catch (err) { return sendCommissionerError(reply, err); }
   });
 }

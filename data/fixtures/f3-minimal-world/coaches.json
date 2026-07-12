@@ -6,6 +6,23 @@
     "nationalityExternalId": "NAV",
     "currentTeamExternalId": "team-frostbite",
     "coachingStyle": "AUTHORITATIVE",
-    "tacticalStyle": "SYSTEM"
+    "tacticalStyle": "SYSTEM",
+    "overallCoaching": 14,
+    "playerDevelopment": 13,
+    "offense": 12,
+    "defense": 14
+  },
+  {
+    "externalId": "coach-elise-quinn",
+    "firstName": "Elise",
+    "lastName": "Quinn",
+    "nationalityExternalId": "SGL",
+    "currentTeamExternalId": null,
+    "coachingStyle": "DEVELOPMENTAL",
+    "tacticalStyle": "FORECHECKING",
+    "overallCoaching": 11,
+    "playerDevelopment": 15,
+    "offense": 10,
+    "defense": 11
   }
 ]

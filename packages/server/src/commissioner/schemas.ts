@@ -124,3 +124,78 @@ export const commissionerPlayerEditSchema = z
   });
 
 export type CommissionerPlayerEditInput = z.infer<typeof commissionerPlayerEditSchema>;
+
+const coachingStyle = z.enum([
+  'AUTHORITARIAN',
+  'AUTHORITATIVE',
+  'DEMOCRATIC',
+  'DEVELOPMENTAL',
+  'HANDS_OFF',
+]);
+const tacticalStyle = z.enum(['COMBINATIONAL', 'PHYSICAL', 'SPEED', 'SYSTEM', 'FORECHECKING']);
+const coachIdentity = z
+  .object({
+    firstName: nonEmpty.max(80),
+    lastName: nonEmpty.max(80),
+    nationalityCountryId: z.string().trim().min(1).nullable(),
+  })
+  .strict();
+const coachStyles = z.object({ coachingStyle, tacticalStyle }).strict();
+const coachRatings = z
+  .object({
+    overallCoaching: attr,
+    playerDevelopment: attr,
+    offense: attr,
+    defense: attr,
+  })
+  .strict();
+
+export const commissionerCoachEditSchema = z
+  .object({
+    expectedUpdatedAt: z.string().datetime(),
+    reason: nonEmpty.max(500),
+    identity: coachIdentity,
+    styles: coachStyles,
+    ratings: coachRatings,
+    currentTeamId: z.string().trim().min(1).nullable(),
+    replaceExisting: z.boolean().optional(),
+    moveFromOtherTeam: z.boolean().optional(),
+  })
+  .strict();
+
+export const commissionerCoachCreateSchema = z
+  .object({
+    reason: nonEmpty.max(500),
+    identity: coachIdentity,
+    styles: coachStyles,
+    ratings: coachRatings,
+    currentTeamId: z.string().trim().min(1).nullable(),
+    replaceExisting: z.boolean().optional(),
+    moveFromOtherTeam: z.boolean().optional(),
+  })
+  .strict();
+
+export const commissionerTeamSetupSchema = z
+  .object({
+    expectedUpdatedAt: z.string().datetime(),
+    reason: nonEmpty.max(500),
+    headCoachId: z.string().trim().min(1).nullable(),
+    tacticalStyle: tacticalStyle.nullable(),
+    replaceExisting: z.boolean().optional(),
+    moveFromOtherTeam: z.boolean().optional(),
+  })
+  .strict();
+
+export const commissionerRosterStatusSchema = z
+  .object({
+    playerId: z.string().trim().min(1),
+    rosterStatus: z.enum(['ACTIVE', 'RESERVE', 'PROSPECT', 'UNAVAILABLE']),
+    expectedUpdatedAt: z.string().datetime(),
+    reason: nonEmpty.max(500),
+  })
+  .strict();
+
+export type CommissionerCoachEditInput = z.infer<typeof commissionerCoachEditSchema>;
+export type CommissionerCoachCreateInput = z.infer<typeof commissionerCoachCreateSchema>;
+export type CommissionerTeamSetupInput = z.infer<typeof commissionerTeamSetupSchema>;
+export type CommissionerRosterStatusInput = z.infer<typeof commissionerRosterStatusSchema>;

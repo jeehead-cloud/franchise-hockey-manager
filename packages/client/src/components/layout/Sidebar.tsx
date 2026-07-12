@@ -6,6 +6,7 @@ import {
   Shield,
   Trophy,
   Users,
+  UserRound,
   type LucideIcon,
 } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
@@ -24,6 +25,7 @@ export const MAIN_NAV: NavItem[] = [
   { to: '/competitions', label: 'Competitions', icon: Trophy },
   { to: '/teams', label: 'Teams', icon: Shield },
   { to: '/players', label: 'Players', icon: Users },
+  { to: '/coaches', label: 'Coaches', icon: UserRound },
   { to: '/settings', label: 'Settings', icon: Settings },
   { to: '/simulation-lab', label: 'Simulation Lab', icon: FlaskConical },
 ];
@@ -114,7 +116,7 @@ export function Sidebar({
           style={{ font: 'var(--text-data-sm)', color: 'var(--text-tertiary)' }}
           className="max-md:hidden"
         >
-          Local · F6
+          Local · F7
         </div>
       </div>
     </aside>

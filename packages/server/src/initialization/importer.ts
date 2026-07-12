@@ -112,6 +112,7 @@ export async function persistWorld(
             leagueId: row.leagueExternalId
               ? leagueMap.get(row.leagueExternalId) ?? null
               : null,
+            tacticalStyle: row.tacticalStyle,
             externalId: row.externalId,
             sourceDataset: datasetId,
             sourceUpdatedAt,
@@ -181,6 +182,10 @@ export async function persistWorld(
               : null,
             coachingStyle: row.coachingStyle,
             tacticalStyle: row.tacticalStyle,
+            overallCoaching: row.overallCoaching,
+            playerDevelopment: row.playerDevelopment,
+            offense: row.offense,
+            defense: row.defense,
             externalId: row.externalId,
             sourceDataset: datasetId,
             sourceUpdatedAt,

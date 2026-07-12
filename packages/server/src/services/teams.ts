@@ -2,6 +2,7 @@ import type { Prisma } from '@prisma/client';
 import { prisma } from '../db/client.js';
 import { mapPlayer, mapTeam } from '../mappers.js';
 import { compactPlayerModelFields } from './player-model.js';
+import { buildTeamReadiness } from './team-readiness.js';
 import {
   deriveAgeYears,
   isErrorResult,
@@ -21,9 +22,30 @@ const teamInclude = {
       lastName: true,
       coachingStyle: true,
       tacticalStyle: true,
+      overallCoaching: true,
+      playerDevelopment: true,
+      offense: true,
+      defense: true,
     },
   },
   _count: { select: { players: true } },
+} as const;
+
+const readinessPlayerInclude = {
+  primaryPosition: true,
+  rosterStatus: true,
+  preferredCoachingStyle: true,
+  preferredTactics: true,
+  personality: true,
+  heroRating: true,
+  stability: true,
+  developmentRate: true,
+  developmentRisk: true,
+  potentialFloor: true,
+  potentialCeiling: true,
+  publicPotentialEstimate: true,
+  skaterAttributes: true,
+  goalieAttributes: true,
 } as const;
 
 const TEAM_SORTS = ['name', 'city', 'teamType', 'createdAt'] as const;
@@ -37,6 +59,12 @@ export async function listTeams(query: Record<string, unknown> = {}) {
   const leagueId = parseOptionalString(query.leagueId);
   const teamType = parseEnum(query.teamType, ['CLUB', 'NATIONAL'] as const, 'teamType');
   if (isErrorResult(teamType)) return { error: teamType.error };
+  const hasCoachRaw = parseOptionalString(query.hasCoach);
+  if (hasCoachRaw && hasCoachRaw !== 'true' && hasCoachRaw !== 'false') {
+    return { error: 'hasCoach must be true or false' };
+  }
+  const readinessStatus = parseEnum(query.readinessStatus, ['READY', 'WARNING', 'NOT_READY'] as const, 'readinessStatus');
+  if (isErrorResult(readinessStatus)) return { error: readinessStatus.error };
 
   const sortRaw = parseOptionalString(query.sort) ?? 'name';
   if (!(TEAM_SORTS as readonly string[]).includes(sortRaw)) {
@@ -48,6 +76,8 @@ export async function listTeams(query: Record<string, unknown> = {}) {
   if (countryId) where.countryId = countryId;
   if (leagueId) where.leagueId = leagueId;
   if (teamType) where.teamType = teamType;
+  if (hasCoachRaw === 'true') where.coach = { isNot: null };
+  if (hasCoachRaw === 'false') where.coach = { is: null };
   if (search) {
     where.OR = [
       { name: { contains: search } },
@@ -63,24 +93,29 @@ export async function listTeams(query: Record<string, unknown> = {}) {
       orderBy: { [sortRaw]: direction },
       skip: pagination.skip,
       take: pagination.pageSize,
-      include: teamInclude,
+      include: { ...teamInclude, players: { select: readinessPlayerInclude } },
     }),
   ]);
 
-  return {
-    items: rows.map((row) => ({
+  const items = rows.map((row) => {
+    const readiness = buildTeamReadiness({
+      hasHeadCoach: Boolean(row.coach),
+      tacticalStyle: row.tacticalStyle,
+      players: row.players,
+    });
+    return {
       ...mapTeam(row),
       rosterCount: row._count.players,
+      readinessStatus: readiness.status,
       coach: row.coach
         ? {
-            id: row.coach.id,
-            firstName: row.coach.firstName,
-            lastName: row.coach.lastName,
-            coachingStyle: row.coach.coachingStyle,
-            tacticalStyle: row.coach.tacticalStyle,
+            ...row.coach,
           }
         : null,
-    })),
+    };
+  });
+  return {
+    items: readinessStatus ? items.filter((item) => item.readinessStatus === readinessStatus) : items,
     page: pagination.page,
     pageSize: pagination.pageSize,
     total,
@@ -127,15 +162,12 @@ export async function getTeamById(id: string) {
   return {
     ...mapTeam(row),
     rosterCount: row.players.length,
-    coach: row.coach
-      ? {
-          id: row.coach.id,
-          firstName: row.coach.firstName,
-          lastName: row.coach.lastName,
-          coachingStyle: row.coach.coachingStyle,
-          tacticalStyle: row.coach.tacticalStyle,
-        }
-      : null,
+    coach: row.coach ? { ...row.coach } : null,
+    readiness: buildTeamReadiness({
+      hasHeadCoach: Boolean(row.coach),
+      tacticalStyle: row.tacticalStyle,
+      players: row.players,
+    }),
     rosterSummary: {
       total: row.players.length,
       byPosition,

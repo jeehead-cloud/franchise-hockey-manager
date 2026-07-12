@@ -591,6 +591,8 @@ Commissioner Mode:
 
 # 12. F7 — Coaches, Tactics, and Team Setup
 
+**Status: implemented locally (2026-07-13).** Readiness, Commissioner coach/team setup editing, roster statuses, schema v3 fixtures, and UI browsers are complete; F8 lineups/chemistry remains out of scope.
+
 ## Goal
 
 Add the team-management foundation required by chemistry and matches.

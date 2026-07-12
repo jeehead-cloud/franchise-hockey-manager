@@ -70,11 +70,15 @@ export async function registerDomainRoutes(app: FastifyInstance) {
     return reply.send(detailResponse(item));
   });
 
-  registerListDetailRoutes(app, {
-    basePath: '/api/coaches',
-    entityName: 'Coach',
-    list: coaches.listCoaches,
-    getById: coaches.getCoachById,
+  app.get('/api/coaches', async (request, reply) => {
+    const result = await coaches.listCoaches(asQuery(request.query));
+    if ('error' in result) return reply.status(400).send({ error: 'BadRequest', message: result.error });
+    return reply.send(paginatedResponse(result));
+  });
+  app.get<{ Params: { id: string } }>('/api/coaches/:id', async (request, reply) => {
+    const item = await coaches.getCoachById(request.params.id);
+    if (!item) return reply.status(404).send(notFound('Coach'));
+    return reply.send(detailResponse(item));
   });
 
   app.get('/api/competitions', async (request, reply) => {
