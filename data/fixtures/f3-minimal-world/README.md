@@ -1,4 +1,4 @@
-# F3 Minimal Development Fixture
+# F3 Minimal Development Fixture (schemaVersion 2 / F5)
 
 **Status:** Fictional — development and automated testing only.
 
@@ -6,7 +6,9 @@ This dataset is **not** real NHL (or other real-world) hockey data. Player and t
 
 ## Purpose
 
-Provides a small, valid import snapshot so F3 Setup World, validation, preview, and initialization can be exercised before an owner-prepared production snapshot exists.
+Provides a small, valid import snapshot so Setup World, validation, preview, initialization, and F5 player-model APIs can be exercised before an owner-prepared production snapshot exists.
+
+Players include complete skater/goalie attribute models and development-profile fields. Hidden potential values are imported but must not appear on ordinary public APIs.
 
 ## Production replacement
 

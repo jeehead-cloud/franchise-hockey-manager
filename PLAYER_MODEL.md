@@ -1,13 +1,91 @@
 # Franchise Hockey Manager — Player Model
 
-**Status:** Active (translated from an Excel/Google Sheets prototype; not yet implemented in code)
-**Last updated:** 2026-07-10
+**Status:** Active — **F5 foundation implemented** in `@fhm/engine` (prototype transcription retained below for history)
+**Last updated:** 2026-07-13
 **Repository:** `https://github.com/jeehead-cloud/franchise-hockey-manager`
-**Source:** `Player_template.xlsx` (owner-provided prototype, two sheets: `Aging`, `New players`)
+**Source:** `Player_template.xlsx` (owner-provided prototype) + F5 implementation decisions
 
-> This document is the detailed spec for a single generated player: identity, growth/aging formulas, attributes, and archetype derivation. It is derived directly from a working spreadsheet prototype the owner built before this codebase existed. Formulas below are transcribed as faithfully as possible from that prototype, with implementation notes flagging where the engine must deviate (see §7).
->
-> For the design *rules* this model must satisfy (non-linearity, frozen randomness, etc.), see `PRODUCT_RULES.md`. For where this logic should live in code, see `ARCHITECTURE.md` (`packages/engine/src/players`).
+> This document is the detailed spec for a single player: identity, growth/aging formulas, attributes, and archetype derivation. Sections §1–§7 preserve the spreadsheet prototype translation. **§0 documents the F5 implemented model** (authoritative for current code).
+
+For design *rules*, see `PRODUCT_RULES.md`. Engine code: `packages/engine/src/players`, `packages/engine/src/goalies`, `packages/engine/src/config/*.json`.
+
+---
+
+## 0. F5 Implemented Model (authoritative)
+
+### Attribute scale
+
+| Concept | Scale | Notes |
+|---|---|---|
+| Attributes (skater & goalie) | integers **1–20** | **10 ≈ average professional baseline** in this abstract model |
+| Derived ratings (CA, OVR splits, role rating) | integers **0–100** | presentation / lineup support — not simulation sole input |
+| Hero rating / stability | integers **1–20** | do not modify permanent ability ratings in F5 |
+| Development rate | float in config range (default 0.1–3) | future F24 growth tendency |
+| Development risk | float **0–1** | hidden; future variance |
+| Potential floor / ceiling | **0–100** (same presentation scale as CA) | hidden; floor ≤ ceiling |
+
+Rounding: ratings use `Math.round` after weighted average; then clamp to `[ratingMin, ratingMax]`.
+
+Do **not** treat the spreadsheet’s prospect `RANDBETWEEN(7,11)` as the global maximum scale.
+
+### Skater attributes (9)
+
+`stickhandling`, `shooting`, `passing`, `strength`, `speed`, `balance`, `aggression`, `offensiveAwareness`, `defensiveAwareness`
+
+### Goalie attributes (9) — separate model
+
+`reflexes`, `positioning`, `reboundControl`, `glove`, `blocker`, `movement`, `puckHandling`, `consistency`, `stamina`
+
+Goalies **never** use the skater attribute model (and vice versa).
+
+### Persistence
+
+- `Player`: identity + development profile (preferences, personality, hero, stability, developmentRate, hidden potential, publicPotentialEstimate)
+- `SkaterAttributes` / `GoalieAttributes`: 1:1 by `playerId`, cascade on player delete
+- Derived ratings and roles are **not** persisted; computed via `derivePlayerModel()` on read
+- Legacy F4 structural players: F5 fields nullable → `modelStatus: INCOMPLETE`
+
+### Ratings (config: `rating-weights.json`)
+
+- Skater: `currentAbility` (all nine attrs), `offensiveRating`, `defensiveRating`, plus `roleRating` from role config
+- Goalie: `currentAbility` (all nine attrs) + `roleRating` — **no** offensive/defensive ratings
+- Hidden potential and preferences/personality do **not** affect permanent ability ratings
+
+### Role derivation
+
+- Skaters: documented attribute-pair tables from §5 → machine keys (`ROCKET`, `QUARTERBACK`, …) in `skater-roles.json`
+- Tie-break: higher pair score → lexicographically smaller role key → lexicographically smaller `a|b`
+- Goalies: weighted profiles in `goalie-roles.json` (`REFLEX_GOALIE`, `POSITIONAL_GOALIE`, `HYBRID_GOALIE`, `PUCK_PLAYING_GOALIE`); alphabetical role key breaks ties
+- Roles are derived, never stored as independent editable truth in F5
+
+### Role rating
+
+Preferred 3/3/2/2 supporting weights. **Full spreadsheet per-role supporting-attribute table was not available in the repository.** F5 uses an explicit foundation config: winning pair attributes (3,3) plus two documented/sensible supports (2,2), marked tuneable — not a verbatim spreadsheet transcription.
+
+### Potential visibility
+
+| Field | Persist | Public API |
+|---|---|---|
+| `potentialFloor` / `potentialCeiling` / `developmentRisk` | yes | **no** |
+| `publicPotentialEstimate` (`LOW`/`STANDARD`/`HIGH`/`ELITE`/`UNKNOWN`) | yes | yes |
+
+If no public estimate is imported, show `UNKNOWN` — do not derive public bands from hidden truth.
+
+### Spreadsheet fields intentionally not carried as F5 persistence
+
+- Live `RAND()` recalculation behavior
+- Aggregate `Start.Total` / `Curr.Total` overall formulas as simulation truth (replaced by concrete attributes + derived CA)
+- Parallel `Offense%`/`Defence%` random split generating O/D from overall
+- `Cur.Over.Tot.` / `Over.Pot.` / star-style `R`/`P` aggregates
+- National Team random quality field
+- Face-offs column (never populated in prototype)
+- Goalie placeholder (50/50 + all attrs = 10)
+
+Annual development, aging ops, role inertia, form, injuries remain deferred (F24+).
+
+### Dataset
+
+Import requires **schemaVersion 2** with complete player-model fields. schemaVersion 1 is unsupported.
 
 ---
 

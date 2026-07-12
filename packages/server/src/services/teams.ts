@@ -1,6 +1,7 @@
 import type { Prisma } from '@prisma/client';
 import { prisma } from '../db/client.js';
 import { mapPlayer, mapTeam } from '../mappers.js';
+import { compactPlayerModelFields } from './player-model.js';
 import {
   deriveAgeYears,
   isErrorResult,
@@ -95,6 +96,8 @@ export async function getTeamById(id: string) {
         orderBy: [{ primaryPosition: 'asc' }, { lastName: 'asc' }, { firstName: 'asc' }],
         include: {
           nationality: { select: { id: true, name: true, code: true } },
+          skaterAttributes: true,
+          goalieAttributes: true,
         },
       },
     },
@@ -146,13 +149,26 @@ export async function getTeamById(id: string) {
           }
         : null,
     },
-    roster: row.players.map((p) => ({
-      ...mapPlayer({
-        ...p,
-        currentTeamId: row.id,
-        currentTeam: { id: row.id, name: row.name },
-      }),
-      age: deriveAgeYears(p.dateOfBirth, seasonStartYear),
-    })),
+    roster: row.players.map((p) => {
+      const skater =
+        p.skaterAttributes &&
+        (({ playerId: _p, createdAt: _c, updatedAt: _u, ...attrs }) => attrs)(p.skaterAttributes);
+      const goalie =
+        p.goalieAttributes &&
+        (({ playerId: _p, createdAt: _c, updatedAt: _u, ...attrs }) => attrs)(p.goalieAttributes);
+      return {
+        ...mapPlayer({
+          ...p,
+          currentTeamId: row.id,
+          currentTeam: { id: row.id, name: row.name },
+        }),
+        age: deriveAgeYears(p.dateOfBirth, seasonStartYear),
+        ...compactPlayerModelFields({
+          ...p,
+          skaterAttributes: skater ?? undefined,
+          goalieAttributes: goalie ?? undefined,
+        }),
+      };
+    }),
   };
 }

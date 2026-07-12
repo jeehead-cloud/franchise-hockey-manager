@@ -146,6 +146,22 @@ export async function persistWorld(
             externalId: row.externalId,
             sourceDataset: datasetId,
             sourceUpdatedAt,
+            preferredCoachingStyle: row.preferredCoachingStyle,
+            preferredTactics: row.preferredTactics,
+            personality: row.personality,
+            heroRating: row.heroRating,
+            stability: row.stability,
+            developmentRate: row.developmentRate,
+            developmentRisk: row.developmentRisk,
+            potentialFloor: row.potentialFloor,
+            potentialCeiling: row.potentialCeiling,
+            publicPotentialEstimate: row.publicPotentialEstimate,
+            ...(row.primaryPosition === 'G' && row.goalieAttributes
+              ? { goalieAttributes: { create: row.goalieAttributes } }
+              : {}),
+            ...(row.primaryPosition !== 'G' && row.skaterAttributes
+              ? { skaterAttributes: { create: row.skaterAttributes } }
+              : {}),
           },
         });
         counts.players += 1;

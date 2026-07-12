@@ -161,8 +161,9 @@ export function TeamDetailPage() {
             headers={[
               { key: 'player', label: 'Player' },
               { key: 'pos', label: 'Pos' },
-              { key: 'nat', label: 'Nationality' },
-              { key: 'dob', label: 'DOB / Age' },
+              { key: 'ca', label: 'CA' },
+              { key: 'role', label: 'Role' },
+              { key: 'model', label: 'Model' },
               { key: 'status', label: 'Status' },
             ]}
           >
@@ -170,10 +171,12 @@ export function TeamDetailPage() {
               <DataRow key={p.id} onActivate={() => navigate(`/players/${p.id}`)}>
                 <Td primary>{playerLabel(p)}</Td>
                 <Td>{p.primaryPosition}</Td>
-                <Td>{p.nationality?.code ?? '—'}</Td>
+                <Td>{p.currentAbility ?? '—'}</Td>
+                <Td>{p.roleLabel ?? p.role ?? '—'}</Td>
                 <Td>
-                  {p.dateOfBirth}
-                  {p.age != null ? ` · ${p.age}` : ''}
+                  <Badge tone={p.modelStatus === 'COMPLETE' ? 'success' : 'warning'}>
+                    {p.modelStatus}
+                  </Badge>
                 </Td>
                 <Td>
                   <Badge tone="neutral">{p.rosterStatus}</Badge>

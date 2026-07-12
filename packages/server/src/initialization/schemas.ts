@@ -1,11 +1,14 @@
 import { z } from 'zod';
 
 const nonEmpty = z.string().trim().min(1);
+const attr = z.number().int().min(1).max(20);
+
+export const CURRENT_DATASET_SCHEMA_VERSION = 2 as const;
 
 export const manifestSchema = z.object({
   datasetId: nonEmpty,
   datasetName: nonEmpty,
-  schemaVersion: z.literal(1),
+  schemaVersion: z.literal(CURRENT_DATASET_SCHEMA_VERSION),
   sourceName: nonEmpty,
   sourceUpdatedAt: z.string().datetime(),
   worldSeasonLabel: nonEmpty,
@@ -48,17 +51,105 @@ export const teamRowSchema = z.object({
   leagueExternalId: nonEmpty.nullable().optional(),
 });
 
-export const playerRowSchema = z.object({
-  externalId: nonEmpty,
-  firstName: nonEmpty,
-  lastName: nonEmpty,
-  dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'dateOfBirth must be YYYY-MM-DD'),
-  nationalityExternalId: nonEmpty,
-  currentTeamExternalId: nonEmpty.nullable().optional(),
-  primaryPosition: z.enum(['LW', 'RW', 'C', 'LD', 'RD', 'G']),
-  sourceType: z.enum(['REAL_INITIAL_DATA', 'GENERATED_YOUTH', 'MANUAL', 'IMPORTED']),
-  rosterStatus: z.enum(['ACTIVE', 'RESERVE', 'PROSPECT', 'UNAVAILABLE']),
+const skaterAttributesSchema = z.object({
+  stickhandling: attr,
+  shooting: attr,
+  passing: attr,
+  strength: attr,
+  speed: attr,
+  balance: attr,
+  aggression: attr,
+  offensiveAwareness: attr,
+  defensiveAwareness: attr,
 });
+
+const goalieAttributesSchema = z.object({
+  reflexes: attr,
+  positioning: attr,
+  reboundControl: attr,
+  glove: attr,
+  blocker: attr,
+  movement: attr,
+  puckHandling: attr,
+  consistency: attr,
+  stamina: attr,
+});
+
+const playerModelCommon = {
+  preferredCoachingStyle: z.enum([
+    'AUTHORITARIAN',
+    'AUTHORITATIVE',
+    'DEMOCRATIC',
+    'DEVELOPMENTAL',
+    'HANDS_OFF',
+  ]),
+  preferredTactics: z.enum(['COMBINATIONAL', 'PHYSICAL', 'SPEED', 'SYSTEM', 'FORECHECKING']),
+  personality: z.enum(['LEADER', 'COMPETITOR', 'PROFESSIONAL', 'CREATIVE', 'GLUE']),
+  heroRating: attr,
+  stability: attr,
+  developmentRate: z.number().min(0.1).max(3),
+  developmentRisk: z.number().min(0).max(1),
+  potentialFloor: z.number().int().min(0).max(100),
+  potentialCeiling: z.number().int().min(0).max(100),
+  publicPotentialEstimate: z.enum(['LOW', 'STANDARD', 'HIGH', 'ELITE', 'UNKNOWN']),
+};
+
+export const playerRowSchema = z
+  .object({
+    externalId: nonEmpty,
+    firstName: nonEmpty,
+    lastName: nonEmpty,
+    dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'dateOfBirth must be YYYY-MM-DD'),
+    nationalityExternalId: nonEmpty,
+    currentTeamExternalId: nonEmpty.nullable().optional(),
+    primaryPosition: z.enum(['LW', 'RW', 'C', 'LD', 'RD', 'G']),
+    sourceType: z.enum(['REAL_INITIAL_DATA', 'GENERATED_YOUTH', 'MANUAL', 'IMPORTED']),
+    rosterStatus: z.enum(['ACTIVE', 'RESERVE', 'PROSPECT', 'UNAVAILABLE']),
+    ...playerModelCommon,
+    skaterAttributes: skaterAttributesSchema.optional(),
+    goalieAttributes: goalieAttributesSchema.optional(),
+  })
+  .superRefine((row, ctx) => {
+    if (row.potentialFloor > row.potentialCeiling) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'potentialFloor must be <= potentialCeiling',
+        path: ['potentialFloor'],
+      });
+    }
+    const isGoalie = row.primaryPosition === 'G';
+    if (isGoalie) {
+      if (!row.goalieAttributes) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Goalie requires goalieAttributes',
+          path: ['goalieAttributes'],
+        });
+      }
+      if (row.skaterAttributes) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Goalie must not include skaterAttributes',
+          path: ['skaterAttributes'],
+        });
+      }
+    } else {
+      if (!row.skaterAttributes) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Skater requires skaterAttributes',
+          path: ['skaterAttributes'],
+        });
+      }
+      if (row.goalieAttributes) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Skater must not include goalieAttributes',
+          path: ['goalieAttributes'],
+        });
+      }
+    }
+  });
 
 export const coachRowSchema = z.object({
   externalId: nonEmpty,

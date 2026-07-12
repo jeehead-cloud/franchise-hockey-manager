@@ -83,10 +83,18 @@ export function loadManifest(dir: string): Manifest {
   if (!parsed.success) {
     if (raw && typeof raw === 'object' && 'schemaVersion' in raw) {
       const version = (raw as { schemaVersion?: unknown }).schemaVersion;
-      if (version !== 1) {
+      if (version === 1) {
         throw new SetupError(
           'DatasetParseError',
-          `Unsupported schemaVersion: ${String(version)} (expected 1)`,
+          'Unsupported schemaVersion: 1 — F5 requires schemaVersion 2 (complete player model). Migrate the dataset or use the F5 fixture.',
+          422,
+          { file: 'manifest.json', schemaVersion: version },
+        );
+      }
+      if (version !== 2) {
+        throw new SetupError(
+          'DatasetParseError',
+          `Unsupported schemaVersion: ${String(version)} (expected 2)`,
           422,
           { file: 'manifest.json', schemaVersion: version },
         );

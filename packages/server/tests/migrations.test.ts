@@ -21,17 +21,24 @@ describe('Migrations', () => {
       expect(names).toContain('WorldSeason');
       expect(names).toContain('Player');
       expect(names).toContain('CompetitionEdition');
+      expect(names).toContain('SkaterAttributes');
+      expect(names).toContain('GoalieAttributes');
       const cols = await prisma.$queryRaw<Array<{ name: string }>>`
         PRAGMA table_info('AppMeta')
       `;
       expect(cols.map((c) => c.name)).toContain('worldInitialized');
+      const playerCols = await prisma.$queryRaw<Array<{ name: string }>>`
+        PRAGMA table_info('Player')
+      `;
+      expect(playerCols.map((c) => c.name)).toContain('potentialFloor');
+      expect(playerCols.map((c) => c.name)).toContain('publicPotentialEstimate');
       await prisma.$disconnect();
     } finally {
       cleanupTempDir(dir);
     }
   });
 
-  it('records F1, F2, then F3 migrations in history', async () => {
+  it('records F1–F5 migrations in history', async () => {
     const { url, dir } = createTempDatabaseUrl();
     try {
       migrateTempDatabase(url);
@@ -43,6 +50,42 @@ describe('Migrations', () => {
       expect(names.some((n) => n.includes('f1_bootstrap'))).toBe(true);
       expect(names.some((n) => n.includes('f2_core_domain'))).toBe(true);
       expect(names.some((n) => n.includes('f3_source_metadata_and_init'))).toBe(true);
+      expect(names.some((n) => n.includes('f5_player_model'))).toBe(true);
+      await prisma.$disconnect();
+    } finally {
+      cleanupTempDir(dir);
+    }
+  });
+
+  it('preserves structural F4-style players after F5 schema (nullable model)', async () => {
+    const { url, dir } = createTempDatabaseUrl();
+    try {
+      migrateTempDatabase(url);
+      const prisma = createTestPrisma(url);
+      const country = await prisma.country.create({
+        data: { name: 'Testland', code: 'TL' },
+      });
+      const player = await prisma.player.create({
+        data: {
+          firstName: 'Pre',
+          lastName: 'F5',
+          dateOfBirth: new Date('2001-06-15'),
+          nationalityCountryId: country.id,
+          primaryPosition: 'C',
+          sourceType: 'MANUAL',
+          rosterStatus: 'ACTIVE',
+        },
+      });
+      const after = await prisma.player.findUnique({
+        where: { id: player.id },
+        include: { skaterAttributes: true, goalieAttributes: true },
+      });
+      expect(after?.id).toBe(player.id);
+      expect(after?.firstName).toBe('Pre');
+      expect(after?.skaterAttributes).toBeNull();
+      expect(after?.goalieAttributes).toBeNull();
+      expect(after?.potentialFloor).toBeNull();
+      expect(after?.preferredCoachingStyle).toBeNull();
       await prisma.$disconnect();
     } finally {
       cleanupTempDir(dir);

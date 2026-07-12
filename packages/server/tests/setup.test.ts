@@ -32,7 +32,7 @@ describe('F3 loader', () => {
   it('loads the development fixture manifest and files', () => {
     const dataset = loadDataset(fixtureDir);
     expect(dataset.manifest.datasetId).toBe('fhm-f3-minimal-fixture-v1');
-    expect(dataset.manifest.schemaVersion).toBe(1);
+    expect(dataset.manifest.schemaVersion).toBe(2);
     expect(dataset.countries.length).toBeGreaterThan(0);
     expect(dataset.players.length).toBeGreaterThan(0);
   });
@@ -67,6 +67,21 @@ describe('F3 loader', () => {
       manifest.schemaVersion = 99;
       writeFileSync(join(dir, 'manifest.json'), JSON.stringify(manifest), 'utf8');
       expect(() => loadDataset(dir)).toThrow(/Unsupported schemaVersion|schemaVersion/);
+    } finally {
+      cleanupTempDir(dir);
+    }
+  });
+
+  it('rejects schemaVersion 1 with a clear migration message', () => {
+    const dir = copyFixtureToTemp();
+    try {
+      const manifest = JSON.parse(readFileSync(join(dir, 'manifest.json'), 'utf8')) as Record<
+        string,
+        unknown
+      >;
+      manifest.schemaVersion = 1;
+      writeFileSync(join(dir, 'manifest.json'), JSON.stringify(manifest), 'utf8');
+      expect(() => loadDataset(dir)).toThrow(/schemaVersion 2|schemaVersion: 1/i);
     } finally {
       cleanupTempDir(dir);
     }
@@ -283,10 +298,22 @@ describe('F3 preview / initialize / idempotency', () => {
     expect(season?.status).toBe('ACTIVE');
     expect(season?.sourceDataset).toBe('fhm-f3-minimal-fixture-v1');
 
-    const players = await prisma.player.findMany();
+    const players = await prisma.player.findMany({
+      include: { skaterAttributes: true, goalieAttributes: true },
+    });
     expect(players.every((p) => p.sourceType === 'REAL_INITIAL_DATA')).toBe(true);
     expect(players.every((p) => p.sourceDataset === 'fhm-f3-minimal-fixture-v1')).toBe(true);
     expect(players.every((p) => p.externalId)).toBeTruthy();
+    expect(
+      players.every((p) =>
+        p.primaryPosition === 'G'
+          ? Boolean(p.goalieAttributes) && !p.skaterAttributes
+          : Boolean(p.skaterAttributes) && !p.goalieAttributes,
+      ),
+    ).toBe(true);
+    expect(players.every((p) => p.potentialFloor != null && p.publicPotentialEstimate != null)).toBe(
+      true,
+    );
 
     const team = await prisma.team.findFirst({
       where: { externalId: 'team-frostbite' },
@@ -298,7 +325,7 @@ describe('F3 preview / initialize / idempotency', () => {
     const meta = await prisma.appMeta.findUnique({ where: { id: 'default' } });
     expect(meta?.worldInitialized).toBe(true);
     expect(meta?.worldDatasetId).toBe('fhm-f3-minimal-fixture-v1');
-    expect(meta?.worldSchemaVersion).toBe(1);
+    expect(meta?.worldSchemaVersion).toBe(2);
   });
 
   it('rolls back partial data after injected failure', async () => {

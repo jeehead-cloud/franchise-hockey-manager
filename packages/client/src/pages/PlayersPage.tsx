@@ -189,27 +189,28 @@ export function PlayersPage() {
             headers={[
               { key: 'player', label: 'Player' },
               { key: 'pos', label: 'Pos' },
-              { key: 'dob', label: 'DOB / Age' },
-              { key: 'nat', label: 'Nationality' },
               { key: 'team', label: 'Team' },
-              { key: 'status', label: 'Status' },
-              { key: 'source', label: 'Source' },
+              { key: 'ca', label: 'CA' },
+              { key: 'role', label: 'Role' },
+              { key: 'rr', label: 'Role rating' },
+              { key: 'pot', label: 'Potential' },
+              { key: 'model', label: 'Model' },
             ]}
           >
             {data.items.map((p) => (
               <DataRow key={p.id} onActivate={() => navigate(`/players/${p.id}`)}>
                 <Td primary>{playerLabel(p)}</Td>
                 <Td>{p.primaryPosition}</Td>
-                <Td>
-                  {p.dateOfBirth}
-                  {p.age != null ? ` · ${p.age}` : ''}
-                </Td>
-                <Td>{p.nationality?.code ?? '—'}</Td>
                 <Td>{p.currentTeam?.name ?? 'Unassigned'}</Td>
+                <Td>{p.currentAbility ?? '—'}</Td>
+                <Td>{p.roleLabel ?? p.role ?? '—'}</Td>
+                <Td>{p.roleRating ?? '—'}</Td>
+                <Td>{p.publicPotentialEstimate ?? 'UNKNOWN'}</Td>
                 <Td>
-                  <Badge tone="neutral">{p.rosterStatus}</Badge>
+                  <Badge tone={p.modelStatus === 'COMPLETE' ? 'success' : 'warning'}>
+                    {p.modelStatus}
+                  </Badge>
                 </Td>
-                <Td>{p.sourceType}</Td>
               </DataRow>
             ))}
           </DataTable>

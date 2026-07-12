@@ -122,13 +122,65 @@ describe('F4 browser APIs', () => {
     expect(body.item.coach?.coachingStyle).toBeTruthy();
   });
 
-  it('returns player detail with assignment', async () => {
+  it('returns player detail with F5 model and without hidden potential', async () => {
     const res = await app.inject({ method: 'GET', url: `/api/players/${playerId}` });
     expect(res.statusCode).toBe(200);
     const body = res.json();
     expect(body.item.firstName).toBe('Kai');
-    expect(body.item.currentTeam?.name).toBeTruthy();
-    expect(body.item.age).toBeTypeOf('number');
+    expect(body.item.playerModel.modelStatus).toBe('COMPLETE');
+    expect(body.item.playerModel.kind).toBe('skater');
+    expect(body.item.playerModel.currentAbility).toBeTypeOf('number');
+    expect(body.item.playerModel.role).toBeTruthy();
+    expect(body.item.potentialFloor).toBeUndefined();
+    expect(body.item.potentialCeiling).toBeUndefined();
+    expect(body.item.developmentRisk).toBeUndefined();
+    expect(body.item.playerModel.potentialFloor).toBeUndefined();
+    expect(body.item.playerModel.potentialCeiling).toBeUndefined();
+    expect(body.item.playerModel.developmentRisk).toBeUndefined();
+  });
+
+  it('returns goalie detail with goalie attributes', async () => {
+    const goalie = await prisma.player.findFirst({ where: { primaryPosition: 'G' } });
+    const res = await app.inject({ method: 'GET', url: `/api/players/${goalie!.id}` });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.item.playerModel.kind).toBe('goalie');
+    expect(body.item.playerModel.attributes.reflexes).toBeTypeOf('number');
+    expect(body.item.playerModel.offensiveRating).toBeUndefined();
+  });
+
+  it('list players include compact F5 fields', async () => {
+    const res = await app.inject({ method: 'GET', url: '/api/players' });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.items[0].modelStatus).toBe('COMPLETE');
+    expect(body.items[0].currentAbility).toBeTypeOf('number');
+    expect(body.items[0].role).toBeTruthy();
+  });
+
+  it('team roster preview includes compact F5 fields', async () => {
+    const res = await app.inject({ method: 'GET', url: `/api/teams/${teamId}` });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.item.roster[0].modelStatus).toBe('COMPLETE');
+    expect(body.item.roster[0].currentAbility).toBeTypeOf('number');
+  });
+
+  it('marks legacy structural players as INCOMPLETE', async () => {
+    const legacy = await prisma.player.create({
+      data: {
+        firstName: 'Legacy',
+        lastName: 'Skater',
+        dateOfBirth: new Date('2000-01-01'),
+        nationalityCountryId: (await prisma.country.findFirst())!.id,
+        primaryPosition: 'C',
+        sourceType: 'MANUAL',
+        rosterStatus: 'ACTIVE',
+      },
+    });
+    const res = await app.inject({ method: 'GET', url: `/api/players/${legacy.id}` });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().item.playerModel.modelStatus).toBe('INCOMPLETE');
   });
 
   it('returns competition detail with editions', async () => {

@@ -2,6 +2,10 @@ import type { Prisma } from '@prisma/client';
 import { prisma } from '../db/client.js';
 import { mapPlayer } from '../mappers.js';
 import {
+  compactPlayerModelFields,
+  publicPlayerModelDetail,
+} from './player-model.js';
+import {
   deriveAgeYears,
   isErrorResult,
   parseDirection,
@@ -21,6 +25,8 @@ const playerInclude = {
       league: { select: { id: true, name: true, shortName: true } },
     },
   },
+  skaterAttributes: true,
+  goalieAttributes: true,
 } as const;
 
 const PLAYER_SORTS = ['lastName', 'firstName', 'dateOfBirth', 'primaryPosition', 'createdAt'] as const;
@@ -34,6 +40,14 @@ async function activeSeasonStartYear() {
     orderBy: { startYear: 'desc' },
   });
   return season?.startYear ?? null;
+}
+
+function stripAttrIds<T extends { playerId?: string; createdAt?: Date; updatedAt?: Date }>(
+  row: T | null | undefined,
+) {
+  if (!row) return null;
+  const { playerId: _p, createdAt: _c, updatedAt: _u, ...attrs } = row;
+  return attrs;
 }
 
 export async function listPlayers(query: Record<string, unknown> = {}) {
@@ -106,6 +120,11 @@ export async function listPlayers(query: Record<string, unknown> = {}) {
             shortName: row.currentTeam.shortName,
           }
         : null,
+      ...compactPlayerModelFields({
+        ...row,
+        skaterAttributes: stripAttrIds(row.skaterAttributes) ?? undefined,
+        goalieAttributes: stripAttrIds(row.goalieAttributes) ?? undefined,
+      }),
     })),
     page: pagination.page,
     pageSize: pagination.pageSize,
@@ -128,6 +147,11 @@ export async function getPlayerById(id: string) {
   if (!row) return null;
 
   const seasonStartYear = await activeSeasonStartYear();
+  const modelRow = {
+    ...row,
+    skaterAttributes: stripAttrIds(row.skaterAttributes) ?? undefined,
+    goalieAttributes: stripAttrIds(row.goalieAttributes) ?? undefined,
+  };
 
   return {
     ...mapPlayer(row),
@@ -148,5 +172,7 @@ export async function getPlayerById(id: string) {
           league: row.currentTeam.league,
         }
       : null,
+    playerModel: publicPlayerModelDetail(modelRow),
+    // Never expose hidden potential fields on the public detail envelope.
   };
 }

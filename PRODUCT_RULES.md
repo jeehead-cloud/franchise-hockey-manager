@@ -25,7 +25,7 @@ When game behavior is ambiguous or under-specified:
 
 This is the rule the entire project is organized around.
 
-- A player's **overall rating alone must never be sufficient to predict their in-game production.** Actual output must be modulated by at least: (a) chemistry with current linemates/pairing, (b) fit between the player's preferred coaching style/tactics and the team's actual coach/tactics, and (c) contextual modifiers (fatigue, hot/cold streaks, clutch situations).
+- A player's **overall / current-ability rating alone must never be sufficient to predict their in-game production.** Compact derived ratings (including current ability) are display and lineup-support values; later simulation must remain based on concrete attributes plus contextual modifiers (chemistry, tactics fit, form, etc.).
 - A high-rated player on a poorly-fitting line, under a mismatched coach, should be able to underperform a lower-rated player who fits well — this must be empirically true of the simulation output, not just true "in spirit."
 - Any simulation change that collapses production back to a monotonic function of overall rating alone is a regression against this rule, regardless of how it's framed ("simplification," "temporary," "just for testing").
 
@@ -49,7 +49,7 @@ See `PLAYER_MODEL.md` for the complete field list and formulas. Key invariants:
 - Every generated player has a hidden **true potential** and a currently-known **current ability** — the owner (and any in-game scouting UI) should generally see the current/estimated value, not the ground-truth potential, except where a feature explicitly reveals it (e.g. a very high scouting investment).
 - Randomized generation values (dev-state draw, stability-state draw, initial 9 attributes, offense/defense split) are rolled **once, at generation time, and persisted** — they must never be re-rolled on subsequent reads. This is a deliberate change from the original spreadsheet prototype, which recalculated on every view.
 - A player's **archetype/role** is *derived* from their attribute profile (see the role-mapping tables in `PLAYER_MODEL.md` §5) — it is not a manually-assigned field, and must be recomputed whenever the underlying attributes change materially (e.g. after a development step).
-- **Goalies use a different model than skaters**: the offense/defense split and the 9 skater attributes (STH/SHO/PAS/STR/SPD/BAL/AGG/OF.AW/DEF.AW) as defined for skaters do not meaningfully apply to goalies. A dedicated goalie attribute set must be designed before goalies are treated as first-class — do not carry over the spreadsheet prototype's goalie placeholder (fixed 50/50 split, all attributes = 10) into the real engine; flag this as an open design item until resolved.
+- **Goalies use a different model than skaters**: F5 implements a dedicated nine-attribute goalie model and goalie role profiles. Never apply skater attributes, offense/defense splits, or skater pair-role tables to goalies.
 
 ---
 

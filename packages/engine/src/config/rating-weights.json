@@ -1,0 +1,43 @@
+{
+  "skater": {
+    "currentAbility": {
+      "stickhandling": 1,
+      "shooting": 1,
+      "passing": 1,
+      "strength": 1,
+      "speed": 1,
+      "balance": 1,
+      "aggression": 1,
+      "offensiveAwareness": 1,
+      "defensiveAwareness": 1
+    },
+    "offensive": {
+      "stickhandling": 3,
+      "shooting": 3,
+      "passing": 3,
+      "speed": 2,
+      "offensiveAwareness": 3
+    },
+    "defensive": {
+      "defensiveAwareness": 3,
+      "strength": 2,
+      "balance": 2,
+      "aggression": 2,
+      "speed": 1
+    }
+  },
+  "goalie": {
+    "currentAbility": {
+      "reflexes": 1,
+      "positioning": 1,
+      "reboundControl": 1,
+      "glove": 1,
+      "blocker": 1,
+      "movement": 1,
+      "puckHandling": 1,
+      "consistency": 1,
+      "stamina": 1
+    }
+  },
+  "notes": "F5 foundation rating weights. Normalized at runtime. Current ability uses all attributes equally; O/D use weighted subsets."
+}

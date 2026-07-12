@@ -1,0 +1,15 @@
+{
+  "attributeMin": 1,
+  "attributeMax": 20,
+  "ratingMin": 0,
+  "ratingMax": 100,
+  "heroRatingMin": 1,
+  "heroRatingMax": 20,
+  "stabilityMin": 1,
+  "stabilityMax": 20,
+  "developmentRateMin": 0.1,
+  "developmentRateMax": 3,
+  "developmentRiskMin": 0,
+  "developmentRiskMax": 1,
+  "notes": "F5 foundation scales. Attributes are integers 1–20 (10 ≈ average pro baseline). Derived ratings are 0–100 integers."
+}

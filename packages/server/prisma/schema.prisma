@@ -114,6 +114,22 @@ enum CompetitionStatus {
   ARCHIVED
 }
 
+enum Personality {
+  LEADER
+  COMPETITOR
+  PROFESSIONAL
+  CREATIVE
+  GLUE
+}
+
+enum PublicPotentialEstimate {
+  LOW
+  STANDARD
+  HIGH
+  ELITE
+  UNKNOWN
+}
+
 // ---------------------------------------------------------------------------
 // Domain entities (F2 + F3 source metadata)
 // ---------------------------------------------------------------------------
@@ -198,31 +214,83 @@ model Team {
   @@index([leagueId])
 }
 
-/// Structural player only — attributes/ratings arrive in later milestones.
+/// Player identity + F5 development profile. Attributes live in 1:1 skater/goalie tables.
 /// Age: `dateOfBirth` (DateTime); age is derived later relative to world/competition date.
 model Player {
-  id                   String         @id @default(cuid())
-  firstName            String
-  lastName             String
-  dateOfBirth          DateTime
-  nationalityCountryId String
-  currentTeamId        String?
-  primaryPosition      PlayerPosition
-  sourceType           PlayerSource
-  rosterStatus         RosterStatus
-  externalId           String?
-  sourceDataset        String?
-  sourceUpdatedAt      DateTime?
-  createdAt            DateTime       @default(now())
-  updatedAt            DateTime       @updatedAt
+  id                      String                   @id @default(cuid())
+  firstName               String
+  lastName                String
+  dateOfBirth             DateTime
+  nationalityCountryId    String
+  currentTeamId           String?
+  primaryPosition         PlayerPosition
+  sourceType              PlayerSource
+  rosterStatus            RosterStatus
+  externalId              String?
+  sourceDataset           String?
+  sourceUpdatedAt         DateTime?
+  /// F5 development profile (nullable for legacy F4 structural players).
+  preferredCoachingStyle  CoachingStyle?
+  preferredTactics        TacticalStyle?
+  personality             Personality?
+  heroRating              Int?
+  stability               Int?
+  developmentRate         Float?
+  /// Hidden — never expose on ordinary public player APIs.
+  developmentRisk         Float?
+  /// Hidden — never expose on ordinary public player APIs.
+  potentialFloor          Int?
+  /// Hidden — never expose on ordinary public player APIs.
+  potentialCeiling        Int?
+  publicPotentialEstimate PublicPotentialEstimate?
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @updatedAt
 
-  nationality Country @relation("PlayerNationality", fields: [nationalityCountryId], references: [id], onDelete: Restrict)
-  currentTeam Team?   @relation(fields: [currentTeamId], references: [id], onDelete: SetNull)
+  nationality      Country           @relation("PlayerNationality", fields: [nationalityCountryId], references: [id], onDelete: Restrict)
+  currentTeam      Team?             @relation(fields: [currentTeamId], references: [id], onDelete: SetNull)
+  skaterAttributes SkaterAttributes?
+  goalieAttributes GoalieAttributes?
 
   @@unique([sourceDataset, externalId])
   @@index([nationalityCountryId])
   @@index([currentTeamId])
   @@index([primaryPosition])
+}
+
+/// Skater-only attributes (1–20). Mutual exclusion with GoalieAttributes enforced in services/import.
+model SkaterAttributes {
+  playerId           String   @id
+  stickhandling      Int
+  shooting           Int
+  passing            Int
+  strength           Int
+  speed              Int
+  balance            Int
+  aggression         Int
+  offensiveAwareness Int
+  defensiveAwareness Int
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+}
+
+/// Goalie-only attributes (1–20). Mutual exclusion with SkaterAttributes enforced in services/import.
+model GoalieAttributes {
+  playerId       String   @id
+  reflexes       Int
+  positioning    Int
+  reboundControl Int
+  glove          Int
+  blocker        Int
+  movement       Int
+  puckHandling   Int
+  consistency    Int
+  stamina        Int
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
 }
 
 model Coach {

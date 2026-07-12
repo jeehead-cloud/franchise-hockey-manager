@@ -22,7 +22,7 @@
 | Simulation logic | Plain TypeScript in `packages/engine` | testable; no Fastify/Prisma/React |
 | Server tests | Vitest + temp SQLite | schema/API/migration/setup checks (F2+) |
 | Validation | Zod (server) | F3 dataset manifest + row schemas |
-| Balance data | JSON under `packages/engine/src/config` (later) | tune without rewriting logic |
+| Balance data | JSON under `packages/engine/src/config` | tune without rewriting logic |
 
 There is **no backend-less/client-only mode** — client-server from day one (see §7).
 
@@ -33,7 +33,7 @@ There is **no backend-less/client-only mode** — client-server from day one (se
 ```text
 franchise-hockey-manager/
 ├── packages/
-│   ├── engine/                  # pure TS — no Prisma; F1 wiring export
+│   ├── engine/                  # pure TS — player model (F5+); no Prisma
 │   ├── server/                  # Fastify + Prisma + SQLite
 │   │   ├── src/
 │   │   │   ├── app.ts           # Fastify factory (tests + runtime)
@@ -81,7 +81,7 @@ Engine (pure TS)                 SQLite (via Prisma)
 
 ## 4. Config-Driven Balance
 
-When simulation/generation systems are implemented, coefficients live in `packages/engine/src/config/*.json`. No balance configs in F2.
+Coefficients for F5 player ratings/roles live in `packages/engine/src/config/*.json`. F10 database balance presets are out of scope.
 
 ---
 
@@ -186,12 +186,14 @@ Routes:
 - `GET /api/countries` · `GET /api/countries/:id`
 - `GET /api/leagues` · `GET /api/leagues/:id`
 - `GET /api/teams` · `GET /api/teams/:id` — search/filter/sort/pagination; detail includes roster
-- `GET /api/players` · `GET /api/players/:id` — search/filter/sort/pagination; derived age
+- `GET /api/players` · `GET /api/players/:id` — search/filter/sort/pagination; derived age; F5 compact/list model fields; detail includes `playerModel` (derived ratings/role; no hidden potential)
 - `GET /api/coaches` · `GET /api/coaches/:id`
 - `GET /api/competitions` · `GET /api/competitions/:id` — search/filter/sort/pagination; editions on detail
 - `GET /api/competition-editions` · `GET /api/competition-editions/:id`
 
 **Age derivation (F4):** years of age as of **1 July of the active WorldSeason.startYear** (`july1_of_world_season_start_year`). Not wall-clock. If no season, age fields are omitted/null.
+
+**Player model (F5):** Prisma stores attributes + development profile. Server maps rows into `@fhm/engine` `derivePlayerModel()` for ratings/roles. Public APIs never expose `potentialFloor`, `potentialCeiling`, or `developmentRisk`. Filtering/sorting by derived role/CA is deferred (pagination stays DB-backed).
 
 Pagination defaults: `page=1`, `pageSize=25`, max `pageSize=100`. Sort fields are allowlisted per entity.
 
@@ -199,7 +201,7 @@ Pagination defaults: `page=1`, `pageSize=25`, max `pageSize=100`. Sort fields ar
 
 Pipeline: locate dataset → load manifest/files → parse (Zod) → validate structure + cross-refs → preview → empty-world gate → single transaction persist → AppMeta init flags.
 
-Dataset path: default `data/fixtures/f3-minimal-world` (repo-relative); override with `FHM_DATASET_DIR`. Client never sends entity payloads or filesystem paths.
+Dataset path: default `data/fixtures/f3-minimal-world` (repo-relative); override with `FHM_DATASET_DIR`. **Import contract is schemaVersion 2** (complete player model). schemaVersion 1 is rejected with an explicit migration message. Client never sends entity payloads or filesystem paths.
 
 | Method | Path | Behavior |
 |---|---|---|
@@ -222,7 +224,7 @@ F4 browsers (URL query state for list filters):
 - `/players`, `/players/:playerId`
 - `/competitions`, `/competitions/:competitionId`
 
-Vite proxies `/health` and `/api` to `127.0.0.1:3000`. No client Prisma. Attributes/ratings remain F5.
+Vite proxies `/health` and `/api` to `127.0.0.1:3000`. No client Prisma. F5 Player Profile shows attributes, ratings, role, preferences, and public potential estimate.
 
 ---
 
@@ -239,9 +241,10 @@ Milestone M8 (public deployment) remains an explicit goal. See `DEPLOYMENT.md`.
 - F2 keeps Prisma types server-local; engine stays Prisma-free.
 - F3 imports are one-shot local snapshots — never live sync or browser uploads.
 - F4 list filters live in the URL; pagination stays on the server.
+- F5 derives ratings/roles in the engine on read; do not duplicate formulas in mappers or UI.
 
 ---
 
 ## Guiding Rule
 
-**Keep the engine pure and the server/client thin around it.** Database models and DTOs live in the server; simulation formulas belong in the engine when those milestones arrive.
+**Keep the engine pure and the server/client thin around it.** Database models and DTOs live in the server; player-model formulas live in `@fhm/engine` (`packages/engine/src/players`, `goalies`, `config`).

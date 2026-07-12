@@ -8,7 +8,28 @@
     "currentTeamExternalId": "team-frostbite",
     "primaryPosition": "C",
     "sourceType": "REAL_INITIAL_DATA",
-    "rosterStatus": "ACTIVE"
+    "rosterStatus": "ACTIVE",
+    "preferredCoachingStyle": "AUTHORITATIVE",
+    "preferredTactics": "SYSTEM",
+    "personality": "LEADER",
+    "heroRating": 14,
+    "stability": 13,
+    "developmentRate": 1.6,
+    "developmentRisk": 0.25,
+    "potentialFloor": 55,
+    "potentialCeiling": 82,
+    "publicPotentialEstimate": "HIGH",
+    "skaterAttributes": {
+      "stickhandling": 16,
+      "shooting": 12,
+      "passing": 15,
+      "strength": 11,
+      "speed": 16,
+      "balance": 12,
+      "aggression": 10,
+      "offensiveAwareness": 14,
+      "defensiveAwareness": 11
+    }
   },
   {
     "externalId": "player-mira-frost",
@@ -19,7 +40,28 @@
     "currentTeamExternalId": "team-frostbite",
     "primaryPosition": "LW",
     "sourceType": "REAL_INITIAL_DATA",
-    "rosterStatus": "ACTIVE"
+    "rosterStatus": "ACTIVE",
+    "preferredCoachingStyle": "DEMOCRATIC",
+    "preferredTactics": "SPEED",
+    "personality": "CREATIVE",
+    "heroRating": 11,
+    "stability": 10,
+    "developmentRate": 1.8,
+    "developmentRisk": 0.35,
+    "potentialFloor": 50,
+    "potentialCeiling": 78,
+    "publicPotentialEstimate": "STANDARD",
+    "skaterAttributes": {
+      "stickhandling": 13,
+      "shooting": 15,
+      "passing": 12,
+      "strength": 10,
+      "speed": 15,
+      "balance": 11,
+      "aggression": 9,
+      "offensiveAwareness": 16,
+      "defensiveAwareness": 10
+    }
   },
   {
     "externalId": "player-jon-quarry",
@@ -30,7 +72,28 @@
     "currentTeamExternalId": "team-cedar",
     "primaryPosition": "RD",
     "sourceType": "REAL_INITIAL_DATA",
-    "rosterStatus": "ACTIVE"
+    "rosterStatus": "ACTIVE",
+    "preferredCoachingStyle": "AUTHORITARIAN",
+    "preferredTactics": "PHYSICAL",
+    "personality": "COMPETITOR",
+    "heroRating": 12,
+    "stability": 15,
+    "developmentRate": 1.1,
+    "developmentRisk": 0.2,
+    "potentialFloor": 48,
+    "potentialCeiling": 68,
+    "publicPotentialEstimate": "STANDARD",
+    "skaterAttributes": {
+      "stickhandling": 10,
+      "shooting": 9,
+      "passing": 11,
+      "strength": 16,
+      "speed": 11,
+      "balance": 15,
+      "aggression": 15,
+      "offensiveAwareness": 9,
+      "defensiveAwareness": 17
+    }
   },
   {
     "externalId": "player-elena-drift",
@@ -41,7 +104,28 @@
     "currentTeamExternalId": "team-owls",
     "primaryPosition": "G",
     "sourceType": "REAL_INITIAL_DATA",
-    "rosterStatus": "ACTIVE"
+    "rosterStatus": "ACTIVE",
+    "preferredCoachingStyle": "DEVELOPMENTAL",
+    "preferredTactics": "SYSTEM",
+    "personality": "PROFESSIONAL",
+    "heroRating": 13,
+    "stability": 14,
+    "developmentRate": 1.4,
+    "developmentRisk": 0.28,
+    "potentialFloor": 52,
+    "potentialCeiling": 80,
+    "publicPotentialEstimate": "HIGH",
+    "goalieAttributes": {
+      "reflexes": 16,
+      "positioning": 13,
+      "reboundControl": 12,
+      "glove": 15,
+      "blocker": 13,
+      "movement": 15,
+      "puckHandling": 11,
+      "consistency": 12,
+      "stamina": 13
+    }
   },
   {
     "externalId": "player-tomas-reed",
@@ -52,7 +136,28 @@
     "currentTeamExternalId": "team-owls",
     "primaryPosition": "RW",
     "sourceType": "REAL_INITIAL_DATA",
-    "rosterStatus": "ACTIVE"
+    "rosterStatus": "ACTIVE",
+    "preferredCoachingStyle": "HANDS_OFF",
+    "preferredTactics": "FORECHECKING",
+    "personality": "GLUE",
+    "heroRating": 9,
+    "stability": 11,
+    "developmentRate": 1.5,
+    "developmentRisk": 0.4,
+    "potentialFloor": 42,
+    "potentialCeiling": 70,
+    "publicPotentialEstimate": "STANDARD",
+    "skaterAttributes": {
+      "stickhandling": 12,
+      "shooting": 13,
+      "passing": 11,
+      "strength": 12,
+      "speed": 13,
+      "balance": 12,
+      "aggression": 14,
+      "offensiveAwareness": 12,
+      "defensiveAwareness": 13
+    }
   },
   {
     "externalId": "player-noah-vale",
@@ -63,6 +168,27 @@
     "currentTeamExternalId": null,
     "primaryPosition": "LD",
     "sourceType": "REAL_INITIAL_DATA",
-    "rosterStatus": "PROSPECT"
+    "rosterStatus": "PROSPECT",
+    "preferredCoachingStyle": "DEVELOPMENTAL",
+    "preferredTactics": "COMBINATIONAL",
+    "personality": "CREATIVE",
+    "heroRating": 10,
+    "stability": 9,
+    "developmentRate": 2.1,
+    "developmentRisk": 0.45,
+    "potentialFloor": 40,
+    "potentialCeiling": 85,
+    "publicPotentialEstimate": "ELITE",
+    "skaterAttributes": {
+      "stickhandling": 14,
+      "shooting": 11,
+      "passing": 15,
+      "strength": 10,
+      "speed": 14,
+      "balance": 12,
+      "aggression": 9,
+      "offensiveAwareness": 13,
+      "defensiveAwareness": 12
+    }
   }
 ]

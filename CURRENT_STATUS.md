@@ -1,7 +1,7 @@
 # Franchise Hockey Manager — Current Status
 
 **Status:** Active
-**Last updated:** 2026-07-12
+**Last updated:** 2026-07-13
 **Repository:** `https://github.com/jeehead-cloud/franchise-hockey-manager`
 **Local repository path:** `C:\Projects\franchise-hockey-manager`
 
@@ -12,11 +12,11 @@
 
 ## 1. Current Development Phase
 
-**F4 — World Dashboard and Browsers: implemented locally (not committed in this iteration).** Read-only World Dashboard plus Teams / Players / Competitions list+detail browsers with search, filters, sort, pagination, URL query state, and loading/empty/error/404 patterns. Server adds `GET /api/world` and paginated query support on teams/players/competitions. Age is derived as of 1 July of the active WorldSeason start year.
+**F5 — Player Model Foundation: implemented locally (not committed).** Separate skater/goalie attribute models, development-profile persistence, deterministic config-driven ratings and roles in `@fhm/engine`, dataset **schemaVersion 2**, public APIs that derive ratings/roles on read without exposing hidden potential, and read-only Player Profile tabs.
 
-**Next milestone: F5 — Player Model Foundation.**
+**Next milestone: F6 — Commissioner Mode / editing** (do not start until requested).
 
-F1–F3 remain complete on `main` (`bf1d0ab`, `3e6f343`, `58adfc0`).
+F1–F4 remain complete on `main` (`bf1d0ab`, `3e6f343`, `58adfc0`, `c50ce83`).
 
 ---
 
@@ -32,23 +32,28 @@ Committed/pushed: `3e6f343`.
 
 ### F3 — World Initialization and Real Data Import (Done)
 
-Committed/pushed: `58adfc0` — local dataset import + Setup World.
+Committed/pushed: `58adfc0` — local dataset import + Setup World. F5 bumps import contract to **schemaVersion 2**.
 
-### F4 — World Dashboard and Browsers (Done locally)
+### F4 — World Dashboard and Browsers (Done)
+
+Committed/pushed: `c50ce83`.
+
+### F5 — Player Model Foundation (Done locally)
 
 Implemented:
-- `GET /api/world` summary (season, counts, structure, warnings, editions, next action)
-- Paginated/filtered `GET /api/teams|players|competitions` with allowlisted sort
-- Enriched team/player/competition detail DTOs
-- Client browsers: `/world`, `/teams`, `/teams/:id`, `/players`, `/players/:id`, `/competitions`, `/competitions/:id`
-- URL query params for list filters; fictional fixture badge on dashboard
-- Vitest `browsers.test.ts` (+ updated F2 list expectations)
+- Engine: skater/goalie types, validation, ratings, role derivation, config JSON (`player-model`, `rating-weights`, `skater-roles`, `goalie-roles`)
+- Prisma: nullable F5 profile fields on `Player`; `SkaterAttributes` / `GoalieAttributes` 1:1; migration `20260712221000_f5_player_model`
+- Import: schemaVersion 2 required; v1 rejected with migration message; complete player-model validation via engine
+- APIs: list compact F5 fields; detail `playerModel` (no hidden floor/ceiling/risk); team roster compact F5 fields
+- UI: Players list CA/role/potential/model; Player Profile tabs; Team Overview roster CA/role/model
+- Legacy: structural players without attributes → `modelStatus: INCOMPLETE`
+- Tests: 20 engine + 62 server (incl. migrations through F5)
 
-Not in F4:
-- Editing / Commissioner
-- Attributes, ratings, roles (F5)
-- Lineups, tactics, chemistry (later)
-- Standings, schedules, matches
+Not in F5:
+- Commissioner editing (F6+)
+- Annual development / aging ops (F24)
+- Role/currentAbility DB filters/sorts (deferred — derive-on-read)
+- Chemistry, tactics fit, lineups, match sim, scouting actions
 
 ### M1–M8
 
@@ -58,20 +63,23 @@ Unchanged (gameplay product milestones not started).
 
 ## 3. Known Bugs / Limitations Worth Remembering
 
-- Default dataset remains the fictional F3 fixture — not real NHL data.
+- Default dataset remains the fictional F3/F5 fixture — not real NHL data.
 - No owner-prepared production snapshot under `data/world/` yet.
-- Team Overview shows a roster preview; dedicated Roster/Lines/Tactics tabs are disabled placeholders.
-- Player Profile shows an explicit F5+ empty state for attributes (no fake values).
+- Role-rating supporting-attribute weights are an **F5 foundation balance approximation** (winning pair + two supports at 3/3/2/2); full spreadsheet branch table was not in the repo.
+- Hidden `potentialFloor` / `potentialCeiling` / `developmentRisk` are persisted but never on ordinary public player JSON.
+- Public potential is only `publicPotentialEstimate` bands (`LOW`…`ELITE`/`UNKNOWN`) — no scouting noise yet.
+- Derived role/CA filtering & sorting deferred to keep pagination DB-backed.
+- Team Overview Roster/Lines/Tactics tabs remain disabled placeholders.
+- F5 changes not yet committed/pushed.
 - SQLite `contains` search is case-sensitive depending on collation.
-- F4 changes not yet committed/pushed.
 
 ---
 
 ## 4. Nearest Next Steps
 
-1. Commit/push F4 when the owner requests.
-2. **F5 — Player Model Foundation** (attributes/ratings structure).
-3. Replace fictional fixture with owner-prepared `data/world/` when available.
+1. Commit/push F5 when the owner requests.
+2. **F6** — Commissioner Mode / structural editing (when requested).
+3. Replace fictional fixture with owner-prepared `data/world/` (schemaVersion 2) when available.
 
 ---
 
@@ -79,17 +87,21 @@ Unchanged (gameplay product milestones not started).
 
 > Ordinary repository-relevant history, newest first.
 
+### 2026-07-13 — F5 Player Model Foundation
+
+- Work completed: engine skater/goalie model; Prisma attribute relations; schemaVersion 2 import; public derived ratings/roles; Player Profile UI; engine+server tests; docs
+- Files/areas affected: `packages/engine/src/{players,goalies,config}`, Prisma F5 migration, initialization schemas/importer, `player-model` service, client players/team pages, fixture, docs
+- Validation: prisma format/validate/generate; empty→F5 migrations; 20 engine + 62 server tests; builds/typechecks; setup CLI; API smoke (see iteration report)
+- Remaining limitations or follow-up: F5 not committed; role-weight table is foundation approximation; F6 not started
+
 ### 2026-07-12 — F4 World Dashboard and Browsers
 
-- Work completed: world summary API; paginated team/player/competition browsers; detail pages; URL filter state; browser Vitest suite; docs
-- Files/areas affected: `packages/server/src/services/{world,teams,players,competitions,query}.ts`, domain routes, client pages/components, docs
-- Validation: prisma format/validate/generate; 57 server tests; typecheck/build; API + UI smoke on disposable DB
-- Remaining limitations or follow-up: F4 not committed; F5 not started
+- Work completed: world summary API; paginated browsers; committed/pushed `c50ce83`
+- Remaining limitations or follow-up: was next F5
 
 ### 2026-07-12 — F3 World Initialization committed
 
 - Work completed: F3 import boundary committed/pushed `58adfc0`
-- Remaining limitations or follow-up: next was F4
 
 ### 2026-07-12 — F2 foundational schema committed
 
@@ -105,12 +117,17 @@ Unchanged (gameplay product milestones not started).
 
 > Permanent history, newest first.
 
+### 2026-07-13 — F5 player-model foundation (skater/goalie split)
+
+- Significance: First simulation-ready attribute/role/rating model; import contract schemaVersion 2; hidden vs public potential boundary
+- Decision or milestone: Persist attributes + development profile; derive ratings/roles in engine on read; 1–20 attributes / 0–100 ratings; goalies never use skater attrs; roles from config pairs/profiles; incomplete legacy players stay readable
+- Lasting impact: Later development, chemistry, scouting, and sim must consume this model rather than invent parallel overalls
+- Related files/areas: `@fhm/engine` players/goalies/config; Prisma `SkaterAttributes`/`GoalieAttributes`; dataset schemaVersion 2
+
 ### 2026-07-12 — F4 read-only world browsers
 
 - Significance: First usable inspection UI for the living hockey world after initialization
-- Decision or milestone: Server-side pagination/filters; URL-reproducible list state; age vs WorldSeason July 1; no F5 placeholder attributes
-- Lasting impact: Later milestones extend browsers rather than inventing parallel data access patterns
-- Related files/areas: `/api/world`, paginated teams/players/competitions, client browser pages
+- Related files/areas: commit `c50ce83`
 
 ### 2026-07-12 — F3 one-time local world initialization boundary
 

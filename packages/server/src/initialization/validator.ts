@@ -1,4 +1,5 @@
 import type { LoadedDataset, ValidationIssue, ValidationReport } from './types.js';
+import { derivePlayerModel } from '@fhm/engine';
 
 function push(
   errors: ValidationIssue[],
@@ -152,6 +153,48 @@ export function validateDataset(dataset: LoadedDataset): ValidationReport {
         severity: 'warning',
         code: 'NON_INITIAL_SOURCE_TYPE',
         message: `Player "${player.externalId}" sourceType is ${player.sourceType}; initial imports normally use REAL_INITIAL_DATA`,
+        file: manifest.files.players,
+        externalId: player.externalId,
+      });
+    }
+
+    try {
+      if (player.primaryPosition === 'G' && player.goalieAttributes) {
+        derivePlayerModel({
+          primaryPosition: 'G',
+          goalieAttributes: player.goalieAttributes,
+          preferredCoachingStyle: player.preferredCoachingStyle,
+          preferredTactics: player.preferredTactics,
+          personality: player.personality,
+          heroRating: player.heroRating,
+          stability: player.stability,
+          developmentRate: player.developmentRate,
+          developmentRisk: player.developmentRisk,
+          potentialFloor: player.potentialFloor,
+          potentialCeiling: player.potentialCeiling,
+          publicPotentialEstimate: player.publicPotentialEstimate,
+        });
+      } else if (player.skaterAttributes) {
+        derivePlayerModel({
+          primaryPosition: player.primaryPosition as 'LW' | 'RW' | 'C' | 'LD' | 'RD',
+          skaterAttributes: player.skaterAttributes,
+          preferredCoachingStyle: player.preferredCoachingStyle,
+          preferredTactics: player.preferredTactics,
+          personality: player.personality,
+          heroRating: player.heroRating,
+          stability: player.stability,
+          developmentRate: player.developmentRate,
+          developmentRisk: player.developmentRisk,
+          potentialFloor: player.potentialFloor,
+          potentialCeiling: player.potentialCeiling,
+          publicPotentialEstimate: player.publicPotentialEstimate,
+        });
+      }
+    } catch (err) {
+      push(errors, warnings, {
+        severity: 'error',
+        code: 'PLAYER_MODEL_INVALID',
+        message: `Player "${player.externalId}" model invalid: ${err instanceof Error ? err.message : 'unknown'}`,
         file: manifest.files.players,
         externalId: player.externalId,
       });

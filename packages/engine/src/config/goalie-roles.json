@@ -1,0 +1,45 @@
+{
+  "notes": "F5 foundation goalie role profiles. Deterministic weighted scores; highest wins; alphabetical role key breaks ties.",
+  "labels": {
+    "REFLEX_GOALIE": "Reflex Goalie",
+    "POSITIONAL_GOALIE": "Positional Goalie",
+    "HYBRID_GOALIE": "Hybrid Goalie",
+    "PUCK_PLAYING_GOALIE": "Puck-Playing Goalie"
+  },
+  "profiles": {
+    "REFLEX_GOALIE": {
+      "reflexes": 3,
+      "movement": 3,
+      "glove": 2,
+      "blocker": 2,
+      "stamina": 1
+    },
+    "POSITIONAL_GOALIE": {
+      "positioning": 3,
+      "reboundControl": 3,
+      "consistency": 2,
+      "blocker": 2,
+      "stamina": 1
+    },
+    "HYBRID_GOALIE": {
+      "reflexes": 2,
+      "positioning": 2,
+      "movement": 2,
+      "reboundControl": 2,
+      "consistency": 2
+    },
+    "PUCK_PLAYING_GOALIE": {
+      "puckHandling": 3,
+      "movement": 3,
+      "positioning": 2,
+      "consistency": 2,
+      "reflexes": 1
+    }
+  },
+  "roleRatings": {
+    "REFLEX_GOALIE": { "attrs": ["reflexes", "movement", "glove", "blocker"], "weights": [3, 3, 2, 2] },
+    "POSITIONAL_GOALIE": { "attrs": ["positioning", "reboundControl", "consistency", "blocker"], "weights": [3, 3, 2, 2] },
+    "HYBRID_GOALIE": { "attrs": ["reflexes", "positioning", "movement", "reboundControl"], "weights": [3, 3, 2, 2] },
+    "PUCK_PLAYING_GOALIE": { "attrs": ["puckHandling", "movement", "positioning", "consistency"], "weights": [3, 3, 2, 2] }
+  }
+}

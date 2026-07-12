@@ -22,7 +22,8 @@
     "setup:status": "npm run setup:status --workspace=@fhm/server",
     "setup:preview": "npm run setup:preview --workspace=@fhm/server",
     "setup:validate": "npm run setup:validate --workspace=@fhm/server",
-    "test": "npm run test --workspace=@fhm/server",
+    "test": "npm run test --workspace=@fhm/engine && npm run test --workspace=@fhm/server",
+    "test:engine": "npm run test --workspace=@fhm/engine",
     "test:server": "npm run test --workspace=@fhm/server"
   },
   "devDependencies": {

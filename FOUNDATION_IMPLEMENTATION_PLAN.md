@@ -470,6 +470,10 @@ Show:
 
 Implement the real player model used by future simulation.
 
+## Status
+
+**Implemented locally (2026-07-13)** — see `CURRENT_STATUS.md` and `PLAYER_MODEL.md` §0. Not committed until the owner requests.
+
 ## Scope
 
 ### Skaters
@@ -503,27 +507,26 @@ STA
 ### Shared Fields
 
 - position;
-- secondary positions;
-- age;
+- age (derived);
 - nationality;
 - current team;
 - source type;
 - preferences;
 - personality;
 - hero rating;
-- form;
 - stability;
 - hidden potential range;
-- development risk.
+- development risk;
+- public potential estimate.
 
 ### Derived Values
 
 - current ability;
 - offensive rating;
-- defensive rating;
+- defensive rating (skaters);
 - role rating;
 - role;
-- potential estimate.
+- public potential estimate (not hidden floor/ceiling).
 
 ## Deliverables
 

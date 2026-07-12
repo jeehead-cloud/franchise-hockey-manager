@@ -17,7 +17,7 @@ npm run db:generate --workspace=@fhm/server
 npm run db:migrate --workspace=@fhm/server
 ```
 
-`db:migrate` applies Prisma migrations to local SQLite (`packages/server/prisma/dev.db`). F1 AppMeta → F2 domain entities → F3 source metadata + init fields. Do not commit `*.db` files.
+`db:migrate` applies Prisma migrations to local SQLite (`packages/server/prisma/dev.db`). F1 AppMeta → F2 domain → F3 source metadata → **F5 player model**. Do not commit `*.db` files.
 
 ## Run locally
 
@@ -41,7 +41,7 @@ npm run dev:client
 
 ### World dataset
 
-Default dataset: `data/fixtures/f3-minimal-world/` (fictional development fixture).
+Default dataset: `data/fixtures/f3-minimal-world/` (fictional development fixture, **schemaVersion 2** with complete F5 player models).
 
 Override:
 
@@ -62,16 +62,17 @@ Initialize only against an empty disposable database (duplicate init is blocked)
 ## Tests
 
 ```powershell
+npm run test:engine
 npm run test:server
 ```
 
-Vitest uses isolated temporary SQLite databases (does not mutate the normal `dev.db` except when you run migrate yourself).
+Vitest uses isolated temporary SQLite databases for server tests (does not mutate the normal `dev.db` except when you run migrate yourself).
 
 ## Packages
 
 | Package | Role |
 |---|---|
-| `@fhm/engine` | Pure simulation/generation logic (currently wiring export only) |
+| `@fhm/engine` | Pure simulation/generation logic (F5 player model: attributes, ratings, roles) |
 | `@fhm/server` | Fastify + Prisma + SQLite REST API + world import |
 | `@fhm/client` | React + Vite shell using Atlas design tokens |
 

@@ -227,7 +227,61 @@ export interface TeamDetail extends TeamListItem {
   roster: PlayerListItem[];
 }
 
-export interface PlayerListItem {
+export type PlayerModelStatus = 'COMPLETE' | 'INCOMPLETE';
+
+export interface PlayerModelCompact {
+  modelStatus: PlayerModelStatus;
+  currentAbility: number | null;
+  role: string | null;
+  roleLabel: string | null;
+  roleRating: number | null;
+  publicPotentialEstimate: string;
+}
+
+export type PlayerModelDetail =
+  | {
+      modelStatus: 'INCOMPLETE';
+      message: string;
+    }
+  | {
+      modelStatus: 'COMPLETE';
+      kind: 'skater';
+      attributes: Record<string, number>;
+      currentAbility: number;
+      offensiveRating: number;
+      defensiveRating: number;
+      role: string;
+      roleLabel: string;
+      roleRating: number;
+      roleExplanation: string;
+      winningPair?: { a: string; b: string };
+      preferredCoachingStyle: string;
+      preferredTactics: string;
+      personality: string;
+      heroRating: number;
+      stability: number;
+      developmentRate: number;
+      publicPotentialEstimate: string;
+    }
+  | {
+      modelStatus: 'COMPLETE';
+      kind: 'goalie';
+      attributes: Record<string, number>;
+      currentAbility: number;
+      role: string;
+      roleLabel: string;
+      roleRating: number;
+      roleExplanation: string;
+      preferredCoachingStyle: string;
+      preferredTactics: string;
+      personality: string;
+      heroRating: number;
+      stability: number;
+      developmentRate: number;
+      publicPotentialEstimate: string;
+    };
+
+export interface PlayerListItem extends PlayerModelCompact {
   id: string;
   firstName: string;
   lastName: string;
@@ -252,6 +306,7 @@ export interface PlayerDetail extends PlayerListItem {
     country?: CountryRef;
     league?: LeagueRef | null;
   } | null;
+  playerModel: PlayerModelDetail;
 }
 
 export interface CompetitionListItem {
