@@ -34,6 +34,10 @@ function emptySkater(
     shotsOnGoal: 0,
     blocks: 0,
     timeOnIceSeconds: 0,
+    penaltyMinutes: 0,
+    penaltiesTaken: 0,
+    powerPlayGoals: 0,
+    shortHandedGoals: 0,
   };
 }
 
@@ -71,6 +75,15 @@ function emptyTeam(teamId: string, side: 'HOME' | 'AWAY'): TeamStats {
     possessionSeconds: 0,
     offensiveZoneSeconds: 0,
     defensiveZoneSeconds: 0,
+    penalties: 0,
+    penaltyMinutes: 0,
+    powerPlayOpportunities: 0,
+    powerPlayGoals: 0,
+    powerPlayPercentage: 0,
+    penaltyKillOpportunities: 0,
+    penaltyKills: 0,
+    penaltyKillPercentage: 0,
+    shortHandedGoals: 0,
   };
 }
 
@@ -135,6 +148,28 @@ function accumulateToiFromShifts(
       credit(open.startElapsed, e.elapsedSeconds, open.period, open.playerIds);
       open = null;
     }
+  }
+}
+
+function computePenaltyKills(events: MatchEvent[], teamById: Map<string, TeamStats>): void {
+  const penaltyEvents = events.filter((e) => e.type === 'PENALTY');
+  const ppGoalSequences = new Set<number>();
+  for (const g of events) {
+    if (g.type !== 'GOAL') continue;
+    if (g.details.goalStrength !== 'POWER_PLAY') continue;
+    const seq = Number(g.details.activePenaltySequenceId);
+    if (Number.isFinite(seq) && seq > 0) {
+      ppGoalSequences.add(seq);
+    }
+  }
+
+  for (const p of penaltyEvents) {
+    const seq = Number(p.details.penaltySequenceId);
+    if (!Number.isFinite(seq) || seq <= 0) continue;
+    if (ppGoalSequences.has(seq)) continue;
+    const penalizedTeamId = String(p.details.penalizedTeamId ?? p.teamId ?? '');
+    const pkTeam = teamById.get(penalizedTeamId);
+    if (pkTeam) pkTeam.penaltyKills += 1;
   }
 }
 
@@ -207,6 +242,25 @@ export function reduceStatistics(
       if (t) t.faceoffWins += 1;
     }
 
+    if (e.type === 'PENALTY') {
+      const penalizedPlayerId = String(e.details.penalizedPlayerId ?? e.playerIds[0] ?? '');
+      const penalizedTeamId = String(e.details.penalizedTeamId ?? e.teamId ?? '');
+      const advantagedTeamId = String(e.details.advantagedTeamId ?? '');
+      const sk = skaters.get(penalizedPlayerId);
+      if (sk) {
+        sk.penaltiesTaken += 1;
+        sk.penaltyMinutes += 2;
+      }
+      const penalizedTeam = teamById.get(penalizedTeamId);
+      if (penalizedTeam) {
+        penalizedTeam.penalties += 1;
+        penalizedTeam.penaltyMinutes += 2;
+        penalizedTeam.penaltyKillOpportunities += 1;
+      }
+      const advantagedTeam = teamById.get(advantagedTeamId);
+      if (advantagedTeam) advantagedTeam.powerPlayOpportunities += 1;
+    }
+
     if (e.type === 'SHOT') {
       const shooterId = String(e.details.shooterId ?? e.playerIds[0] ?? '');
       const shootingTeamId = String(e.details.shootingTeamId ?? e.teamId ?? '');
@@ -227,10 +281,6 @@ export function reduceStatistics(
       if (sk) sk.blockedAttempts += 1;
       const blocker = skaters.get(blockerId);
       if (blocker) blocker.blocks += 1;
-      const attacking = teamById.get(attackingTeamId);
-      if (attacking) {
-        // blocked attempt already counted on SHOT; track against as blockedShotsAgainst on defending
-      }
       const defendingTeamId = String(e.details.defendingTeamId ?? '');
       const defending = teamById.get(defendingTeamId);
       if (defending) defending.blockedShotsAgainst += 1;
@@ -273,6 +323,7 @@ export function reduceStatistics(
       const scorerId = String(e.details.scorerId ?? e.playerIds[0] ?? '');
       const goalieId = String(e.details.goalieId ?? '');
       const scoringTeamId = String(e.details.scoringTeamId ?? e.teamId ?? '');
+      const goalStrength = String(e.details.goalStrength ?? 'EVEN_STRENGTH');
       const primaryAssistId =
         e.details.primaryAssistId == null ? null : String(e.details.primaryAssistId);
       const secondaryAssistId =
@@ -283,6 +334,8 @@ export function reduceStatistics(
         scorer.goals += 1;
         scorer.shotsOnGoal += 1;
         scorer.points += 1;
+        if (goalStrength === 'POWER_PLAY') scorer.powerPlayGoals += 1;
+        if (goalStrength === 'SHORT_HANDED') scorer.shortHandedGoals += 1;
       }
       if (primaryAssistId) {
         const a = skaters.get(primaryAssistId);
@@ -311,6 +364,8 @@ export function reduceStatistics(
       if (scoring) {
         scoring.goals += 1;
         scoring.shotsOnGoal += 1;
+        if (goalStrength === 'POWER_PLAY') scoring.powerPlayGoals += 1;
+        if (goalStrength === 'SHORT_HANDED') scoring.shortHandedGoals += 1;
       }
 
       const bucket = periodGoalCounts.get(e.period) ?? { home: 0, away: 0 };
@@ -321,15 +376,19 @@ export function reduceStatistics(
   }
 
   accumulateToiFromShifts(input, events, skaters, goalies);
+  computePenaltyKills(events, teamById);
 
   home.shootingPercentage = pct(home.goals, home.shotsOnGoal);
   away.shootingPercentage = pct(away.goals, away.shotsOnGoal);
+  home.powerPlayPercentage = pct(home.powerPlayGoals, home.powerPlayOpportunities);
+  away.powerPlayPercentage = pct(away.powerPlayGoals, away.powerPlayOpportunities);
+  home.penaltyKillPercentage = pct(home.penaltyKills, home.penaltyKillOpportunities);
+  away.penaltyKillPercentage = pct(away.penaltyKills, away.penaltyKillOpportunities);
 
   for (const g of goalies.values()) {
     g.savePercentage = pct(g.saves, g.shotsAgainst);
   }
 
-  // Prefer final score as authority for team goals if events somehow diverge (reconciliation will catch)
   void finalState;
 
   const skaterList = [...skaters.values()].sort((a, b) => {

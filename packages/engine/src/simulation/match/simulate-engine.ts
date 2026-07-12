@@ -1,21 +1,31 @@
-import type { MatchBalanceSection } from '../../balance/types.js';
-import { isF12CompatibleBalanceConfig } from '../../balance/schema.js';
+import type { MatchBalanceSection, PenaltiesBalanceSection } from '../../balance/types.js';
+import { isF13CompatibleBalanceConfig } from '../../balance/schema.js';
 import {
   FHM_ENGINE_VERSION,
-  FORBIDDEN_F13_EVENT_TYPES,
+  FORBIDDEN_F14_EVENT_TYPES,
   SNAPSHOT_SCHEMA_VERSION,
 } from './constants.js';
 import { IllegalStateTransitionError, InvalidSnapshotError, SafetyLimitExceededError } from './errors.js';
 import { getMatchConfig, validateSimulationInput } from './input.js';
 import { computeTraceHash } from './hash.js';
+import {
+  getPenaltiesConfig,
+  maybeAssessPenalty,
+  applyPenaltyClock,
+  clampTimeCostForPenalty,
+  expireActivePenalty,
+} from './penalties.js';
 import { createRng, nextFloat, nextInt, chance, weightedPick, pick } from './rng.js';
 import {
   computeShotOpportunityProbability,
   createShotAttempt,
   resolvePendingShot,
+  clamp,
 } from './shots.js';
 import { reduceStatistics } from './statistics.js';
 import { reconcileStatistics } from './reconciliation.js';
+import { selectSpecialTeamLines, specialTeamUnitEp } from './special-teams.js';
+import { isPowerPlayForSide, isShortHandedForSide } from './strength-state.js';
 import type {
   ActiveLines,
   MatchEvent,
@@ -52,7 +62,7 @@ function makeEvent(
     playerIds: extra.playerIds ?? [],
     zone: extra.zone ?? state.zone,
     possession: extra.possession ?? state.possession,
-    strengthState: 'EVEN_5V5',
+    strengthState: state.strengthState,
     shiftNumber: state.currentShift?.shiftNumber ?? null,
     visibility:
       extra.visibility ??
@@ -62,7 +72,9 @@ function makeEvent(
       type === 'SAVE' ||
       type === 'SHOT' ||
       type === 'SHOT_BLOCKED' ||
-      type === 'SHOT_MISSED'
+      type === 'SHOT_MISSED' ||
+      type === 'PENALTY' ||
+      type === 'PENALTY_EXPIRED'
         ? 'PUBLIC'
         : 'TECHNICAL'),
     details: extra.details ?? {},
@@ -70,12 +82,14 @@ function makeEvent(
 }
 
 function advanceClock(state: MatchState, seconds: number, periodDuration: number): MatchState {
-  const elapsed = Math.min(periodDuration, state.clockElapsedSeconds + Math.max(0, seconds));
-  return {
+  const advance = Math.max(0, seconds);
+  const elapsed = Math.min(periodDuration, state.clockElapsedSeconds + advance);
+  const next = {
     ...state,
     clockElapsedSeconds: elapsed,
     clockRemainingSeconds: Math.max(0, periodDuration - elapsed),
   };
+  return applyPenaltyClock(next, elapsed - state.clockElapsedSeconds);
 }
 
 function teamIdForSide(input: SimulationInput, side: PossessionSide): string | null {
@@ -84,9 +98,31 @@ function teamIdForSide(input: SimulationInput, side: PossessionSide): string | n
   return null;
 }
 
-function unitEp(input: SimulationInput, side: PossessionSide, lines: ActiveLines, skater: boolean): number {
+function unitEp(
+  input: SimulationInput,
+  side: PossessionSide,
+  lines: ActiveLines,
+  skater: boolean,
+  state: MatchState,
+): number {
   const team = side === 'HOME' ? input.homeTeam : input.awayTeam;
   if (skater) {
+    if (
+      state.activePenalty &&
+      isF13CompatibleBalanceConfig(input.balance.snapshot) &&
+      (side === 'HOME' || side === 'AWAY')
+    ) {
+      const lineKey = side === 'HOME' ? lines.homeForwardLineKey : lines.awayForwardLineKey;
+      if (lineKey === 'PP' || lineKey === 'PK') {
+        return specialTeamUnitEp(
+          input,
+          side,
+          lines,
+          lineKey,
+          getPenaltiesConfig(input),
+        );
+      }
+    }
     const fk = side === 'HOME' ? lines.homeForwardLineKey : lines.awayForwardLineKey;
     const dk = side === 'HOME' ? lines.homeDefensePairKey : lines.awayDefensePairKey;
     const f = team.forwardLines.find((u) => u.unitKey === fk)?.effectivePerformance ?? 50;
@@ -97,6 +133,10 @@ function unitEp(input: SimulationInput, side: PossessionSide, lines: ActiveLines
 }
 
 function selectLines(input: SimulationInput, state: MatchState, cfg: MatchBalanceSection): { lines: ActiveLines; rng: MatchState['rng'] } {
+  if (state.activePenalty && isF13CompatibleBalanceConfig(input.balance.snapshot)) {
+    const selected = selectSpecialTeamLines(input, state, getPenaltiesConfig(input));
+    return { lines: selected.lines, rng: state.rng };
+  }
   let rng = state.rng;
   const pickLine = (team: typeof input.homeTeam, side: 'home' | 'away') => {
     const fk = weightedPick(rng, cfg.forwardLineUsageWeights as Record<string, number>);
@@ -167,6 +207,32 @@ function boundedCompare(att: number, def: number, homeBonus: number, isHomeAttac
   return Math.min(0.92, Math.max(0.08, p));
 }
 
+function possessionCompare(
+  attEp: number,
+  defEp: number,
+  matchCfg: MatchBalanceSection,
+  isHomeAttacking: boolean,
+  attackingSide: PossessionSide,
+  state: MatchState,
+  penaltiesCfg: PenaltiesBalanceSection | null,
+): number {
+  let p = boundedCompare(attEp, defEp, matchCfg.homeIcePossessionBonus, isHomeAttacking);
+  if (penaltiesCfg && state.activePenalty && attackingSide !== 'NONE') {
+    if (isPowerPlayForSide(state.strengthState, attackingSide)) {
+      p = Math.min(0.92, p * (1 + penaltiesCfg.powerPlayPossessionModifier));
+    } else if (isShortHandedForSide(state.strengthState, attackingSide)) {
+      p = Math.max(0.08, p * (1 + penaltiesCfg.penaltyKillPossessionModifier));
+    }
+  }
+  return p;
+}
+
+function contestPressure(zone: PossessionZone): number {
+  if (zone === 'OFFENSIVE') return 0.85;
+  if (zone === 'NEUTRAL') return 0.5;
+  return 0.35;
+}
+
 export function createInitialMatchState(input: SimulationInput): MatchState {
   validateSimulationInput(input);
   getMatchConfig(input);
@@ -190,6 +256,9 @@ export function createInitialMatchState(input: SimulationInput): MatchState {
     passChainPlayerIds: [],
     pendingShot: null,
     shotSequenceId: 0,
+    activePenalty: null,
+    penaltySequenceId: 0,
+    lastPenaltyEndedRegulationSeconds: null,
   };
 }
 
@@ -205,7 +274,7 @@ function emit(
   if (state.safetyEventsEmitted >= cfg.eventSafetyLimit) {
     throw new SafetyLimitExceededError(`Event safety limit ${cfg.eventSafetyLimit} exceeded`);
   }
-  if (FORBIDDEN_F13_EVENT_TYPES.includes(type as never)) {
+  if (FORBIDDEN_F14_EVENT_TYPES.includes(type as never)) {
     throw new IllegalStateTransitionError(`Forbidden event type ${type}`);
   }
   const ev = makeEvent(state, input, type, extra);
@@ -215,9 +284,26 @@ function emit(
     safetyEventsEmitted: state.safetyEventsEmitted + 1,
   };
   if (timeCost > 0) {
-    next = advanceClock(next, timeCost, input.rules.periodDurationSeconds);
+    const effectiveTimeCost = clampTimeCostForPenalty(state, timeCost);
+    next = advanceClock(next, effectiveTimeCost, input.rules.periodDurationSeconds);
   }
   return { state: next, events: [...events, ev] };
+}
+
+function afterPossessionContest(
+  input: SimulationInput,
+  result: { state: MatchState; events: MatchEvent[] },
+  defendingSide: 'HOME' | 'AWAY',
+  pressure: number,
+): { state: MatchState; events: MatchEvent[] } {
+  const assessed = maybeAssessPenalty(input, result.state, result.events, emit, {
+    defendingSide,
+    pressure,
+  });
+  if (assessed.assessed) {
+    return { state: assessed.state, events: assessed.events };
+  }
+  return result;
 }
 
 function startShift(input: SimulationInput, state: MatchState, events: MatchEvent[]): { state: MatchState; events: MatchEvent[] } {
@@ -238,7 +324,12 @@ function startShift(input: SimulationInput, state: MatchState, events: MatchEven
   };
   let s: MatchState = { ...state, rng: r, currentShift: shift, shiftElapsedSeconds: 0, phase: 'IN_SHIFT', simulationStatus: 'IN_PROGRESS' };
   const out = emit(input, s, events, 'SHIFT_START', {
-    details: { lines, plannedDurationSeconds: planned },
+    details: {
+      lines,
+      plannedDurationSeconds: planned,
+      strengthState: s.strengthState,
+      activePenaltySequenceId: s.activePenalty?.penaltySequenceId ?? null,
+    },
     playerIds: [
       ...lines.homeForwardPlayerIds,
       ...lines.homeDefensePlayerIds,
@@ -260,9 +351,12 @@ function resolvePossessionAction(input: SimulationInput, state: MatchState, even
   const lines = state.currentShift.lines;
   const atk = state.possession;
   const def: PossessionSide = atk === 'HOME' ? 'AWAY' : 'HOME';
-  const attEp = unitEp(input, atk, lines, true);
-  const defEp = unitEp(input, def, lines, true);
+  const attEp = unitEp(input, atk, lines, true, state);
+  const defEp = unitEp(input, def, lines, true, state);
   const isHomeAttacking = atk === 'HOME';
+  const penaltiesCfg = isF13CompatibleBalanceConfig(input.balance.snapshot)
+    ? input.balance.snapshot.penalties
+    : null;
   let rng = state.rng;
   const z = cfg.zoneTransitionWeights;
   const durationRoll = nextInt(rng, cfg.minimumPossessionSeconds, cfg.maximumPossessionSeconds);
@@ -270,21 +364,23 @@ function resolvePossessionAction(input: SimulationInput, state: MatchState, even
   let timeCost = Math.min(durationRoll.value, periodRemaining(state, cfg.periodDurationSeconds));
 
   if (state.zone === 'NEUTRAL') {
-    const p = boundedCompare(attEp, defEp, cfg.homeIcePossessionBonus, isHomeAttacking) * z.neutralZoneEntry;
+    const p =
+      possessionCompare(attEp, defEp, cfg, isHomeAttacking, atk, state, penaltiesCfg) * z.neutralZoneEntry;
     const roll = chance(rng, p);
     rng = roll.rng;
     if (roll.value) {
       let s = { ...state, rng, zone: 'OFFENSIVE' as PossessionZone, possession: atk };
       const out = emit(input, s, events, 'ZONE_ENTRY', { teamId: teamIdForSide(input, atk), zone: 'OFFENSIVE', possession: atk }, timeCost);
-      return { state: out.state, events: out.events };
+      return afterPossessionContest(input, { state: out.state, events: out.events }, def, contestPressure('NEUTRAL'));
     }
     const s = { ...state, rng, possession: def, zone: 'OFFENSIVE' as PossessionZone };
     const out = emit(input, s, events, 'TURNOVER', { teamId: teamIdForSide(input, def), zone: 'OFFENSIVE', possession: def }, timeCost);
-    return { state: out.state, events: out.events };
+    return afterPossessionContest(input, { state: out.state, events: out.events }, def, contestPressure('NEUTRAL'));
   }
 
   if (state.zone === 'DEFENSIVE') {
-    const p = boundedCompare(attEp, defEp, cfg.homeIcePossessionBonus, isHomeAttacking) * z.defensiveZoneExit;
+    const p =
+      possessionCompare(attEp, defEp, cfg, isHomeAttacking, atk, state, penaltiesCfg) * z.defensiveZoneExit;
     const roll = chance(rng, p);
     rng = roll.rng;
     if (roll.value) {
@@ -294,18 +390,26 @@ function resolvePossessionAction(input: SimulationInput, state: MatchState, even
     }
     const s = { ...state, rng, possession: def, zone: 'DEFENSIVE' as PossessionZone };
     const out = emit(input, s, events, 'TURNOVER', { teamId: teamIdForSide(input, def), zone: 'DEFENSIVE', possession: def }, timeCost);
-    return { state: out.state, events: out.events };
+    return afterPossessionContest(input, { state: out.state, events: out.events }, def, contestPressure('DEFENSIVE'));
   }
 
   // OFFENSIVE
-  if (isF12CompatibleBalanceConfig(input.balance.snapshot)) {
+  if (isF13CompatibleBalanceConfig(input.balance.snapshot)) {
     const matchCfg = input.balance.snapshot.match;
-    const shotOppP = computeShotOpportunityProbability(
+    let shotOppP = computeShotOpportunityProbability(
       attEp,
       defEp,
       matchCfg,
       input.balance.snapshot.shots,
     );
+    if (penaltiesCfg) {
+      if (isPowerPlayForSide(state.strengthState, atk)) {
+        shotOppP *= 1 + penaltiesCfg.powerPlayShotOpportunityModifier;
+      } else if (isShortHandedForSide(state.strengthState, atk)) {
+        shotOppP *= 1 + penaltiesCfg.shortHandedShotOpportunityModifier;
+      }
+      shotOppP = clamp(shotOppP, 0.05, 0.75);
+    }
     const continuedP = matchCfg.offensiveZoneContinuedPossessionProbability;
     const turnoverP = cfg.turnoverBaseProbability * z.offensiveTurnover;
     const stoppageP = z.offensiveStoppage;
@@ -332,7 +436,12 @@ function resolvePossessionAction(input: SimulationInput, state: MatchState, even
         { teamId: teamIdForSide(input, def), zone: 'DEFENSIVE', possession: def },
         0,
       );
-      return { state: out.state, events: out.events };
+      return afterPossessionContest(
+        input,
+        { state: out.state, events: out.events },
+        def,
+        contestPressure('OFFENSIVE'),
+      );
     }
     if (r < shotOppP + turnoverP + stoppageP) {
       const next = {
@@ -393,7 +502,12 @@ function resolvePossessionAction(input: SimulationInput, state: MatchState, even
   if (roll.value < turnoverP) {
     const s = { ...state, rng, possession: def, zone: 'DEFENSIVE' as PossessionZone };
     const out = emit(input, s, events, 'TURNOVER', { teamId: teamIdForSide(input, def), zone: 'DEFENSIVE', possession: def }, timeCost);
-    return { state: out.state, events: out.events };
+    return afterPossessionContest(
+      input,
+      { state: out.state, events: out.events },
+      def,
+      contestPressure('OFFENSIVE'),
+    );
   }
   if (roll.value < turnoverP + stoppageP) {
     const s = { ...state, rng, possession: 'NONE' as PossessionSide, zone: null, phase: 'AWAITING_STOPPAGE_FACEOFF' as const };
@@ -466,6 +580,11 @@ export function simulateNextEvent(input: SimulationInput, state: MatchState, exi
       }, cfg.stoppageSeconds);
       s = out.state;
       events = out.events;
+      if (!s.currentShift) {
+        const shiftStart = startShift(input, s, events);
+        s = shiftStart.state;
+        events = shiftStart.events;
+      }
       const pg = emit(input, s, events, 'POSSESSION_GAIN', { teamId: teamIdForSide(input, side), zone: 'NEUTRAL', possession: side }, 0);
       s = pg.state;
       events = pg.events;
@@ -480,6 +599,12 @@ export function simulateNextEvent(input: SimulationInput, state: MatchState, exi
         const resolved = resolvePendingShot(input, s, events);
         s = resolved.state;
         events = resolved.events;
+        break;
+      }
+      if (s.activePenalty && s.activePenalty.remainingSeconds <= 0) {
+        const expired = expireActivePenalty(input, s, events, 'EXPIRED', emit);
+        s = expired.state;
+        events = expired.events;
         break;
       }
       const shift = s.currentShift!;
@@ -513,11 +638,23 @@ export function simulateNextEvent(input: SimulationInput, state: MatchState, exi
       break;
     }
     case 'AWAITING_REGULATION_END': {
-      const out = emit(input, s, events, 'REGULATION_END', { visibility: 'PUBLIC', details: { score: s.score } });
+      // Open penalties at regulation end count as successful PKs in stats (no PENALTY_EXPIRED event).
+      const openPenalty = s.activePenalty;
+      const regulationDetails: Record<string, unknown> = { score: s.score };
+      if (openPenalty && !openPenalty.powerPlayGoalScored) {
+        regulationDetails.openPenaltyResolvedAsKill = true;
+        regulationDetails.openPenaltySequenceId = openPenalty.penaltySequenceId;
+      }
+      const out = emit(input, s, events, 'REGULATION_END', {
+        visibility: 'PUBLIC',
+        details: regulationDetails,
+      });
       s = {
         ...out.state,
         phase: 'COMPLETE',
         simulationStatus: 'REGULATION_COMPLETE',
+        activePenalty: openPenalty && !openPenalty.powerPlayGoalScored ? null : s.activePenalty,
+        strengthState: openPenalty && !openPenalty.powerPlayGoalScored ? 'EVEN_5V5' : s.strengthState,
       };
       events = out.events;
       return { state: s, events, completed: true };
@@ -716,6 +853,22 @@ export function computeDiagnostics(
     .slice(0, 5)
     .map((s) => ({ playerId: s.playerId, shotsOnGoal: s.shotsOnGoal, goals: s.goals }));
 
+  const penaltyEvents = events.filter((e) => e.type === 'PENALTY');
+  const penaltiesByInfraction: Record<string, number> = {};
+  for (const p of penaltyEvents) {
+    const inf = String(p.details.infraction ?? 'UNKNOWN');
+    penaltiesByInfraction[inf] = (penaltiesByInfraction[inf] ?? 0) + 1;
+  }
+  const ppGoals = events.filter(
+    (e) => e.type === 'GOAL' && e.details.goalStrength === 'POWER_PLAY',
+  ).length;
+  const shGoals = events.filter(
+    (e) => e.type === 'GOAL' && e.details.goalStrength === 'SHORT_HANDED',
+  ).length;
+  const evenStrengthGoals = goals - ppGoals - shGoals;
+  const ppOpportunities = stats.home.powerPlayOpportunities + stats.away.powerPlayOpportunities;
+  const totalPpGoals = stats.home.powerPlayGoals + stats.away.powerPlayGoals;
+
   return {
     totalEvents: events.length,
     eventsByType,
@@ -749,6 +902,13 @@ export function computeDiagnostics(
       savePercentage: g.savePercentage,
     })),
     reconciliationOk,
+    penalties: penaltyEvents.length,
+    powerPlayOpportunities: ppOpportunities,
+    powerPlayGoals: totalPpGoals,
+    powerPlayPercentage: ppOpportunities > 0 ? totalPpGoals / ppOpportunities : 0,
+    shortHandedGoals: shGoals,
+    penaltiesByInfraction,
+    evenStrengthGoals,
   };
 }
 

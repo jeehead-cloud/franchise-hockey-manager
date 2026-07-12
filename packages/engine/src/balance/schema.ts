@@ -1,12 +1,14 @@
 import { z } from 'zod';
 import {
   BALANCE_SCHEMA_VERSION,
+  PENALTY_INFRACTIONS,
   SHOT_TYPES,
   type BalanceConfig,
   type BalanceValidationIssue,
   type BalanceValidationResult,
   type GoaliesBalanceSection,
   type MatchBalanceSection,
+  type PenaltiesBalanceSection,
   type RuntimeSimulationSettings,
   type ShotsBalanceSection,
 } from './types.js';
@@ -15,6 +17,8 @@ const finite = z.number().finite();
 const unit01 = finite.min(0).max(1);
 const styleNeg1To1 = finite.min(-1).max(1);
 const positiveFinite = finite.positive();
+const modifierNeg05To05 = finite.min(-0.5).max(0.5);
+const penaltyInfractionEnum = z.enum(PENALTY_INFRACTIONS);
 
 const SKATER_ROLE_KEYS = [
   'ROCKET',
@@ -241,12 +245,63 @@ const activeGoaliesSectionSchema = z
   })
   .strict();
 
+const activePenaltiesSectionSchema = z
+  .object({
+    active: z.literal(true),
+    enabled: z.literal(true),
+    baseOpportunityProbability: unit01,
+    minimumSecondsBetweenPenalties: z.number().int().positive(),
+    durationSeconds: positiveFinite,
+    infractionWeights: z.record(penaltyInfractionEnum, positiveFinite),
+    aggressionWeight: positiveFinite,
+    defensiveAwarenessWeight: positiveFinite,
+    pressureWeight: positiveFinite,
+    rolePenaltyTendencies: z.record(z.string(), z.enum(['high', 'medium', 'low'])),
+    rolePenaltyTendencyMultipliers: z
+      .object({
+        high: positiveFinite,
+        medium: positiveFinite,
+        low: positiveFinite,
+      })
+      .strict(),
+    penaltyVariance: unit01,
+    powerPlayPossessionModifier: modifierNeg05To05,
+    penaltyKillPossessionModifier: modifierNeg05To05,
+    powerPlayShotOpportunityModifier: modifierNeg05To05,
+    powerPlayShotQualityModifier: modifierNeg05To05,
+    shortHandedShotOpportunityModifier: modifierNeg05To05,
+    powerPlayAttackWeights: z
+      .object({
+        offensiveRating: positiveFinite,
+        passing: positiveFinite,
+        shooting: positiveFinite,
+        offensiveAwareness: positiveFinite,
+        coachOffense: positiveFinite,
+      })
+      .strict(),
+    penaltyKillDefenseWeights: z
+      .object({
+        defensiveRating: positiveFinite,
+        defensiveAwareness: positiveFinite,
+        speed: positiveFinite,
+        strength: positiveFinite,
+        coachDefense: positiveFinite,
+      })
+      .strict(),
+    maximumActivePenalties: z.literal(1),
+    allowCoincidental: z.literal(false),
+    allowFiveOnThree: z.literal(false),
+    allowFourOnFour: z.literal(false),
+  })
+  .strict();
+
 export const balanceConfigSchema = z
   .object({
     schemaVersion: z.union([
       z.literal(1),
       z.literal(2),
       z.literal(3),
+      z.literal(4),
       z.literal(BALANCE_SCHEMA_VERSION),
     ]),
     presetKey: z.string().min(1).max(64),
@@ -307,7 +362,7 @@ export const balanceConfigSchema = z
     match: z.union([inactiveSectionSchema, activeMatchSectionSchema]),
     shots: z.union([inactiveSectionSchema, activeShotsSectionSchema]),
     goalies: z.union([inactiveSectionSchema, activeGoaliesSectionSchema]),
-    penalties: inactiveSectionSchema,
+    penalties: z.union([inactiveSectionSchema, activePenaltiesSectionSchema]),
     development: inactiveSectionSchema,
     scouting: inactiveSectionSchema,
     draft: inactiveSectionSchema,
@@ -624,6 +679,102 @@ function goaliesSemanticErrors(config: BalanceConfig): BalanceValidationIssue[] 
   return errors;
 }
 
+function penaltiesSemanticErrors(config: BalanceConfig): BalanceValidationIssue[] {
+  const errors: BalanceValidationIssue[] = [];
+  if (config.penalties.active !== true) {
+    if (config.schemaVersion >= 4) {
+      errors.push({ path: 'penalties.active', message: 'F13 requires active penalties section' });
+    }
+    return errors;
+  }
+
+  const penalties = config.penalties as PenaltiesBalanceSection;
+
+  if (penalties.maximumActivePenalties !== 1) {
+    errors.push({
+      path: 'penalties.maximumActivePenalties',
+      message: 'F13 requires maximumActivePenalties = 1',
+    });
+  }
+  if (penalties.allowCoincidental !== false) {
+    errors.push({
+      path: 'penalties.allowCoincidental',
+      message: 'F13 requires allowCoincidental = false',
+    });
+  }
+  if (penalties.allowFiveOnThree !== false) {
+    errors.push({
+      path: 'penalties.allowFiveOnThree',
+      message: 'F13 requires allowFiveOnThree = false',
+    });
+  }
+  if (penalties.allowFourOnFour !== false) {
+    errors.push({
+      path: 'penalties.allowFourOnFour',
+      message: 'F13 requires allowFourOnFour = false',
+    });
+  }
+  if (!(penalties.durationSeconds > 0)) {
+    errors.push({
+      path: 'penalties.durationSeconds',
+      message: 'durationSeconds must be positive (120 preferred)',
+    });
+  }
+
+  for (const infraction of PENALTY_INFRACTIONS) {
+    const weight = penalties.infractionWeights[infraction];
+    if (!(typeof weight === 'number' && Number.isFinite(weight) && weight > 0)) {
+      errors.push({
+        path: `penalties.infractionWeights.${infraction}`,
+        message: 'Infraction weight must be a positive finite number',
+      });
+    }
+  }
+
+  for (const [role, tier] of Object.entries(penalties.rolePenaltyTendencies)) {
+    if (!(SKATER_ROLE_KEYS as readonly string[]).includes(role)) {
+      errors.push({
+        path: `penalties.rolePenaltyTendencies.${role}`,
+        message: 'Unknown skater role key',
+      });
+    }
+    if (!(tier in penalties.rolePenaltyTendencyMultipliers)) {
+      errors.push({
+        path: `penalties.rolePenaltyTendencies.${role}`,
+        message: `Unknown tendency tier ${tier}`,
+      });
+    }
+  }
+
+  const ppAttackTotal =
+    penalties.powerPlayAttackWeights.offensiveRating +
+    penalties.powerPlayAttackWeights.passing +
+    penalties.powerPlayAttackWeights.shooting +
+    penalties.powerPlayAttackWeights.offensiveAwareness +
+    penalties.powerPlayAttackWeights.coachOffense;
+  if (!(ppAttackTotal > 0)) {
+    errors.push({
+      path: 'penalties.powerPlayAttackWeights',
+      message: 'Power-play attack weights must sum > 0',
+    });
+  }
+
+  const pkDefenseTotal =
+    penalties.penaltyKillDefenseWeights.defensiveRating +
+    penalties.penaltyKillDefenseWeights.defensiveAwareness +
+    penalties.penaltyKillDefenseWeights.speed +
+    penalties.penaltyKillDefenseWeights.strength +
+    penalties.penaltyKillDefenseWeights.coachDefense;
+  if (!(pkDefenseTotal > 0)) {
+    errors.push({
+      path: 'penalties.penaltyKillDefenseWeights',
+      message: 'Penalty-kill defense weights must sum > 0',
+    });
+  }
+
+  return errors;
+}
+
 export function isF11CompatibleBalanceConfig(
   config: BalanceConfig,
 ): config is BalanceConfig & { match: MatchBalanceSection } {
@@ -645,6 +796,23 @@ export function isF12CompatibleBalanceConfig(
   );
 }
 
+export function isF13CompatibleBalanceConfig(
+  config: BalanceConfig,
+): config is BalanceConfig & {
+  match: MatchBalanceSection;
+  shots: ShotsBalanceSection;
+  goalies: GoaliesBalanceSection;
+  penalties: PenaltiesBalanceSection;
+} {
+  return (
+    config.schemaVersion >= 4 &&
+    config.match.active === true &&
+    config.shots.active === true &&
+    config.goalies.active === true &&
+    config.penalties.active === true
+  );
+}
+
 export function validateBalanceConfig(input: unknown): BalanceValidationResult {
   const parsed = balanceConfigSchema.safeParse(input);
   if (!parsed.success) {
@@ -656,6 +824,7 @@ export function validateBalanceConfig(input: unknown): BalanceValidationResult {
     ...matchSemanticErrors(config),
     ...shotsSemanticErrors(config),
     ...goaliesSemanticErrors(config),
+    ...penaltiesSemanticErrors(config),
   ];
   if (semantic.length) return { ok: false, errors: semantic };
   return { ok: true, config };

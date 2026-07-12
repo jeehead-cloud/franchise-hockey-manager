@@ -3,9 +3,12 @@ import type {
   MatchBalanceSection,
   ShotsBalanceSection,
 } from '../../balance/types.js';
-import { isF12CompatibleBalanceConfig } from '../../balance/schema.js';
+import { isF13CompatibleBalanceConfig } from '../../balance/schema.js';
 import type { GoalieAttributes, SkaterAttributes } from '../../players/types.js';
 import { GOALIE_ATTRIBUTE_KEYS, SKATER_ATTRIBUTE_KEYS } from '../../players/types.js';
+import { cancelPenaltyOnPowerPlayGoal, getPenaltiesConfig, regulationSeconds } from './penalties.js';
+import { isPowerPlayForSide, isShortHandedForSide } from './strength-state.js';
+import type { GoalStrength } from './penalty-types.js';
 import { NET_FRONT_POSITIONS, NET_FRONT_SHOT_ROLES } from './constants.js';
 import { deriveAssists } from './assists.js';
 import { IncompatibleBalanceConfigError, IllegalStateTransitionError } from './errors.js';
@@ -44,27 +47,27 @@ export function logistic(x: number): number {
 }
 
 export function getShotsConfig(input: SimulationInput): ShotsBalanceSection {
-  if (!isF12CompatibleBalanceConfig(input.balance.snapshot)) {
+  if (!isF13CompatibleBalanceConfig(input.balance.snapshot)) {
     throw new IncompatibleBalanceConfigError(
-      `Active balance schemaVersion ${input.balance.snapshot.schemaVersion} is not F12-compatible (requires schemaVersion >= 3 with active match/shots/goalies)`,
+      `Active balance schemaVersion ${input.balance.snapshot.schemaVersion} is not F13-compatible (requires schemaVersion >= 4 with active match/shots/goalies/penalties)`,
     );
   }
   return input.balance.snapshot.shots;
 }
 
 export function getGoaliesConfig(input: SimulationInput): GoaliesBalanceSection {
-  if (!isF12CompatibleBalanceConfig(input.balance.snapshot)) {
+  if (!isF13CompatibleBalanceConfig(input.balance.snapshot)) {
     throw new IncompatibleBalanceConfigError(
-      `Active balance schemaVersion ${input.balance.snapshot.schemaVersion} is not F12-compatible (requires schemaVersion >= 3 with active match/shots/goalies)`,
+      `Active balance schemaVersion ${input.balance.snapshot.schemaVersion} is not F13-compatible (requires schemaVersion >= 4 with active match/shots/goalies/penalties)`,
     );
   }
   return input.balance.snapshot.goalies;
 }
 
 export function getMatchConfigForShots(input: SimulationInput): MatchBalanceSection {
-  if (!isF12CompatibleBalanceConfig(input.balance.snapshot)) {
+  if (!isF13CompatibleBalanceConfig(input.balance.snapshot)) {
     throw new IncompatibleBalanceConfigError(
-      `Active balance schemaVersion ${input.balance.snapshot.schemaVersion} is not F12-compatible`,
+      `Active balance schemaVersion ${input.balance.snapshot.schemaVersion} is not F13-compatible`,
     );
   }
   return input.balance.snapshot.match;
@@ -575,7 +578,7 @@ function makeShotEvent(
     playerIds: extra.playerIds ?? [],
     zone: extra.zone ?? state.zone,
     possession: extra.possession ?? state.possession,
-    strengthState: 'EVEN_5V5',
+    strengthState: state.strengthState,
     shiftNumber: state.currentShift?.shiftNumber ?? null,
     visibility: extra.visibility ?? (type === 'GOAL' || type === 'SAVE' ? 'PUBLIC' : 'TECHNICAL'),
     details: extra.details ?? {},
@@ -647,14 +650,18 @@ export function createShotAttempt(
     rng,
   );
   rng = quality.rng;
+  let shotQuality = quality.shotQuality;
+  if (isF13CompatibleBalanceConfig(input.balance.snapshot) && isPowerPlayForSide(state.strengthState, attacking)) {
+    shotQuality = clamp01(shotQuality * (1 + getPenaltiesConfig(input).powerPlayShotQualityModifier));
+  }
 
-  const probs = computeBlockMissOnTargetProbabilities(quality.shotQuality, pressure, shotsCfg);
+  const probs = computeBlockMissOnTargetProbabilities(shotQuality, pressure, shotsCfg);
   const goalieId = goalieIdForDefending(lines, attacking);
   const goalProb = computeGoalProbability(
     input,
     goalieId,
     typePick.shotType,
-    quality.shotQuality,
+    shotQuality,
     quality.screenFactor,
     chain.passChain.length,
     shotsCfg,
@@ -676,7 +683,7 @@ export function createShotAttempt(
     shooterId,
     goalieId,
     shotType: typePick.shotType,
-    shotQuality: quality.shotQuality,
+    shotQuality,
     defensivePressure: pressure,
     screenFactor: quality.screenFactor,
     passChain: chain.passChain,
@@ -702,7 +709,7 @@ export function createShotAttempt(
       shooterId,
       goalieId,
       shotType: typePick.shotType,
-      shotQuality: quality.shotQuality,
+      shotQuality,
       defensivePressure: pressure,
       screenFactor: quality.screenFactor,
       passChainPlayerIds: chain.passChain,
@@ -848,6 +855,17 @@ export function resolvePendingShot(
   }
 
   // GOAL
+  const strengthBefore = state.strengthState;
+  let goalStrength: GoalStrength = 'EVEN_STRENGTH';
+  if (isPowerPlayForSide(strengthBefore, pending.attackingSide)) {
+    goalStrength = 'POWER_PLAY';
+  } else if (isShortHandedForSide(strengthBefore, pending.attackingSide)) {
+    goalStrength = 'SHORT_HANDED';
+  }
+
+  const activePenaltySequenceId = state.activePenalty?.penaltySequenceId ?? null;
+  const penaltyEndedByGoal = goalStrength === 'POWER_PLAY' && state.activePenalty != null;
+
   const scoreAfter: MatchScore =
     pending.attackingSide === 'HOME'
       ? { home: state.score.home + 1, away: state.score.away }
@@ -872,10 +890,16 @@ export function resolvePendingShot(
       secondaryAssistId: details.secondaryAssistId ?? null,
       scoreAfter,
       goalProbability: pending.goalProbability,
+      goalStrength,
+      strengthState: strengthBefore,
+      activePenaltySequenceId,
+      penaltyEndedByGoal,
+      ...(penaltyEndedByGoal ? { reason: 'POWER_PLAY_GOAL' as const } : {}),
     },
   });
 
-  const next: MatchState = {
+  const periodDuration = input.rules.periodDurationSeconds;
+  let next: MatchState = {
     ...bumpEvent({ ...state, rng }),
     pendingShot: null,
     passChainPlayerIds: [],
@@ -884,5 +908,13 @@ export function resolvePendingShot(
     zone: null,
     phase: 'AWAITING_STOPPAGE_FACEOFF',
   };
+
+  if (penaltyEndedByGoal) {
+    next = {
+      ...cancelPenaltyOnPowerPlayGoal(next),
+      lastPenaltyEndedRegulationSeconds: regulationSeconds(state, periodDuration),
+    };
+  }
+
   return { state: next, events: [...events, ev] };
 }

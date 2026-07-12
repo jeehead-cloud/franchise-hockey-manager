@@ -39,7 +39,7 @@ F9 implements the first foundation layer in `packages/engine/src/chemistry` with
 
 F10: the active balance preset chemistry section is the runtime source for Team Lines / chemistry APIs. Repository JSON remains the Standard default and bootstrap source. Changing an active preset does not rewrite historical `BalancePresetVersion` rows.
 
-F11–F12: regulation simulation is pure engine code — no Prisma/Fastify/React inside `packages/engine/src/simulation`. Same immutable input + active balance snapshot + seed must reproduce identical event traces, score, and statistics. Zone is relative to the possession team. Snapshots must match engine version, input fingerprint, balance hash, and seed on resume. F11 snapshots cannot restore as F12 state.
+F11–F13: regulation simulation is pure engine code — no Prisma/Fastify/React inside `packages/engine/src/simulation`. Same immutable input + active balance snapshot + seed must reproduce identical event traces, score, penalties, and statistics. Zone is relative to the possession team. Snapshots must match engine version, input fingerprint, balance hash, and seed on resume. Older engine snapshots cannot silently restore as newer engine state.
 
 F12 scoring invariants:
 
@@ -49,8 +49,19 @@ F12 scoring invariants:
 - Team/player goals, shots on goal, saves, and goals against must reconcile (see engine `reconcileStatistics`).
 - Primary/secondary assists derive from the actual offensive pass chain (0–2); scorer cannot assist their own goal.
 - F9 effective performance is applied once via unit context — not double-counted in shot resolution.
-- Outcome probabilities are config-driven from balance schemaVersion 3 `shots` / `goalies` sections.
+- Outcome probabilities are config-driven from balance `shots` / `goalies` sections.
 - F12 remains regulation EVEN_5V5 only; no penalty/special-team events until F13.
+
+F13 special-teams invariants:
+
+- Supported strength states only: EVEN_5V5, HOME_POWER_PLAY_5V4, AWAY_POWER_PLAY_5V4.
+- At most one active minor penalty; coincidental / 5v3 / 4v4 unsupported.
+- Every power-play opportunity derives from one opponent PENALTY event.
+- A power-play goal ends the active minor immediately; short-handed and even-strength goals do not.
+- The penalized player cannot appear on ice while serving; short-handed team fields four skaters.
+- Penalty clocks use game time (period-aware); full two PIM assessed even if ended by PP goal.
+- PP/PK/PIM statistics derive from events and must reconcile.
+- Temporary PP/PK units are automatic and non-persistent.
 
 Invariants in force:
 

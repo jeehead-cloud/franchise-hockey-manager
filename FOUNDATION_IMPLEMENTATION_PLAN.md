@@ -873,7 +873,7 @@ GAME_END
 
 # 17. F12 — Shots, Goalies, and Scoring
 
-**Status: implemented locally (2026-07-13).** Engine `f12.1` / `F12_SCORING`, balance schemaVersion 3 (`shots`/`goalies`), statistics reducer + reconciliation, debug API scoring output, `/simulation-lab` F12 UI. Penalties/persistence remain F13+.
+**Status: done on `main` (2026-07-13).** Engine `f12.1` / `F12_SCORING`, balance schemaVersion 3 (`shots`/`goalies`), statistics reducer + reconciliation, debug API scoring output, `/simulation-lab` F12 UI. Extended by F13 special teams.
 
 ## Goal
 
@@ -931,6 +931,8 @@ Add:
 ---
 
 # 18. F13 — Penalties and Special Teams
+
+**Status: implemented locally (2026-07-13).** Engine `f13.1` / `F13_SPECIAL_TEAMS`, balance schemaVersion 4 (`penalties`), one-active-minor 5v4 model, automatic PP/PK units, PP/PK/PIM statistics + reconciliation, debug API + `/simulation-lab` F13 UI. Coincidental/5v3/OT/persistence remain F14+.
 
 ## Goal
 

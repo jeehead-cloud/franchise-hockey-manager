@@ -92,13 +92,14 @@ If no public estimate is imported, show `UNKNOWN` — do not derive public bands
 
 Annual development, aging ops, role inertia, form, injuries remain deferred (F24+).
 
-### F12 simulation consumption (2026-07-13)
+### F12–F13 simulation consumption (2026-07-13)
 
-Regulation scoring (`f12.1`) reads **concrete attributes** from simulation input — not hidden potential:
+Regulation scoring and special teams (`f13.1`) read **concrete attributes** from simulation input — not hidden potential:
 
-- **Skaters:** all nine attributes (`shooting`, `offensiveAwareness`, `stickhandling`, `passing`, etc.) plus role/role rating and unit effective performance (F9, applied once).
-- **Goalies:** `reflexes`, `positioning`, `reboundControl`, `glove`, `blocker`, `movement`, `consistency` are active in save resolution; `stamina` and `puckHandling` are minimally or unused in F12 regulation.
-- Derived CA/OVR remain lineup/display support; shot selection and resolution weight specific attributes per balance config.
+- **Skaters:** all nine attributes (`shooting`, `offensiveAwareness`, `stickhandling`, `passing`, etc.) plus role/role rating and unit effective performance (F9, applied once for even-strength units).
+- **Goalies:** `reflexes`, `positioning`, `reboundControl`, `glove`, `blocker`, `movement`, `consistency` are active in save resolution; `stamina` and `puckHandling` are minimally or unused in F12/F13 regulation.
+- **Penalties (F13):** `aggression` increases penalty tendency; `defensiveAwareness` reduces careless penalties modestly; role penalty tendencies are config-driven. Coach `offense` / `defense` ratings feed temporary PP/PK composites only (not permanent ratings).
+- Derived CA/OVR remain lineup/display support; shot selection, resolution, and penalty selection weight specific attributes per balance config.
 
 ### Dataset
 

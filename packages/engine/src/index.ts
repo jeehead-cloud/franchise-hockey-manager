@@ -141,10 +141,13 @@ export {
   collectChangedPaths,
   isF11CompatibleBalanceConfig,
   isF12CompatibleBalanceConfig,
+  isF13CompatibleBalanceConfig,
   BALANCE_SCHEMA_VERSIONS,
+  PENALTY_INFRACTIONS,
   SHOT_TYPES,
   defaultShotsSection,
   defaultGoaliesSection,
+  defaultPenaltiesSection,
 } from './balance/index.js';
 
 export type {
@@ -158,22 +161,30 @@ export type {
   MatchBalanceSection,
   ShotsBalanceSection,
   GoaliesBalanceSection,
+  PenaltiesBalanceSection,
+  PenaltyInfraction,
   ShotType,
 } from './balance/index.js';
 
 export {
   FHM_ENGINE_VERSION,
+  F13_SIMULATION_MODE,
   F12_SIMULATION_MODE,
+  F12_ENGINE_VERSION,
   F11_ENGINE_VERSION,
   F11_SIMULATION_MODE,
   SNAPSHOT_SCHEMA_VERSION,
   REGULATION_PERIODS,
   PERIOD_DURATION_SECONDS,
+  MINOR_PENALTY_SECONDS,
+  FORBIDDEN_F14_EVENT_TYPES,
   FORBIDDEN_F13_EVENT_TYPES,
   FORBIDDEN_F11_EVENT_TYPES,
+  SUPPORTED_STRENGTH_STATES,
   validateSimulationInput,
   canonicalizeSimulationInput,
   getMatchConfig,
+  getPenaltiesConfig,
   createRng,
   restoreRng,
   nextFloat,
@@ -231,6 +242,10 @@ export type {
   PossessionZone,
   SimulationStatus,
   ActiveLines,
+  StrengthState,
+  ActivePenalty,
+  GoalStrength,
+  PenaltyEndReason,
 } from './simulation/index.js';
 
 export { buildTestSimulationInput } from './simulation/match/fixture.js';

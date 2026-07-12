@@ -1,6 +1,6 @@
 import { getStandardBalanceConfig } from '../../balance/index.js';
 import type { GoalieAttributes, SkaterAttributes } from '../../players/types.js';
-import { FHM_ENGINE_VERSION, F12_SIMULATION_MODE, REGULATION_PERIODS, PERIOD_DURATION_SECONDS } from './constants.js';
+import { FHM_ENGINE_VERSION, F13_SIMULATION_MODE, REGULATION_PERIODS, PERIOD_DURATION_SECONDS } from './constants.js';
 import type { SimulationInput, SimulationPlayerProfile, SimulationTeamInput } from './types.js';
 
 function defaultSkaterAttrs(ca: number): SkaterAttributes {
@@ -148,12 +148,12 @@ function buildTeam(side: 'HOME' | 'AWAY', prefix: string): SimulationTeamInput {
   };
 }
 
-export function buildTestSimulationInput(seed: string | number = 'f12-test-001'): SimulationInput {
+export function buildTestSimulationInput(seed: string | number = 'f13-test-001'): SimulationInput {
   const balanceConfig = getStandardBalanceConfig();
   return {
     matchId: 'test-match-001',
     engineVersion: FHM_ENGINE_VERSION,
-    simulationMode: F12_SIMULATION_MODE,
+    simulationMode: F13_SIMULATION_MODE,
     seed,
     inputFingerprint: 'test-fingerprint',
     balance: {

@@ -1,6 +1,7 @@
-import { isF12CompatibleBalanceConfig, type MatchBalanceSection } from '../../balance/index.js';
+import { isF13CompatibleBalanceConfig, type MatchBalanceSection } from '../../balance/index.js';
 import { GOALIE_ATTRIBUTE_KEYS, SKATER_ATTRIBUTE_KEYS } from '../../players/types.js';
-import { FHM_ENGINE_VERSION, F12_SIMULATION_MODE, REGULATION_PERIODS, PERIOD_DURATION_SECONDS } from './constants.js';
+import { FHM_ENGINE_VERSION, F13_SIMULATION_MODE, REGULATION_PERIODS, PERIOD_DURATION_SECONDS } from './constants.js';
+import { getPenaltiesConfig } from './penalties.js';
 import { IncompatibleBalanceConfigError, InvalidSimulationInputError } from './errors.js';
 import type { SimulationInput, SimulationPlayerProfile, SimulationTeamInput } from './types.js';
 
@@ -63,21 +64,25 @@ function validateTeam(team: SimulationTeamInput, label: string) {
 }
 
 export function getMatchConfig(input: SimulationInput): MatchBalanceSection {
-  if (!isF12CompatibleBalanceConfig(input.balance.snapshot)) {
+  if (!isF13CompatibleBalanceConfig(input.balance.snapshot)) {
     throw new IncompatibleBalanceConfigError(
-      `Active balance schemaVersion ${input.balance.snapshot.schemaVersion} is not F12-compatible (requires schemaVersion >= 3 with active match/shots/goalies)`,
+      `Active balance schemaVersion ${input.balance.snapshot.schemaVersion} is not F13-compatible (requires schemaVersion >= 4 with active match/shots/goalies/penalties)`,
     );
   }
   return input.balance.snapshot.match;
 }
+
+export { getPenaltiesConfig };
 
 /** Validate simulation input without mutating it. */
 export function validateSimulationInput(input: SimulationInput): void {
   if (input.engineVersion !== FHM_ENGINE_VERSION) {
     throw new InvalidSimulationInputError(`Unsupported engineVersion ${input.engineVersion}`);
   }
-  if (input.simulationMode !== F12_SIMULATION_MODE) {
-    throw new InvalidSimulationInputError(`Unsupported simulationMode ${input.simulationMode}`);
+  if (input.simulationMode !== F13_SIMULATION_MODE) {
+    throw new InvalidSimulationInputError(
+      `Unsupported simulationMode ${input.simulationMode} (requires ${F13_SIMULATION_MODE})`,
+    );
   }
   if (!input.inputFingerprint) throw new InvalidSimulationInputError('inputFingerprint required');
   if (input.homeTeam.teamId === input.awayTeam.teamId) {

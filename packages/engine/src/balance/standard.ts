@@ -11,14 +11,16 @@ import { parseBalanceConfig } from './schema.js';
 import type {
   BalanceConfig,
   GoaliesBalanceSection,
+  PenaltiesBalanceSection,
+  RolePenaltyTendencyTier,
   RoleShotTendencyTier,
   RuntimeSimulationSettings,
   ShotsBalanceSection,
 } from './types.js';
-import { BALANCE_SCHEMA_VERSION } from './types.js';
+import { BALANCE_SCHEMA_VERSION, PENALTY_INFRACTIONS } from './types.js';
 
 /** Keep in sync with simulation FHM_ENGINE_VERSION. */
-const ENGINE_COMPAT_VERSION = 'f12.1';
+const ENGINE_COMPAT_VERSION = 'f13.1';
 
 const HIGH_SHOT_TENDENCY_ROLES = new Set([
   'POINT_SHOOTER',
@@ -43,9 +45,33 @@ const LOW_SHOT_TENDENCY_ROLES = new Set([
   'INTERCEPTOR',
 ]);
 
+const HIGH_PENALTY_TENDENCY_ROLES = new Set([
+  'GRINDER',
+  'ENFORCER',
+  'CHAOS_MAKER',
+  'DEEP_FORECHECKER',
+  'NZ_FORECHECKER',
+  'DUMP_IN_FORWARD',
+]);
+
+const LOW_PENALTY_TENDENCY_ROLES = new Set([
+  'PLAYMAKER',
+  'POSSESSION_MASTER',
+  'QUARTERBACK',
+  'PUCK_MOVER',
+  'POINT_SHOOTER',
+  'ROCKET',
+]);
+
 function roleShotTendency(role: string): RoleShotTendencyTier {
   if (HIGH_SHOT_TENDENCY_ROLES.has(role)) return 'high';
   if (LOW_SHOT_TENDENCY_ROLES.has(role)) return 'low';
+  return 'medium';
+}
+
+function rolePenaltyTendency(role: string): RolePenaltyTendencyTier {
+  if (HIGH_PENALTY_TENDENCY_ROLES.has(role)) return 'high';
+  if (LOW_PENALTY_TENDENCY_ROLES.has(role)) return 'low';
   return 'medium';
 }
 
@@ -54,6 +80,15 @@ function defaultRoleShotTendencies(): Record<string, RoleShotTendencyTier> {
   const out: Record<string, RoleShotTendencyTier> = {};
   for (const role of Object.keys(labels).sort()) {
     out[role] = roleShotTendency(role);
+  }
+  return out;
+}
+
+function defaultRolePenaltyTendencies(): Record<string, RolePenaltyTendencyTier> {
+  const labels = skaterRoles.labels as Record<string, string>;
+  const out: Record<string, RolePenaltyTendencyTier> = {};
+  for (const role of Object.keys(labels).sort()) {
+    out[role] = rolePenaltyTendency(role);
   }
   return out;
 }
@@ -195,6 +230,58 @@ export function defaultGoaliesSection(): GoaliesBalanceSection {
   };
 }
 
+export function defaultPenaltiesSection(): PenaltiesBalanceSection {
+  const equalInfractionWeight = 1 / PENALTY_INFRACTIONS.length;
+  return {
+    active: true,
+    enabled: true,
+    baseOpportunityProbability: 0.04,
+    minimumSecondsBetweenPenalties: 45,
+    durationSeconds: 120,
+    infractionWeights: {
+      TRIPPING: equalInfractionWeight,
+      HOOKING: equalInfractionWeight,
+      HOLDING: equalInfractionWeight,
+      INTERFERENCE: equalInfractionWeight,
+      SLASHING: equalInfractionWeight,
+      ROUGHING: equalInfractionWeight,
+    },
+    aggressionWeight: 0.45,
+    defensiveAwarenessWeight: 0.35,
+    pressureWeight: 0.2,
+    rolePenaltyTendencies: defaultRolePenaltyTendencies(),
+    rolePenaltyTendencyMultipliers: {
+      high: 1.25,
+      medium: 1.0,
+      low: 0.75,
+    },
+    penaltyVariance: 0.15,
+    powerPlayPossessionModifier: 0.12,
+    penaltyKillPossessionModifier: -0.08,
+    powerPlayShotOpportunityModifier: 0.18,
+    powerPlayShotQualityModifier: 0.08,
+    shortHandedShotOpportunityModifier: -0.25,
+    powerPlayAttackWeights: {
+      offensiveRating: 0.3,
+      passing: 0.2,
+      shooting: 0.2,
+      offensiveAwareness: 0.2,
+      coachOffense: 0.1,
+    },
+    penaltyKillDefenseWeights: {
+      defensiveRating: 0.3,
+      defensiveAwareness: 0.25,
+      speed: 0.2,
+      strength: 0.15,
+      coachDefense: 0.1,
+    },
+    maximumActivePenalties: 1,
+    allowCoincidental: false,
+    allowFiveOnThree: false,
+    allowFourOnFour: false,
+  };
+}
+
 function inactive(milestone: string, notes: string) {
   return {
     active: false as const,
@@ -257,7 +344,7 @@ export function getStandardBalanceConfig(): BalanceConfig {
     match: defaultMatchSection(),
     shots: defaultShotsSection(),
     goalies: defaultGoaliesSection(),
-    penalties: inactive('F13', 'Penalty and special-teams coefficients are deferred until F13.'),
+    penalties: defaultPenaltiesSection(),
     development: inactive('F24', 'Annual development curves are deferred until F24.'),
     scouting: inactive('F26', 'Scouting confidence curves are deferred until F26.'),
     draft: inactive('F27', 'Draft lottery/order coefficients are deferred until F27.'),

@@ -1,13 +1,15 @@
 import type { BalanceConfig } from '../../balance/types.js';
 import type { GoalieAttributes, SkaterAttributes } from '../../players/types.js';
-import type { FHM_ENGINE_VERSION, F12_SIMULATION_MODE, SNAPSHOT_SCHEMA_VERSION } from './constants.js';
+import type { FHM_ENGINE_VERSION, F13_SIMULATION_MODE, SNAPSHOT_SCHEMA_VERSION } from './constants.js';
+import type { GoalStrength, PenaltyEndReason, PenaltyInfraction } from './penalty-types.js';
 import type { RngState } from './rng.js';
 import type { ShotType } from './shot-types.js';
 
 export type { ShotType } from './shot-types.js';
 export { SHOT_TYPES } from './shot-types.js';
+export type { GoalStrength, PenaltyEndReason, PenaltyInfraction } from './penalty-types.js';
 
-export type SimulationMode = typeof F12_SIMULATION_MODE;
+export type SimulationMode = typeof F13_SIMULATION_MODE;
 
 export type SimulationStatus =
   | 'NOT_STARTED'
@@ -17,7 +19,7 @@ export type SimulationStatus =
   | 'PAUSED'
   | 'FAILED';
 
-export type StrengthState = 'EVEN_5V5';
+export type StrengthState = 'EVEN_5V5' | 'HOME_POWER_PLAY_5V4' | 'AWAY_POWER_PLAY_5V4';
 
 export type PossessionSide = 'HOME' | 'AWAY' | 'NONE';
 
@@ -41,7 +43,9 @@ export type MatchEventType =
   | 'SHOT_BLOCKED'
   | 'SHOT_MISSED'
   | 'SAVE'
-  | 'GOAL';
+  | 'GOAL'
+  | 'PENALTY'
+  | 'PENALTY_EXPIRED';
 
 export type EventVisibility = 'PUBLIC' | 'TECHNICAL';
 
@@ -176,6 +180,21 @@ export interface PendingShot {
   attemptCreatorId: string | null;
 }
 
+export interface ActivePenalty {
+  penaltySequenceId: number;
+  penalizedTeamId: string;
+  advantagedTeamId: string;
+  penalizedSide: 'HOME' | 'AWAY';
+  advantagedSide: 'HOME' | 'AWAY';
+  penalizedPlayerId: string;
+  infraction: PenaltyInfraction;
+  startedPeriod: number;
+  startedElapsedSeconds: number;
+  durationSeconds: number;
+  remainingSeconds: number;
+  powerPlayGoalScored: boolean;
+}
+
 export interface MatchState {
   engineVersion: typeof FHM_ENGINE_VERSION;
   simulationStatus: SimulationStatus;
@@ -196,6 +215,10 @@ export interface MatchState {
   passChainPlayerIds: string[];
   pendingShot: PendingShot | null;
   shotSequenceId: number;
+  activePenalty: ActivePenalty | null;
+  penaltySequenceId: number;
+  /** Absolute regulation seconds marker for spacing between penalties. */
+  lastPenaltyEndedRegulationSeconds: number | null;
 }
 
 export interface MatchEvent {
@@ -245,6 +268,10 @@ export interface PlayerSkaterStats {
   shotsOnGoal: number;
   blocks: number;
   timeOnIceSeconds: number;
+  penaltyMinutes: number;
+  penaltiesTaken: number;
+  powerPlayGoals: number;
+  shortHandedGoals: number;
 }
 
 export interface PlayerGoalieStats {
@@ -273,6 +300,15 @@ export interface TeamStats {
   possessionSeconds: number;
   offensiveZoneSeconds: number;
   defensiveZoneSeconds: number;
+  penalties: number;
+  penaltyMinutes: number;
+  powerPlayOpportunities: number;
+  powerPlayGoals: number;
+  powerPlayPercentage: number;
+  penaltyKillOpportunities: number;
+  penaltyKills: number;
+  penaltyKillPercentage: number;
+  shortHandedGoals: number;
 }
 
 export interface PeriodScore {
@@ -334,6 +370,13 @@ export interface SimulationDiagnostics {
     savePercentage: number;
   }>;
   reconciliationOk: boolean | null;
+  penalties: number;
+  powerPlayOpportunities: number;
+  powerPlayGoals: number;
+  powerPlayPercentage: number;
+  shortHandedGoals: number;
+  penaltiesByInfraction: Record<string, number>;
+  evenStrengthGoals: number;
 }
 
 export interface SimulationResult {

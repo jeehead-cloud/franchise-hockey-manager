@@ -42,6 +42,30 @@ function formatPct(value: number): string {
   return `${(value * 100).toFixed(1)}%`;
 }
 
+function formatStrengthLabel(strength: unknown): string {
+  switch (strength) {
+    case 'HOME_POWER_PLAY_5V4':
+      return 'Home PP 5v4';
+    case 'AWAY_POWER_PLAY_5V4':
+      return 'Away PP 5v4';
+    case 'EVEN_5V5':
+      return '5v5';
+    default:
+      return typeof strength === 'string' ? strength : '5v5';
+  }
+}
+
+function formatInfraction(infraction: unknown): string {
+  if (typeof infraction !== 'string' || !infraction) return 'penalty';
+  return infraction.replace(/_/g, ' ').toLowerCase();
+}
+
+function formatGoalStrength(goalStrength: unknown): string {
+  if (goalStrength === 'POWER_PLAY') return 'Power-play goal';
+  if (goalStrength === 'SHORT_HANDED') return 'Short-handed goal';
+  return 'Goal';
+}
+
 function formatEventLine(
   ev: TechnicalMatchEvent,
   directory: Record<string, TechnicalPlayerDirectoryEntry>,
@@ -61,7 +85,18 @@ function formatEventLine(
           : primary
             ? ` (${primary})`
             : '';
-      return `${prefix} — Goal: ${scorer}${assists}`;
+      return `${prefix} — ${formatGoalStrength(d.goalStrength)}: ${scorer}${assists}`;
+    }
+    case 'PENALTY': {
+      const offender = playerName(String(d.penalizedPlayerId ?? ev.playerIds[0]), directory);
+      const duration =
+        typeof d.durationSeconds === 'number' ? formatClock(d.durationSeconds) : '2:00';
+      return `${prefix} — Penalty: ${offender} — ${formatInfraction(d.infraction)} (${duration})`;
+    }
+    case 'PENALTY_EXPIRED': {
+      const offender = playerName(String(d.penalizedPlayerId ?? ev.playerIds[0]), directory);
+      const reason = d.reason ? ` (${String(d.reason).replace(/_/g, ' ').toLowerCase()})` : '';
+      return `${prefix} — Penalty expired: ${offender}${reason}`;
     }
     case 'SAVE': {
       const shooter = playerName(String(d.shooterId ?? ev.playerIds[1]), directory);
@@ -96,7 +131,7 @@ export function SimulationLabPage() {
   const [loadingTeams, setLoadingTeams] = useState(true);
   const [homeTeamId, setHomeTeamId] = useState('');
   const [awayTeamId, setAwayTeamId] = useState('');
-  const [seed, setSeed] = useState('f12-ui-001');
+  const [seed, setSeed] = useState('f13-ui-001');
   const [eventDetail, setEventDetail] = useState<TechnicalEventDetail>('SUMMARY');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -225,8 +260,16 @@ export function SimulationLabPage() {
   const scoringSkaters = useMemo(() => {
     if (!statistics) return [];
     return statistics.skaters
-      .filter((s) => s.goals > 0 || s.assists > 0 || s.shotsOnGoal > 0)
-      .sort((a, b) => b.points - a.points || b.goals - a.goals);
+      .filter(
+        (s) =>
+          s.goals > 0 ||
+          s.assists > 0 ||
+          s.shotsOnGoal > 0 ||
+          s.penaltyMinutes > 0 ||
+          s.powerPlayGoals > 0 ||
+          s.shortHandedGoals > 0,
+      )
+      .sort((a, b) => b.points - a.points || b.goals - a.goals || b.penaltyMinutes - a.penaltyMinutes);
   }, [statistics]);
 
   if (loadingTeams) return <LoadingState label="Loading teams…" />;
@@ -236,18 +279,28 @@ export function SimulationLabPage() {
     typeof state?.clockRemainingSeconds === 'number' ? formatClock(state.clockRemainingSeconds) : '20:00';
   const score = state?.score as { home?: number; away?: number } | undefined;
   const pendingShot = state?.pendingShot as Record<string, unknown> | null | undefined;
+  const strengthLabel = formatStrengthLabel(state?.strengthState);
+  const activePenalty = state?.activePenalty as
+    | {
+        penalizedPlayerId?: string;
+        infraction?: string;
+        remainingSeconds?: number;
+      }
+    | null
+    | undefined;
 
   return (
     <div className="page-stack">
       <PageHeader
-        title="Technical Match Simulation — F12"
-        subtitle="Regulation scoring implemented. Penalties, overtime, shootout, and persistence are not implemented."
+        title="Technical Match Simulation — F13"
+        subtitle="Regulation scoring and basic 5v4 special teams. Overtime, shootout, coincidental penalties, and persistence are not implemented."
       />
 
       <Panel title="Important">
         <p style={{ margin: 0, font: 'var(--text-body-sm)', color: 'var(--text-secondary)' }}>
-          Deterministic regulation simulation with shots, saves, goals, and assists derived from the event chain.
-          This is not batch Simulation Lab tooling and does not persist matches.
+          Deterministic regulation simulation with shots, saves, goals, assists, and minor penalties
+          derived from the event chain. This is not batch Simulation Lab tooling and does not persist
+          matches.
         </p>
       </Panel>
 
@@ -330,6 +383,9 @@ export function SimulationLabPage() {
           <div>
             <Badge tone="neutral">P{period}</Badge>
             <div style={{ marginTop: '0.25rem', font: 'var(--text-body-sm)' }}>{clockRemaining}</div>
+            <div style={{ marginTop: '0.5rem' }}>
+              <Badge tone="neutral">{strengthLabel}</Badge>
+            </div>
           </div>
           <div>
             <div style={{ font: 'var(--text-body-sm)', color: 'var(--text-secondary)' }}>
@@ -338,8 +394,22 @@ export function SimulationLabPage() {
             <div style={{ fontSize: '2rem', fontWeight: 700 }}>{score?.away ?? 0}</div>
           </div>
         </div>
-        {periodScores.length > 0 ? (
+        {activePenalty ? (
+          <p style={{ margin: '0.75rem 0 0', font: 'var(--text-body-sm)' }}>
+            Active penalty:{' '}
+            {playerName(activePenalty.penalizedPlayerId, playerDirectory)} —{' '}
+            {formatInfraction(activePenalty.infraction)}
+            {typeof activePenalty.remainingSeconds === 'number'
+              ? ` · ${formatClock(activePenalty.remainingSeconds)} remaining`
+              : ''}
+          </p>
+        ) : (
           <p style={{ margin: '0.75rem 0 0', font: 'var(--text-body-sm)', color: 'var(--text-secondary)' }}>
+            No active penalty
+          </p>
+        )}
+        {periodScores.length > 0 ? (
+          <p style={{ margin: '0.5rem 0 0', font: 'var(--text-body-sm)', color: 'var(--text-secondary)' }}>
             Period scores:{' '}
             {periodScores.map((p) => `P${p.period} ${p.home}-${p.away}`).join(' · ')}
           </p>
@@ -381,16 +451,24 @@ export function SimulationLabPage() {
                 </tr>
               </thead>
               <tbody>
-                {[
-                  ['Goals', statistics.home.goals, statistics.away.goals],
-                  ['Shots on goal', statistics.home.shotsOnGoal, statistics.away.shotsOnGoal],
-                  ['Shot attempts', statistics.home.shotAttempts, statistics.away.shotAttempts],
-                  ['Missed shots', statistics.home.missedShots, statistics.away.missedShots],
-                  ['Blocks against', statistics.home.blockedShotsAgainst, statistics.away.blockedShotsAgainst],
-                  ['Saves', statistics.home.saves, statistics.away.saves],
-                  ['Faceoff wins', statistics.home.faceoffWins, statistics.away.faceoffWins],
-                ].map(([label, home, away]) => (
-                  <tr key={String(label)}>
+                {(
+                  [
+                    ['Goals', statistics.home.goals, statistics.away.goals],
+                    ['Shots on goal', statistics.home.shotsOnGoal, statistics.away.shotsOnGoal],
+                    ['Shot attempts', statistics.home.shotAttempts, statistics.away.shotAttempts],
+                    ['Missed shots', statistics.home.missedShots, statistics.away.missedShots],
+                    ['Blocks against', statistics.home.blockedShotsAgainst, statistics.away.blockedShotsAgainst],
+                    ['Saves', statistics.home.saves, statistics.away.saves],
+                    ['Faceoff wins', statistics.home.faceoffWins, statistics.away.faceoffWins],
+                    ['PIM', statistics.home.penaltyMinutes, statistics.away.penaltyMinutes],
+                    ['PP opp', statistics.home.powerPlayOpportunities, statistics.away.powerPlayOpportunities],
+                    ['PP goals', statistics.home.powerPlayGoals, statistics.away.powerPlayGoals],
+                    ['PP%', formatPct(statistics.home.powerPlayPercentage), formatPct(statistics.away.powerPlayPercentage)],
+                    ['PK%', formatPct(statistics.home.penaltyKillPercentage), formatPct(statistics.away.penaltyKillPercentage)],
+                    ['SH goals', statistics.home.shortHandedGoals, statistics.away.shortHandedGoals],
+                  ] as Array<[string, string | number, string | number]>
+                ).map(([label, home, away]) => (
+                  <tr key={label}>
                     <td>{label}</td>
                     <td>{home}</td>
                     <td>{away}</td>
@@ -437,6 +515,12 @@ export function SimulationLabPage() {
                 {formatPct(diagnostics.shootingPercentage ?? 0)} · Avg shot quality{' '}
                 {(diagnostics.averageShotQuality ?? 0).toFixed(3)}
               </p>
+              <p style={{ margin: '0.25rem 0 0', font: 'var(--text-body-sm)', color: 'var(--text-secondary)' }}>
+                Penalties: {diagnostics.penalties ?? 0} · PP%{' '}
+                {formatPct(diagnostics.powerPlayPercentage ?? 0)} · PP goals:{' '}
+                {diagnostics.powerPlayGoals ?? 0}/{diagnostics.powerPlayOpportunities ?? 0} · SH goals:{' '}
+                {diagnostics.shortHandedGoals ?? 0}
+              </p>
             </>
           ) : null}
           {reconciliation ? (
@@ -467,6 +551,9 @@ export function SimulationLabPage() {
                     <th>A</th>
                     <th>P</th>
                     <th>SOG</th>
+                    <th>PIM</th>
+                    <th>PPG</th>
+                    <th>SHG</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -477,6 +564,9 @@ export function SimulationLabPage() {
                       <td>{s.assists}</td>
                       <td>{s.points}</td>
                       <td>{s.shotsOnGoal}</td>
+                      <td>{s.penaltyMinutes}</td>
+                      <td>{s.powerPlayGoals}</td>
+                      <td>{s.shortHandedGoals}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -528,7 +618,7 @@ export function SimulationLabPage() {
                 style={{
                   font: 'var(--text-body-sm)',
                   marginBottom: '0.25rem',
-                  fontWeight: ev.type === 'GOAL' ? 600 : 400,
+                  fontWeight: ev.type === 'GOAL' || ev.type === 'PENALTY' ? 600 : 400,
                 }}
               >
                 {formatEventLine(ev, playerDirectory)}

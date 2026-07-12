@@ -17,7 +17,8 @@
     "dev": "tsc -p tsconfig.json --watch",
     "test": "vitest run",
     "verify:event-engine": "tsx src/simulation/match/verify-event-engine.ts",
-    "verify:scoring-engine": "tsx src/simulation/match/verify-scoring-engine.ts"
+    "verify:scoring-engine": "tsx src/simulation/match/verify-scoring-engine.ts",
+    "verify:special-teams-engine": "tsx src/simulation/match/verify-special-teams-engine.ts"
   },
   "devDependencies": {
     "typescript": "^5.8.2",

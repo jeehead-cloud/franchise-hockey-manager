@@ -80,7 +80,7 @@ function filterEvents(events: MatchEvent[], detail: EventDetailLevel) {
   if (detail === 'NONE') return undefined;
   if (detail === 'SUMMARY') {
     const scoring = events.filter((e) =>
-      ['GOAL', 'SAVE', 'SHOT', 'SHOT_BLOCKED', 'SHOT_MISSED'].includes(e.type),
+      ['GOAL', 'SAVE', 'SHOT', 'SHOT_BLOCKED', 'SHOT_MISSED', 'PENALTY', 'PENALTY_EXPIRED'].includes(e.type),
     );
     const head = events.slice(0, 10);
     const tail = events.slice(-40);
@@ -123,7 +123,7 @@ export async function runTechnicalRegulation(opts: {
       eventsTruncated: detail === 'SUMMARY' && result.events.length > 50,
       totalEventCount: result.events.length,
       notice:
-        'Technical F12 regulation scoring simulation. Penalties, overtime, shootout, and persistence are not implemented.',
+        'Technical F13 special-teams simulation with regulation scoring and basic 5v4 power plays. Overtime, shootout, coincidental penalties, and persistence are not implemented.',
     };
   } catch (err) {
     throw mapSimulationError(err);
@@ -159,7 +159,7 @@ export async function runTechnicalStep(opts: {
       playerDirectory: buildPlayerDirectory(input),
       events: filterEvents(step.events, detail),
       completed: step.completed,
-      notice: 'Technical F12 step simulation with regulation scoring.',
+      notice: 'Technical F13 step simulation with special teams.',
     };
   } catch (err) {
     throw mapSimulationError(err);

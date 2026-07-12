@@ -2068,7 +2068,7 @@ Past events are not recalculated.
 
 The Simulation Lab is a first-class product area.
 
-**F12 partial implementation (2026-07-13):** `/simulation-lab` hosts **Technical Match Simulation (F12)** — regulation scoring debug with scoreboard, stats, and step/resume. Batch counts (10/100/1000) and full Lab analytics remain future (F16).
+**F13 partial implementation (2026-07-13):** `/simulation-lab` hosts **Technical Match Simulation (F13)** — regulation scoring plus basic 5v4 special teams, strength/penalty panels, PP/PK stats, and step/resume. Batch counts (10/100/1000) and full Lab analytics remain future (F16).
 
 Inputs:
 

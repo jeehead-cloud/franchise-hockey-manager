@@ -1209,6 +1209,13 @@ export interface TechnicalSimulationDiagnostics {
   savePercentage?: number;
   averageShotQuality?: number;
   reconciliationOk?: boolean | null;
+  penalties?: number;
+  powerPlayOpportunities?: number;
+  powerPlayGoals?: number;
+  powerPlayPercentage?: number;
+  shortHandedGoals?: number;
+  penaltiesByInfraction?: Record<string, number>;
+  evenStrengthGoals?: number;
 }
 
 export interface TechnicalPeriodScore {
@@ -1231,6 +1238,15 @@ export interface TechnicalTeamStats {
   possessionSeconds: number;
   offensiveZoneSeconds: number;
   defensiveZoneSeconds: number;
+  penalties: number;
+  penaltyMinutes: number;
+  powerPlayOpportunities: number;
+  powerPlayGoals: number;
+  powerPlayPercentage: number;
+  penaltyKillOpportunities: number;
+  penaltyKills: number;
+  penaltyKillPercentage: number;
+  shortHandedGoals: number;
 }
 
 export interface TechnicalSkaterStats {
@@ -1244,6 +1260,10 @@ export interface TechnicalSkaterStats {
   points: number;
   shotsOnGoal: number;
   shotAttempts: number;
+  penaltyMinutes: number;
+  penaltiesTaken: number;
+  powerPlayGoals: number;
+  shortHandedGoals: number;
 }
 
 export interface TechnicalGoalieStats {

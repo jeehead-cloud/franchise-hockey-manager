@@ -1,12 +1,25 @@
-export const BALANCE_SCHEMA_VERSION = 3 as const;
+export const BALANCE_SCHEMA_VERSION = 4 as const;
 
-export const BALANCE_SCHEMA_VERSIONS = [1, 2, 3] as const;
+export const BALANCE_SCHEMA_VERSIONS = [1, 2, 3, 4] as const;
 
 export const SHOT_TYPES = ['WRIST', 'SLAP', 'SNAP', 'BACKHAND', 'TIP', 'DEFLECTION'] as const;
 
 export type ShotType = (typeof SHOT_TYPES)[number];
 
+export const PENALTY_INFRACTIONS = [
+  'TRIPPING',
+  'HOOKING',
+  'HOLDING',
+  'INTERFERENCE',
+  'SLASHING',
+  'ROUGHING',
+] as const;
+
+export type PenaltyInfraction = (typeof PENALTY_INFRACTIONS)[number];
+
 export type RoleShotTendencyTier = 'high' | 'medium' | 'low';
+
+export type RolePenaltyTendencyTier = 'high' | 'medium' | 'low';
 
 export type LoggingLevel = 'MINIMAL' | 'STANDARD' | 'DETAILED' | 'DEBUG';
 
@@ -202,6 +215,44 @@ export interface GoaliesBalanceSection {
   lateralMovementEffect: number;
 }
 
+export interface PenaltiesBalanceSection {
+  active: true;
+  enabled: true;
+  baseOpportunityProbability: number;
+  minimumSecondsBetweenPenalties: number;
+  durationSeconds: number;
+  infractionWeights: Record<PenaltyInfraction, number>;
+  aggressionWeight: number;
+  defensiveAwarenessWeight: number;
+  pressureWeight: number;
+  rolePenaltyTendencies: Record<string, RolePenaltyTendencyTier>;
+  rolePenaltyTendencyMultipliers: { high: number; medium: number; low: number };
+  penaltyVariance: number;
+  powerPlayPossessionModifier: number;
+  penaltyKillPossessionModifier: number;
+  powerPlayShotOpportunityModifier: number;
+  powerPlayShotQualityModifier: number;
+  shortHandedShotOpportunityModifier: number;
+  powerPlayAttackWeights: {
+    offensiveRating: number;
+    passing: number;
+    shooting: number;
+    offensiveAwareness: number;
+    coachOffense: number;
+  };
+  penaltyKillDefenseWeights: {
+    defensiveRating: number;
+    defensiveAwareness: number;
+    speed: number;
+    strength: number;
+    coachDefense: number;
+  };
+  maximumActivePenalties: 1;
+  allowCoincidental: false;
+  allowFiveOnThree: false;
+  allowFourOnFour: false;
+}
+
 export interface BalanceConfig extends BalanceMetadata {
   randomness: RandomnessConfig;
   playerModel: PlayerModelBalanceSection;
@@ -210,7 +261,7 @@ export interface BalanceConfig extends BalanceMetadata {
   match: MatchBalanceSection | InactiveSection;
   shots: ShotsBalanceSection | InactiveSection;
   goalies: GoaliesBalanceSection | InactiveSection;
-  penalties: InactiveSection;
+  penalties: PenaltiesBalanceSection | InactiveSection;
   development: InactiveSection;
   scouting: InactiveSection;
   draft: InactiveSection;

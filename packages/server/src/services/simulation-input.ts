@@ -1,11 +1,11 @@
 import { createHash } from 'node:crypto';
 import {
   FHM_ENGINE_VERSION,
-  F12_SIMULATION_MODE,
+  F13_SIMULATION_MODE,
   PERIOD_DURATION_SECONDS,
   REGULATION_PERIODS,
   canonicalizeSimulationInput,
-  isF12CompatibleBalanceConfig,
+  isF13CompatibleBalanceConfig,
   validateSimulationInput,
   type SimulationInput,
   type SimulationPlayerProfile,
@@ -118,7 +118,7 @@ async function assertTeamSimulationReady(teamId: string): Promise<void> {
   });
 
   if (readiness.status !== 'READY' || validation.status !== 'VALID') {
-    throw new SimulationHttpError(409, 'TeamNotSimulationReady', 'Team is not ready for F12 simulation', {
+    throw new SimulationHttpError(409, 'TeamNotSimulationReady', 'Team is not ready for F13 simulation', {
       teamId,
       readinessStatus: readiness.status,
       lineupStatus: validation.status,
@@ -245,11 +245,11 @@ export async function buildSimulationInput(opts: {
   await assertTeamSimulationReady(opts.awayTeamId);
 
   const snapshot = await getActiveBalanceSnapshot();
-  if (!isF12CompatibleBalanceConfig(snapshot.config)) {
+  if (!isF13CompatibleBalanceConfig(snapshot.config)) {
     throw new SimulationHttpError(
       409,
       'IncompatibleBalanceConfiguration',
-      'Active balance configuration is not F12-compatible (requires schemaVersion >= 3 with active match/shots/goalies sections)',
+      'Active balance configuration is not F13-compatible (requires schemaVersion >= 4 with active match/shots/goalies/penalties sections)',
       { schemaVersion: snapshot.version.schemaVersion },
     );
   }
@@ -268,7 +268,7 @@ export async function buildSimulationInput(opts: {
   const draft: Omit<SimulationInput, 'inputFingerprint'> = {
     matchId: opts.matchId ?? `debug-${opts.homeTeamId}-${opts.awayTeamId}`,
     engineVersion: FHM_ENGINE_VERSION,
-    simulationMode: F12_SIMULATION_MODE,
+    simulationMode: F13_SIMULATION_MODE,
     seed: opts.seed,
     balance: {
       presetId: snapshot.preset.id,

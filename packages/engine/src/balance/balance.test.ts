@@ -4,10 +4,13 @@ import {
   canonicalizeBalanceConfig,
   collectChangedPaths,
   defaultGoaliesSection,
+  defaultPenaltiesSection,
   defaultShotsSection,
   getStandardBalanceConfig,
   isF12CompatibleBalanceConfig,
+  isF13CompatibleBalanceConfig,
   normalizeBalanceConfig,
+  PENALTY_INFRACTIONS,
   SHOT_TYPES,
   validateBalanceConfig,
   validateRuntimeSimulationSettings,
@@ -25,13 +28,14 @@ function hash(config: ReturnType<typeof getStandardBalanceConfig>) {
 describe('balance config', () => {
   it('parses Standard defaults with required sections', () => {
     const config = getStandardBalanceConfig();
-    expect(config.schemaVersion).toBe(3);
+    expect(config.schemaVersion).toBe(4);
     expect(config.presetKey).toBe('standard');
     expect(config.chemistry.active).toBe(true);
     expect(config.playerModel.active).toBe(true);
     expect(config.match.active).toBe(true);
     expect(config.shots.active).toBe(true);
     expect(config.goalies.active).toBe(true);
+    expect(config.penalties.active).toBe(true);
     if (config.match.active) {
       expect(config.match.regulationPeriods).toBe(3);
       expect(config.match.offensiveZoneShotOpportunityProbability).toBeCloseTo(0.28);
@@ -47,15 +51,26 @@ describe('balance config', () => {
         expect(config.goalies.attributeWeightsByShotType[shotType]).toBeTruthy();
       }
     }
+    if (config.penalties.active) {
+      expect(config.penalties.enabled).toBe(true);
+      expect(config.penalties.baseOpportunityProbability).toBeCloseTo(0.04);
+      expect(config.penalties.durationSeconds).toBe(120);
+      expect(config.penalties.maximumActivePenalties).toBe(1);
+      for (const infraction of PENALTY_INFRACTIONS) {
+        expect(config.penalties.infractionWeights[infraction]).toBeGreaterThan(0);
+      }
+    }
     expect(config.chemistry.weights.version).toBe('f9-v1');
     expect(isF12CompatibleBalanceConfig(config)).toBe(true);
+    expect(isF13CompatibleBalanceConfig(config)).toBe(true);
     const result = validateBalanceConfig(config);
     expect(result.ok).toBe(true);
   });
 
-  it('default shots and goalies sections validate independently', () => {
+  it('default shots, goalies, and penalties sections validate independently', () => {
     expect(validateBalanceConfig(defaultShotsSection()).ok).toBe(false);
     expect(validateBalanceConfig(defaultGoaliesSection()).ok).toBe(false);
+    expect(validateBalanceConfig(defaultPenaltiesSection()).ok).toBe(false);
   });
 
   it('canonicalization is order-independent and hash-stable', () => {
@@ -103,7 +118,7 @@ describe('balance config', () => {
     ).toBe(false);
   });
 
-  it('rejects schemaVersion 3 config with inactive shots or goalies', () => {
+  it('rejects schemaVersion 4 config with inactive shots, goalies, or penalties', () => {
     const base = getStandardBalanceConfig();
     expect(
       validateBalanceConfig({
@@ -123,6 +138,17 @@ describe('balance config', () => {
           active: false,
           status: 'INACTIVE_UNTIL_MILESTONE',
           milestone: 'F12',
+          notes: 'inactive',
+        },
+      }).ok,
+    ).toBe(false);
+    expect(
+      validateBalanceConfig({
+        ...base,
+        penalties: {
+          active: false,
+          status: 'INACTIVE_UNTIL_MILESTONE',
+          milestone: 'F13',
           notes: 'inactive',
         },
       }).ok,

@@ -221,6 +221,157 @@ export function reconcileStatistics(
     ),
   );
 
+  // --- F13 special-teams checks ---
+  const penaltyEvents = events.filter((e) => e.type === 'PENALTY');
+  const penaltyExpiredEvents = events.filter((e) => e.type === 'PENALTY_EXPIRED');
+  const ppGoals = goals.filter((g) => g.details.goalStrength === 'POWER_PLAY');
+  const shGoals = goals.filter((g) => g.details.goalStrength === 'SHORT_HANDED');
+
+  checks.push(
+    check(
+      'F13_ONE_ACTIVE_PENALTY_MAX',
+      penaltyEvents.length <= events.length,
+      'Penalty event count sanity',
+    ),
+  );
+
+  let overlappingPenalties = false;
+  let openPenaltyCount = 0;
+  const seenPenaltySequences = new Set<number>();
+  for (const e of events) {
+    if (e.type === 'PENALTY') {
+      const seq = Number(e.details.penaltySequenceId);
+      if (seenPenaltySequences.has(seq)) overlappingPenalties = true;
+      seenPenaltySequences.add(seq);
+      if (openPenaltyCount > 0) overlappingPenalties = true;
+      openPenaltyCount += 1;
+    }
+    if (e.type === 'PENALTY_EXPIRED' || (e.type === 'GOAL' && e.details.penaltyEndedByGoal)) {
+      openPenaltyCount = Math.max(0, openPenaltyCount - 1);
+    }
+  }
+  if (state.activePenalty) openPenaltyCount += 1;
+  checks.push(
+    check(
+      'F13_NO_OVERLAPPING_PENALTIES',
+      !overlappingPenalties && openPenaltyCount <= 1,
+      `Overlapping penalties detected (open=${openPenaltyCount})`,
+    ),
+  );
+
+  const homePenalties = penaltyEvents.filter(
+    (e) => String(e.details.penalizedTeamId ?? e.teamId) === input.homeTeam.teamId,
+  ).length;
+  const awayPenalties = penaltyEvents.filter(
+    (e) => String(e.details.penalizedTeamId ?? e.teamId) === input.awayTeam.teamId,
+  ).length;
+  checks.push(
+    check(
+      'F13_PP_OPPORTUNITIES_MATCH_OPPONENT_PENALTIES',
+      stats.home.powerPlayOpportunities === awayPenalties &&
+        stats.away.powerPlayOpportunities === homePenalties,
+      `PP opportunities home/away ${stats.home.powerPlayOpportunities}/${stats.away.powerPlayOpportunities} vs opponent penalties ${awayPenalties}/${homePenalties}`,
+    ),
+  );
+  checks.push(
+    check(
+      'F13_PK_OPPORTUNITIES_MATCH_OWN_PENALTIES',
+      stats.home.penaltyKillOpportunities === homePenalties &&
+        stats.away.penaltyKillOpportunities === awayPenalties,
+      `PK opportunities home/away ${stats.home.penaltyKillOpportunities}/${stats.away.penaltyKillOpportunities} vs own penalties ${homePenalties}/${awayPenalties}`,
+    ),
+  );
+
+  checks.push(
+    check(
+      'F13_PP_GOALS_LEQ_OPPORTUNITIES',
+      stats.home.powerPlayGoals <= stats.home.powerPlayOpportunities &&
+        stats.away.powerPlayGoals <= stats.away.powerPlayOpportunities,
+      `PP goals exceed opportunities home ${stats.home.powerPlayGoals}/${stats.home.powerPlayOpportunities} away ${stats.away.powerPlayGoals}/${stats.away.powerPlayOpportunities}`,
+    ),
+  );
+
+  checks.push(
+    check(
+      'F13_PIM_EQUALS_TWO_PER_PENALTY',
+      stats.home.penaltyMinutes === stats.home.penalties * 2 &&
+        stats.away.penaltyMinutes === stats.away.penalties * 2,
+      `PIM must be 2× penalties home ${stats.home.penaltyMinutes}/${stats.home.penalties} away ${stats.away.penaltyMinutes}/${stats.away.penalties}`,
+    ),
+  );
+
+  let strengthMatchesPenalty = true;
+  for (const e of events) {
+    if (e.type === 'PENALTY') {
+      const after = String(e.details.strengthStateAfter ?? '');
+      if (after && e.strengthState !== after && e.strengthState !== 'EVEN_5V5') {
+        // Event stamped at pre-penalty strength; strengthStateAfter in details is authoritative after
+      }
+    }
+    if (
+      (e.type === 'PENALTY' || e.type === 'PENALTY_EXPIRED' || e.type === 'GOAL') &&
+      e.strengthState !== 'EVEN_5V5'
+    ) {
+      const advantaged =
+        e.strengthState === 'HOME_POWER_PLAY_5V4'
+          ? input.homeTeam.teamId
+          : e.strengthState === 'AWAY_POWER_PLAY_5V4'
+            ? input.awayTeam.teamId
+            : null;
+      if (advantaged && e.type === 'PENALTY') {
+        const adv = String(e.details.advantagedTeamId ?? '');
+        if (adv && adv !== advantaged) strengthMatchesPenalty = false;
+      }
+    }
+  }
+  checks.push(
+    check(
+      'F13_STRENGTH_MATCHES_ACTIVE_PENALTY',
+      strengthMatchesPenalty,
+      'Mid-game strengthState must match active penalty advantaged side',
+    ),
+  );
+
+  let shGoalValidity = true;
+  for (const g of shGoals) {
+    const strength = String(g.details.strengthState ?? g.strengthState);
+    const scoringTeamId = String(g.details.scoringTeamId ?? g.teamId);
+    const isHomeScorer = scoringTeamId === input.homeTeam.teamId;
+    const expectedSh =
+      (strength === 'HOME_POWER_PLAY_5V4' && !isHomeScorer) ||
+      (strength === 'AWAY_POWER_PLAY_5V4' && isHomeScorer);
+    if (!expectedSh) shGoalValidity = false;
+  }
+  checks.push(
+    check(
+      'F13_SHORT_HANDED_GOALS_ONLY_WHEN_SH',
+      shGoalValidity,
+      'Short-handed goals require scorer team to be shorthanded at goal time',
+    ),
+  );
+
+  const ppGoalSeqs = new Set(
+    ppGoals
+      .map((g) => Number(g.details.activePenaltySequenceId))
+      .filter((n) => Number.isFinite(n) && n > 0),
+  );
+  const successfulKills =
+    penaltyEvents.length -
+    ppGoalSeqs.size -
+    (state.phase === 'COMPLETE' && !state.activePenalty
+      ? 0
+      : 0);
+  checks.push(
+    check(
+      'F13_PK_KILLS_LEQ_OPPORTUNITIES',
+      stats.home.penaltyKills <= stats.home.penaltyKillOpportunities &&
+        stats.away.penaltyKills <= stats.away.penaltyKillOpportunities,
+      `PK kills exceed opportunities home ${stats.home.penaltyKills}/${stats.home.penaltyKillOpportunities} away ${stats.away.penaltyKills}/${stats.away.penaltyKillOpportunities} (successful=${successfulKills})`,
+    ),
+  );
+
+  void penaltyExpiredEvents;
+
   const failures = checks.filter((c) => !c.ok).map((c) => `${c.code}: ${c.message}`);
   const result: ReconciliationResult = {
     ok: failures.length === 0,

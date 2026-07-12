@@ -27,14 +27,14 @@ async function autoFillLineup(app: FastifyInstance, teamId: string) {
     payload: {
       expectedUpdatedAt: lineup.json().item.updatedAt,
       mode: 'REPLACE',
-      reason: 'F12 simulation test setup',
+      reason: 'F13 simulation test setup',
     },
   });
   expect(res.statusCode).toBe(200);
   expect(res.json().validation.status).toBe('VALID');
 }
 
-describe('F12 simulation debug API', () => {
+describe('F13 simulation debug API', () => {
   let app: FastifyInstance;
   let prisma: PrismaClient;
   let tempDir: string;
@@ -90,24 +90,29 @@ describe('F12 simulation debug API', () => {
     const res = await app.inject({
       method: 'POST',
       url: '/api/simulation/debug/regulation',
-      payload: { homeTeamId: frostId, awayTeamId: owlsId, seed: 'f12-api-001', eventDetail: 'SUMMARY' },
+      payload: { homeTeamId: frostId, awayTeamId: owlsId, seed: 'f13-api-001', eventDetail: 'SUMMARY' },
     });
     expect(res.statusCode).toBe(200);
     const item = res.json().item;
-    expect(item.metadata.engineVersion).toBe('f12.1');
-    expect(item.metadata.simulationMode).toBe('F12_SCORING');
+    expect(item.metadata.engineVersion).toBe('f13.1');
+    expect(item.metadata.simulationMode).toBe('F13_SPECIAL_TEAMS');
     expect(item.metadata.balanceHash).toBeTruthy();
     expect(item.finalState.simulationStatus).toBe('REGULATION_COMPLETE');
+    expect(item.finalState).toHaveProperty('strengthState');
+    expect(item.finalState).toHaveProperty('activePenalty');
     expect(item.reconciliation.ok).toBe(true);
     expect(item.statistics.home.goals).toBe(item.finalState.score.home);
     expect(item.statistics.away.goals).toBe(item.finalState.score.away);
+    expect(item.statistics.home).toHaveProperty('penalties');
+    expect(item.statistics.away).toHaveProperty('penalties');
     expect(item.diagnostics.traceHash).toMatch(/^[a-f0-9]+$/);
     expect(item.diagnostics.goals).toBeGreaterThan(0);
-    expect(item.notice).toContain('F12');
+    expect(item.diagnostics).toHaveProperty('penalties');
+    expect(item.notice).toContain('F13');
   });
 
   it('is deterministic for same seed', async () => {
-    const payload = { homeTeamId: frostId, awayTeamId: owlsId, seed: 'f12-api-det', eventDetail: 'NONE' };
+    const payload = { homeTeamId: frostId, awayTeamId: owlsId, seed: 'f13-api-det', eventDetail: 'NONE' };
     const a = await app.inject({ method: 'POST', url: '/api/simulation/debug/regulation', payload });
     const b = await app.inject({ method: 'POST', url: '/api/simulation/debug/regulation', payload });
     expect(a.json().item.diagnostics.traceHash).toBe(b.json().item.diagnostics.traceHash);
@@ -122,7 +127,7 @@ describe('F12 simulation debug API', () => {
       payload: {
         homeTeamId: frostId,
         awayTeamId: owlsId,
-        seed: 'f12-step-001',
+        seed: 'f13-step-001',
         stepMode: 'NEXT_EVENT',
       },
     });
@@ -134,12 +139,13 @@ describe('F12 simulation debug API', () => {
       payload: {
         homeTeamId: frostId,
         awayTeamId: owlsId,
-        seed: 'f12-step-001',
+        seed: 'f13-step-001',
         snapshot: step.json().item.snapshot,
       },
     });
     expect(resume.statusCode).toBe(200);
     expect(resume.json().item.completed).toBe(true);
+    expect(step.json().item.notice).toContain('F13');
   });
 
   it('rejects same team and incomplete team', async () => {
