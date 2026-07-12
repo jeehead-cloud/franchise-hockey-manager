@@ -392,8 +392,16 @@ export interface ChemistryUnitResult {
   unavailableReasons: string[];
 }
 
+export interface BalanceMeta {
+  presetName: string;
+  versionNumber: number;
+  configHash: string;
+  schemaVersion: number;
+}
+
 export interface LineupChemistrySummary {
   chemistryConfigVersion: string;
+  balance: BalanceMeta | null;
   forwardLines: ChemistryUnitResult[];
   defensePairs: ChemistryUnitResult[];
   goalies: {
@@ -426,6 +434,7 @@ export interface TeamChemistry {
     defense: number | null;
   } | null;
   lineup: { exists: boolean; presence: string; validationStatus: string | null };
+  balance: BalanceMeta;
   chemistry: LineupChemistrySummary;
 }
 
@@ -908,4 +917,249 @@ export async function getCommissionerLineupAudit(
   signal?: AbortSignal,
 ): Promise<Paginated<LineupAuditItem>> {
   return commissionerGetJson(`/api/commissioner/teams/${id}/lineup/audit${qs(params)}`, signal);
+}
+
+export type { BalanceConfig, RuntimeSimulationSettings, LoggingLevel } from '@fhm/engine';
+
+export interface ActiveBalanceSnapshot {
+  preset: {
+    id: string;
+    name: string;
+    description: string | null;
+    isSystem: boolean;
+  };
+  version: {
+    id: string;
+    versionNumber: number;
+    schemaVersion: number;
+    configHash: string;
+    createdAt: string;
+    changeReason: string;
+  };
+  config: import('@fhm/engine').BalanceConfig;
+  runtimeDefaults: import('@fhm/engine').RuntimeSimulationSettings;
+}
+
+export interface BalancePresetVersionSummary {
+  id: string;
+  versionNumber: number;
+  schemaVersion: number;
+  configHash: string;
+  changeReason: string;
+  createdAt: string;
+  isActive: boolean;
+}
+
+export interface BalancePresetSummary {
+  id: string;
+  name: string;
+  description: string | null;
+  isSystem: boolean;
+  createdAt: string;
+  updatedAt: string;
+  latestVersion: BalancePresetVersionSummary | null;
+  isActive: boolean;
+}
+
+export interface BalancePresetDetail extends BalancePresetSummary {
+  versions: Array<
+    BalancePresetVersionSummary & {
+      presetId: string;
+      createdBySource: string | null;
+    }
+  >;
+}
+
+export interface BalancePresetVersionDetail extends BalancePresetVersionSummary {
+  presetId: string;
+  createdBySource: string | null;
+  preset?: {
+    id: string;
+    name: string;
+    description: string | null;
+    isSystem: boolean;
+  };
+  config: import('@fhm/engine').BalanceConfig;
+  runtimeDefaults: import('@fhm/engine').RuntimeSimulationSettings;
+}
+
+export interface BalanceExportPayload {
+  format: 'fhm-balance-export';
+  formatVersion: number;
+  exportedAt: string;
+  preset: {
+    id: string;
+    name: string;
+    description: string | null;
+    isSystem: boolean;
+  };
+  version: {
+    id: string;
+    versionNumber: number;
+    schemaVersion: number;
+    configHash: string;
+    changeReason: string;
+    createdAt: string;
+  };
+  config: import('@fhm/engine').BalanceConfig;
+}
+
+export interface BalanceValidationPreview {
+  valid: boolean;
+  errors: Array<{ path: string; message: string }>;
+  normalized: import('@fhm/engine').BalanceConfig | null;
+  hash: string | null;
+  changedPaths: string[];
+}
+
+export interface BalanceAuditItem {
+  id: string;
+  entityType: string;
+  entityId: string;
+  action: string;
+  reason: string;
+  source: string;
+  createdAt: string;
+  changedFields: string[];
+  before: unknown;
+  after: unknown;
+}
+
+export interface CommissionerBalanceDuplicatePayload {
+  name: string;
+  versionId?: string;
+  reason: string;
+}
+
+export interface CommissionerBalanceRenamePayload {
+  expectedUpdatedAt: string;
+  reason: string;
+  name?: string;
+  description?: string | null;
+}
+
+export interface CommissionerBalanceCreateVersionPayload {
+  expectedLatestVersionId: string;
+  reason: string;
+  config: unknown;
+  activate?: boolean;
+}
+
+export interface CommissionerBalanceActivatePayload {
+  reason: string;
+  expectedActiveVersionId?: string;
+}
+
+export interface CommissionerBalanceResetPayload {
+  reason: string;
+  activate?: boolean;
+}
+
+export interface CommissionerBalanceImportPayload {
+  name: string;
+  description?: string | null;
+  reason: string;
+  config: unknown;
+}
+
+export interface CommissionerBalanceValidatePayload {
+  presetId?: string;
+  baseVersionId?: string;
+  config: unknown;
+}
+
+export async function getActiveBalance(signal?: AbortSignal): Promise<{ item: ActiveBalanceSnapshot }> {
+  return getJson('/api/balance/active', signal);
+}
+
+export async function listBalancePresets(signal?: AbortSignal): Promise<{ items: BalancePresetSummary[] }> {
+  return getJson('/api/balance/presets', signal);
+}
+
+export async function getBalancePreset(
+  id: string,
+  signal?: AbortSignal,
+): Promise<{ item: BalancePresetDetail }> {
+  return getJson(`/api/balance/presets/${id}`, signal);
+}
+
+export async function listBalancePresetVersions(
+  presetId: string,
+  signal?: AbortSignal,
+): Promise<{ items: BalancePresetVersionSummary[] }> {
+  return getJson(`/api/balance/presets/${presetId}/versions`, signal);
+}
+
+export async function getBalancePresetVersion(
+  versionId: string,
+  signal?: AbortSignal,
+): Promise<{ item: BalancePresetVersionDetail }> {
+  return getJson(`/api/balance/versions/${versionId}`, signal);
+}
+
+export async function exportBalancePresetVersion(
+  versionId: string,
+  signal?: AbortSignal,
+): Promise<BalanceExportPayload> {
+  const res = await fetch(`${apiBase()}/api/balance/versions/${versionId}/export`, { signal });
+  if (!res.ok) {
+    const err = new Error(await readError(res)) as Error & { status?: number };
+    err.status = res.status;
+    throw err;
+  }
+  return res.json() as Promise<BalanceExportPayload>;
+}
+
+export async function duplicateCommissionerBalancePreset(
+  presetId: string,
+  payload: CommissionerBalanceDuplicatePayload,
+): Promise<{ item: BalancePresetSummary }> {
+  return commissionerWrite(`/api/commissioner/balance/presets/${presetId}/duplicate`, 'POST', payload);
+}
+
+export async function renameCommissionerBalancePreset(
+  presetId: string,
+  payload: CommissionerBalanceRenamePayload,
+): Promise<{ item: BalancePresetSummary }> {
+  return commissionerWrite(`/api/commissioner/balance/presets/${presetId}`, 'PATCH', payload);
+}
+
+export async function createCommissionerBalanceVersion(
+  presetId: string,
+  payload: CommissionerBalanceCreateVersionPayload,
+): Promise<{ item: BalancePresetVersionDetail }> {
+  return commissionerWrite(`/api/commissioner/balance/presets/${presetId}/versions`, 'POST', payload);
+}
+
+export async function activateCommissionerBalanceVersion(
+  versionId: string,
+  payload: CommissionerBalanceActivatePayload,
+): Promise<{ item: ActiveBalanceSnapshot }> {
+  return commissionerWrite(`/api/commissioner/balance/versions/${versionId}/activate`, 'POST', payload);
+}
+
+export async function resetCommissionerBalancePreset(
+  presetId: string,
+  payload: CommissionerBalanceResetPayload,
+): Promise<{ item: BalancePresetVersionDetail }> {
+  return commissionerWrite(`/api/commissioner/balance/presets/${presetId}/reset`, 'POST', payload);
+}
+
+export async function importCommissionerBalancePreset(
+  payload: CommissionerBalanceImportPayload,
+): Promise<{ item: BalancePresetSummary }> {
+  return commissionerWrite('/api/commissioner/balance/import', 'POST', payload);
+}
+
+export async function validateCommissionerBalanceConfig(
+  payload: CommissionerBalanceValidatePayload,
+): Promise<BalanceValidationPreview> {
+  return commissionerWrite('/api/commissioner/balance/validate', 'POST', payload);
+}
+
+export async function getCommissionerBalanceAudit(
+  params: Record<string, string | number | undefined | null> = {},
+  signal?: AbortSignal,
+): Promise<Paginated<BalanceAuditItem>> {
+  return commissionerGetJson(`/api/commissioner/balance/audit${qs(params)}`, signal);
 }

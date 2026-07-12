@@ -275,3 +275,73 @@ export type CommissionerTeamSetupInput = z.infer<typeof commissionerTeamSetupSch
 export type CommissionerRosterStatusInput = z.infer<typeof commissionerRosterStatusSchema>;
 export type CommissionerLineupSaveInput = z.infer<typeof commissionerLineupSaveSchema>;
 export type CommissionerLineupAutoFillInput = z.infer<typeof commissionerLineupAutoFillSchema>;
+
+export const commissionerBalanceDuplicateSchema = z
+  .object({
+    name: nonEmpty.max(120),
+    versionId: z.string().trim().min(1).optional(),
+    reason: nonEmpty.max(500),
+  })
+  .strict();
+
+export const commissionerBalanceRenameSchema = z
+  .object({
+    expectedUpdatedAt: z.string().datetime(),
+    reason: nonEmpty.max(500),
+    name: nonEmpty.max(120).optional(),
+    description: z.string().trim().max(2000).nullable().optional(),
+  })
+  .strict()
+  .refine((row) => row.name !== undefined || row.description !== undefined, {
+    message: 'At least one of name or description is required',
+  });
+
+export const commissionerBalanceCreateVersionSchema = z
+  .object({
+    expectedLatestVersionId: z.string().trim().min(1),
+    reason: nonEmpty.max(500),
+    config: z.unknown(),
+    activate: z.boolean().optional(),
+  })
+  .strict();
+
+export const commissionerBalanceActivateSchema = z
+  .object({
+    reason: nonEmpty.max(500),
+    expectedActiveVersionId: z.string().trim().min(1).optional(),
+  })
+  .strict();
+
+export const commissionerBalanceResetSchema = z
+  .object({
+    reason: nonEmpty.max(500),
+    activate: z.boolean().optional(),
+  })
+  .strict();
+
+export const commissionerBalanceImportSchema = z
+  .object({
+    name: nonEmpty.max(120),
+    description: z.string().trim().max(2000).nullable().optional(),
+    reason: nonEmpty.max(500),
+    config: z.unknown(),
+  })
+  .strict();
+
+export const commissionerBalanceValidateSchema = z
+  .object({
+    presetId: z.string().trim().min(1).optional(),
+    baseVersionId: z.string().trim().min(1).optional(),
+    config: z.unknown(),
+  })
+  .strict();
+
+export type CommissionerBalanceDuplicateInput = z.infer<typeof commissionerBalanceDuplicateSchema>;
+export type CommissionerBalanceRenameInput = z.infer<typeof commissionerBalanceRenameSchema>;
+export type CommissionerBalanceCreateVersionInput = z.infer<
+  typeof commissionerBalanceCreateVersionSchema
+>;
+export type CommissionerBalanceActivateInput = z.infer<typeof commissionerBalanceActivateSchema>;
+export type CommissionerBalanceResetInput = z.infer<typeof commissionerBalanceResetSchema>;
+export type CommissionerBalanceImportInput = z.infer<typeof commissionerBalanceImportSchema>;
+export type CommissionerBalanceValidateInput = z.infer<typeof commissionerBalanceValidateSchema>;

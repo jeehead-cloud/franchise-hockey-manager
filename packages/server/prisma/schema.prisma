@@ -135,6 +135,9 @@ enum CommissionerAuditEntityType {
   COACH
   TEAM
   TEAM_LINEUP
+  BALANCE_PRESET
+  BALANCE_PRESET_VERSION
+  ACTIVE_BALANCE_CONFIGURATION
 }
 
 enum CommissionerAuditAction {
@@ -152,6 +155,12 @@ enum CommissionerAuditAction {
   LINEUP_UPDATED
   LINEUP_AUTO_FILLED
   LINEUP_CLEARED
+  PRESET_DUPLICATED
+  PRESET_RENAMED
+  VERSION_CREATED
+  VERSION_ACTIVATED
+  PRESET_RESET
+  PRESET_IMPORTED
 }
 
 enum LineupSlot {
@@ -468,4 +477,42 @@ model CommissionerAuditLog {
 
   @@index([entityType, entityId, createdAt])
   @@index([createdAt])
+}
+
+/// Named balance preset (system Standard or user duplicate). F10.
+model BalancePreset {
+  id          String                 @id @default(cuid())
+  name        String                 @unique
+  description String?
+  isSystem    Boolean                @default(false)
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
+  versions    BalancePresetVersion[]
+}
+
+/// Immutable balance configuration snapshot. F10.
+model BalancePresetVersion {
+  id              String                      @id @default(cuid())
+  presetId        String
+  versionNumber   Int
+  schemaVersion   Int
+  configJson      String
+  configHash      String
+  changeReason    String
+  createdAt       DateTime                    @default(now())
+  createdBySource CommissionerAuditSource?
+  preset          BalancePreset               @relation(fields: [presetId], references: [id], onDelete: Restrict)
+  activeFor       ActiveBalanceConfiguration?
+
+  @@unique([presetId, versionNumber])
+  @@index([configHash])
+  @@index([presetId, createdAt])
+}
+
+/// Singleton active balance version for simulation/runtime. F10.
+model ActiveBalanceConfiguration {
+  id                    String               @id @default("default")
+  activePresetVersionId String               @unique
+  updatedAt             DateTime             @updatedAt
+  activeVersion         BalancePresetVersion @relation(fields: [activePresetVersionId], references: [id], onDelete: Restrict)
 }

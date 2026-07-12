@@ -1,10 +1,23 @@
-import { getChemistryWeights, getCoachStyleScore } from './config.js';
-import type { ChemistryContext, ChemistryFactor, ChemistryPlayerInput, ChemistryUnitType } from './types.js';
+import {
+  getChemistryWeights,
+  getCoachStyleScore,
+  type ChemistryRuntimeConfig,
+} from './config.js';
+import type {
+  ChemistryContext,
+  ChemistryFactor,
+  ChemistryPlayerInput,
+  ChemistryUnitType,
+} from './types.js';
 
-function coachRatingMultiplier(context: ChemistryContext, unitType: ChemistryUnitType): number {
+function coachRatingMultiplier(
+  context: ChemistryContext,
+  unitType: ChemistryUnitType,
+  chemistryConfig?: ChemistryRuntimeConfig,
+): number {
   const coach = context.coach;
   if (!coach) return 1;
-  const cfg = getChemistryWeights().coachRatingScale;
+  const cfg = getChemistryWeights(chemistryConfig).coachRatingScale;
   const overall = Math.min(cfg.maxOverall, Math.max(cfg.minOverall, coach.overallCoaching));
   const t = (overall - cfg.minOverall) / (cfg.maxOverall - cfg.minOverall);
   let mult = cfg.minMultiplier + t * (cfg.maxMultiplier - cfg.minMultiplier);
@@ -23,9 +36,10 @@ export function coachFitScore(
   players: ChemistryPlayerInput[],
   context: ChemistryContext,
   unitType: ChemistryUnitType,
+  chemistryConfig?: ChemistryRuntimeConfig,
 ): { score: number; factors: ChemistryFactor[] } {
   const factors: ChemistryFactor[] = [];
-  const weights = getChemistryWeights();
+  const weights = getChemistryWeights(chemistryConfig);
   if (!context.coach) {
     factors.push({
       code: 'MISSING_COACH',
@@ -38,10 +52,13 @@ export function coachFitScore(
   }
 
   const scores = players.map((p) =>
-    getCoachStyleScore(p.preferredCoachingStyle, context.coach!.coachingStyle),
+    getCoachStyleScore(p.preferredCoachingStyle, context.coach!.coachingStyle, chemistryConfig),
   );
   const avg = scores.reduce((s, n) => s + n, 0) / Math.max(1, scores.length);
-  const scaled = Math.max(-1, Math.min(1, avg * coachRatingMultiplier(context, unitType)));
+  const scaled = Math.max(
+    -1,
+    Math.min(1, avg * coachRatingMultiplier(context, unitType, chemistryConfig)),
+  );
 
   factors.push({
     code: avg >= 0 ? 'COACH_STYLE_MATCH' : 'COACH_STYLE_MISMATCH',

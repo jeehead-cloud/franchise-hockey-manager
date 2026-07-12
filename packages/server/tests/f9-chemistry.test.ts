@@ -56,6 +56,13 @@ describe('F9 chemistry APIs', () => {
     expect(res.statusCode).toBe(200);
     const item = res.json().item;
     expect(item.chemistry.chemistryConfigVersion).toBe('f9-v1');
+    expect(item.chemistry.balance).toEqual(item.balance);
+    expect(item.balance).toMatchObject({
+      presetName: 'Standard',
+      versionNumber: expect.any(Number),
+      configHash: expect.stringMatching(/^[a-f0-9]{64}$/),
+      schemaVersion: 1,
+    });
     expect(item.chemistry.forwardLines).toHaveLength(4);
     expect(item.chemistry.overall.unavailableUnits).toBeGreaterThan(0);
     expect(item.lineup.exists).toBe(false);

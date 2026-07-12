@@ -1,8 +1,11 @@
-import { getRolePairScore } from './config.js';
+import { getRolePairScore, type ChemistryRuntimeConfig } from './config.js';
 import type { ChemistryFactor, ChemistryPlayerInput } from './types.js';
 
 /** Average pairwise role compatibility in [-1, 1]. Order-independent. */
-export function roleCompatibilityScore(players: ChemistryPlayerInput[]): {
+export function roleCompatibilityScore(
+  players: ChemistryPlayerInput[],
+  chemistryConfig?: ChemistryRuntimeConfig,
+): {
   score: number;
   factors: ChemistryFactor[];
 } {
@@ -17,7 +20,7 @@ export function roleCompatibilityScore(players: ChemistryPlayerInput[]): {
     for (let j = i + 1; j < sorted.length; j += 1) {
       const a = sorted[i]!;
       const b = sorted[j]!;
-      const score = getRolePairScore(a.role, b.role);
+      const score = getRolePairScore(a.role, b.role, chemistryConfig);
       pairScores.push(score);
       const direction = score > 0.15 ? 'POSITIVE' : score < -0.15 ? 'NEGATIVE' : 'NEUTRAL';
       factors.push({

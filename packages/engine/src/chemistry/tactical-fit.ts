@@ -1,13 +1,18 @@
-import { getChemistryWeights, getTacticalStyleScore } from './config.js';
+import {
+  getChemistryWeights,
+  getTacticalStyleScore,
+  type ChemistryRuntimeConfig,
+} from './config.js';
 import type { ChemistryContext, ChemistryFactor, ChemistryPlayerInput } from './types.js';
 
 /** Aggregate tactical fit in [-1, 1]. */
 export function tacticalFitScore(
   players: ChemistryPlayerInput[],
   context: ChemistryContext,
+  chemistryConfig?: ChemistryRuntimeConfig,
 ): { score: number; factors: ChemistryFactor[] } {
   const factors: ChemistryFactor[] = [];
-  const weights = getChemistryWeights();
+  const weights = getChemistryWeights(chemistryConfig);
 
   if (!context.teamTacticalStyle) {
     factors.push({
@@ -21,14 +26,18 @@ export function tacticalFitScore(
   }
 
   const playerScores = players.map((p) =>
-    getTacticalStyleScore(p.preferredTactics, context.teamTacticalStyle!),
+    getTacticalStyleScore(p.preferredTactics, context.teamTacticalStyle!, chemistryConfig),
   );
   const playerAvg =
     playerScores.reduce((s, n) => s + n, 0) / Math.max(1, playerScores.length);
 
   let coachAlign = 0;
   if (context.coach) {
-    coachAlign = getTacticalStyleScore(context.coach.tacticalStyle, context.teamTacticalStyle);
+    coachAlign = getTacticalStyleScore(
+      context.coach.tacticalStyle,
+      context.teamTacticalStyle,
+      chemistryConfig,
+    );
     factors.push({
       code: 'COACH_TEAM_TACTICAL_ALIGNMENT',
       label: 'Coach/team tactical alignment',

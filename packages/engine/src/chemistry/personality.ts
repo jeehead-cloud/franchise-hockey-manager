@@ -1,8 +1,11 @@
-import { getPersonalityPairScore } from './config.js';
+import { getPersonalityPairScore, type ChemistryRuntimeConfig } from './config.js';
 import type { ChemistryFactor, ChemistryPlayerInput } from './types.js';
 
 /** Average pairwise personality contribution in [-1, 1]. Order-independent. */
-export function personalityCompatibilityScore(players: ChemistryPlayerInput[]): {
+export function personalityCompatibilityScore(
+  players: ChemistryPlayerInput[],
+  chemistryConfig?: ChemistryRuntimeConfig,
+): {
   score: number;
   factors: ChemistryFactor[];
 } {
@@ -15,7 +18,7 @@ export function personalityCompatibilityScore(players: ChemistryPlayerInput[]): 
     for (let j = i + 1; j < sorted.length; j += 1) {
       const a = sorted[i]!;
       const b = sorted[j]!;
-      const score = getPersonalityPairScore(a.personality, b.personality);
+      const score = getPersonalityPairScore(a.personality, b.personality, chemistryConfig);
       pairScores.push(score);
       factors.push({
         code: 'PERSONALITY_PAIR',

@@ -15,6 +15,13 @@ import {
   commissionerTeamSetupSchema,
   commissionerLineupSaveSchema,
   commissionerLineupAutoFillSchema,
+  commissionerBalanceDuplicateSchema,
+  commissionerBalanceRenameSchema,
+  commissionerBalanceCreateVersionSchema,
+  commissionerBalanceActivateSchema,
+  commissionerBalanceResetSchema,
+  commissionerBalanceImportSchema,
+  commissionerBalanceValidateSchema,
 } from '../commissioner/schemas.js';
 import {
   getCommissionerPlayer,
@@ -39,6 +46,16 @@ import {
   listLineupAudit,
   saveCommissionerTeamLineup,
 } from '../services/commissioner-lineups.js';
+import {
+  activateVersion,
+  createPresetVersion,
+  duplicatePreset,
+  importPreset,
+  listBalanceAudit,
+  renamePreset,
+  resetPreset,
+  validatePresetConfigPreview,
+} from '../services/balance-config.js';
 import { detailResponse, notFound, paginatedResponse } from '../http.js';
 
 function assertCommissionerAccess(request: { headers: Record<string, string | string[] | undefined> }) {
@@ -202,6 +219,135 @@ export async function registerCommissionerRoutes(app: FastifyInstance) {
         request.query as Record<string, unknown>,
       );
       return result ? paginatedResponse(result) : reply.status(404).send(notFound('Team'));
+    } catch (err) {
+      return sendCommissionerError(reply, err);
+    }
+  });
+
+  app.post('/api/commissioner/balance/presets/:presetId/duplicate', async (request, reply) => {
+    try {
+      assertCommissionerAccess(request);
+      const parsed = commissionerBalanceDuplicateSchema.safeParse(request.body);
+      if (!parsed.success) return invalid(reply, 'Invalid balance preset duplicate payload', parsed.error.issues);
+      const item = await duplicatePreset({
+        presetId: (request.params as { presetId: string }).presetId,
+        versionId: parsed.data.versionId,
+        name: parsed.data.name,
+        reason: parsed.data.reason,
+        source: sourceFor(request),
+      });
+      return detailResponse(item);
+    } catch (err) {
+      return sendCommissionerError(reply, err);
+    }
+  });
+
+  app.patch('/api/commissioner/balance/presets/:presetId', async (request, reply) => {
+    try {
+      assertCommissionerAccess(request);
+      const parsed = commissionerBalanceRenameSchema.safeParse(request.body);
+      if (!parsed.success) return invalid(reply, 'Invalid balance preset rename payload', parsed.error.issues);
+      const item = await renamePreset({
+        presetId: (request.params as { presetId: string }).presetId,
+        name: parsed.data.name,
+        description: parsed.data.description,
+        expectedUpdatedAt: parsed.data.expectedUpdatedAt,
+        reason: parsed.data.reason,
+        source: sourceFor(request),
+      });
+      return detailResponse(item);
+    } catch (err) {
+      return sendCommissionerError(reply, err);
+    }
+  });
+
+  app.post('/api/commissioner/balance/presets/:presetId/versions', async (request, reply) => {
+    try {
+      assertCommissionerAccess(request);
+      const parsed = commissionerBalanceCreateVersionSchema.safeParse(request.body);
+      if (!parsed.success) return invalid(reply, 'Invalid balance version create payload', parsed.error.issues);
+      const item = await createPresetVersion({
+        presetId: (request.params as { presetId: string }).presetId,
+        expectedLatestVersionId: parsed.data.expectedLatestVersionId,
+        config: parsed.data.config,
+        reason: parsed.data.reason,
+        activate: parsed.data.activate,
+        source: sourceFor(request),
+      });
+      return detailResponse(item);
+    } catch (err) {
+      return sendCommissionerError(reply, err);
+    }
+  });
+
+  app.post('/api/commissioner/balance/versions/:versionId/activate', async (request, reply) => {
+    try {
+      assertCommissionerAccess(request);
+      const parsed = commissionerBalanceActivateSchema.safeParse(request.body);
+      if (!parsed.success) return invalid(reply, 'Invalid balance activate payload', parsed.error.issues);
+      const item = await activateVersion({
+        versionId: (request.params as { versionId: string }).versionId,
+        reason: parsed.data.reason,
+        expectedActiveVersionId: parsed.data.expectedActiveVersionId,
+        source: sourceFor(request),
+      });
+      return detailResponse(item);
+    } catch (err) {
+      return sendCommissionerError(reply, err);
+    }
+  });
+
+  app.post('/api/commissioner/balance/presets/:presetId/reset', async (request, reply) => {
+    try {
+      assertCommissionerAccess(request);
+      const parsed = commissionerBalanceResetSchema.safeParse(request.body);
+      if (!parsed.success) return invalid(reply, 'Invalid balance reset payload', parsed.error.issues);
+      const item = await resetPreset({
+        presetId: (request.params as { presetId: string }).presetId,
+        reason: parsed.data.reason,
+        activate: parsed.data.activate,
+        source: sourceFor(request),
+      });
+      return detailResponse(item);
+    } catch (err) {
+      return sendCommissionerError(reply, err);
+    }
+  });
+
+  app.post('/api/commissioner/balance/import', async (request, reply) => {
+    try {
+      assertCommissionerAccess(request);
+      const parsed = commissionerBalanceImportSchema.safeParse(request.body);
+      if (!parsed.success) return invalid(reply, 'Invalid balance import payload', parsed.error.issues);
+      const item = await importPreset({
+        name: parsed.data.name,
+        description: parsed.data.description,
+        config: parsed.data.config,
+        reason: parsed.data.reason,
+        source: sourceFor(request),
+      });
+      return detailResponse(item);
+    } catch (err) {
+      return sendCommissionerError(reply, err);
+    }
+  });
+
+  app.post('/api/commissioner/balance/validate', async (request, reply) => {
+    try {
+      assertCommissionerAccess(request);
+      const parsed = commissionerBalanceValidateSchema.safeParse(request.body);
+      if (!parsed.success) return invalid(reply, 'Invalid balance validate payload', parsed.error.issues);
+      return validatePresetConfigPreview(parsed.data);
+    } catch (err) {
+      return sendCommissionerError(reply, err);
+    }
+  });
+
+  app.get('/api/commissioner/balance/audit', async (request, reply) => {
+    try {
+      assertCommissionerAccess(request);
+      const result = await listBalanceAudit(request.query as Record<string, unknown>);
+      return paginatedResponse(result);
     } catch (err) {
       return sendCommissionerError(reply, err);
     }

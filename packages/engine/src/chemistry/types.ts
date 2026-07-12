@@ -82,6 +82,12 @@ export interface ChemistryUnitResult {
 
 export interface LineupChemistrySummary {
   chemistryConfigVersion: string;
+  balance: {
+    presetName: string;
+    versionNumber: number;
+    configHash: string;
+    schemaVersion: number;
+  } | null;
   forwardLines: ChemistryUnitResult[];
   defensePairs: ChemistryUnitResult[];
   goalies: {
@@ -106,4 +112,5 @@ export interface EvaluateUnitInput {
   unitKey: string;
   players: ChemistryPlayerInput[];
   context: ChemistryContext;
+  chemistryConfig?: import('./config.js').ChemistryRuntimeConfig;
 }

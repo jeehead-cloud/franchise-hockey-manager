@@ -27,6 +27,9 @@ describe('Migrations', () => {
       expect(names).toContain('TeamLineup');
       expect(names).toContain('LineupAssignment');
       expect(names).toContain('PlayerSecondaryPosition');
+      expect(names).toContain('BalancePreset');
+      expect(names).toContain('BalancePresetVersion');
+      expect(names).toContain('ActiveBalanceConfiguration');
       const cols = await prisma.$queryRaw<Array<{ name: string }>>`
         PRAGMA table_info('AppMeta')
       `;
@@ -42,7 +45,7 @@ describe('Migrations', () => {
     }
   });
 
-  it('records F1–F8 migrations in history', async () => {
+  it('records F1–F10 migrations in history', async () => {
     const { url, dir } = createTempDatabaseUrl();
     try {
       migrateTempDatabase(url);
@@ -52,7 +55,8 @@ describe('Migrations', () => {
       `;
       const names = rows.map((r) => r.migration_name);
       expect(names.some((n) => n.includes('f8_lineups'))).toBe(true);
-      expect(names).toHaveLength(7);
+      expect(names.some((n) => n.includes('f10_balance_presets'))).toBe(true);
+      expect(names).toHaveLength(8);
       expect(names.some((n) => n.includes('f1_bootstrap'))).toBe(true);
       expect(names.some((n) => n.includes('f2_core_domain'))).toBe(true);
       expect(names.some((n) => n.includes('f3_source_metadata_and_init'))).toBe(true);

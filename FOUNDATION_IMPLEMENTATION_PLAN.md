@@ -752,11 +752,11 @@ Familiarity may begin at zero and remain static until match accumulation exists.
 
 # 15. F10 — Simulation Configuration
 
+**Status: implemented locally (2026-07-13).** Versioned balance presets, immutable versions, active singleton, bootstrap, Commissioner management, Settings UI, and chemistry active-config integration are complete; match simulation remains out of scope (F11+).
+
 ## Goal
 
 Create versioned, editable simulation balance.
-
-## Scope
 
 Default JSON configs:
 

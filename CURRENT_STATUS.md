@@ -12,39 +12,37 @@
 
 ## 1. Current Development Phase
 
-**F9 — Chemistry and Effective Performance: implemented locally (not committed).** Config-driven role/personality chemistry, coach and tactical fit, bounded effective performance, explainable unit results, read-only Team Lines UI, and `GET /api/teams/:id/chemistry`. Familiarity is represented as 0 / `NOT_TRACKED_YET`. No new Prisma migration.
+**F10 — Simulation Configuration: implemented locally (not committed).** Versioned balance presets (`BalancePreset` / immutable `BalancePresetVersion`), singleton active configuration, repository Standard defaults (schemaVersion 1), Commissioner management (duplicate/rename/version/activate/reset/import/export), Settings Game Balance UI, and chemistry consumption of the active preset. No match simulation.
 
-**Next milestone: F10 — Simulation Configuration** (do not start until requested).
+**Next milestone: F11 — Event Engine Core** (do not start until requested).
 
-F1–F8 remain complete on `main` (through `2734258`).
+F1–F9 remain complete on `main` (through `19771ee`).
 
 ---
 
 ## 2. Milestone Status
 
-### F1–F7
+### F1–F8
 
 Complete on `main`.
 
-### F8 — Lines and Auto-Lineup (Done)
+### F9 — Chemistry and Effective Performance (Done)
 
-Committed/pushed: `2734258`.
+Committed/pushed: `19771ee`.
 
-### F9 — Chemistry and Effective Performance (Done locally)
+### F10 — Simulation Configuration (Done locally)
 
 Implemented:
-- Engine `packages/engine/src/chemistry/` + config JSON (`chemistry-weights`, role/personality/coach/tactical fit)
-- Config version `f9-v1`; validated matrices and caps
-- Unit chemistry for forward lines and defense pairs; goalie context fit without fake line chemistry
-- Effective performance = baseAbility × (1 + clamped totalModifier); total cap ±0.30
-- Familiarity field present but not accumulated
-- Derived on read — not persisted
-- `GET /api/teams/:id/chemistry` (normal mode)
-- Team Lines chemistry summary + unit cards
-- Non-linearity proof tests (lower CA + strong fit can beat higher CA + weak fit)
+- Engine `packages/engine/src/balance/` — Zod schema, Standard composition from JSON sources, canonicalize/hash input, runtime settings schema
+- Prisma `BalancePreset`, `BalancePresetVersion`, `ActiveBalanceConfiguration` + F10 migration
+- Idempotent `balance:bootstrap` (also on world init / `ensureAppMeta`)
+- Read APIs `/api/balance/*`; Commissioner write APIs `/api/commissioner/balance/*` with audit
+- F9 chemistry loads active chemistry section; exposes preset/version/hash
+- F5 player derivation still uses static repository JSON (documented)
+- Settings: Game Balance / Runtime & Debug / Commissioner Mode tabs
 
-Not in F9:
-- Familiarity growth, match simulation, chemistry-optimized auto-lineup, F10 balance presets
+Not in F10:
+- Match simulation, event probabilities consumption, Simulation Lab, F11+
 
 ### M1–M8
 
@@ -54,21 +52,20 @@ Unchanged.
 
 ## 3. Known Bugs / Limitations Worth Remembering
 
-- Chemistry weights are F9 foundation balance approximations — tune via config, not code forks.
-- Familiarity does not accumulate yet.
-- Auto-lineup remains F8 (ability/position), not chemistry-aware.
-- Poor chemistry is informational only — does not change READY.
-- Manual UI verification for F9 was **NOT RUN**.
-- F9 changes not yet committed/pushed.
+- Balance schema includes inactive future sections (match/shots/…) — structurally validated only.
+- F5 ratings still use static engine JSON until a later config-injection refactor.
+- Runtime settings in Settings are session-only (not persisted).
+- Manual UI verification for F10 was **NOT RUN**.
+- F10 changes not yet committed/pushed.
 - Commissioner header is not security.
 
 ---
 
 ## 4. Nearest Next Steps
 
-1. Commit/push F9 when the owner requests.
-2. Manual UI pass on disposable DB (complementary vs redundant, coach/tactics edits).
-3. **F10 — Simulation Configuration** (when requested). Do not start match events early.
+1. Commit/push F10 when the owner requests.
+2. Manual UI pass on disposable DB (duplicate → edit → activate → chemistry refresh → export/import).
+3. **F11 — Event Engine Core** (when requested). Do not invent match probabilities beyond inactive placeholders.
 
 ---
 
@@ -76,15 +73,15 @@ Unchanged.
 
 > Ordinary repository-relevant history, newest first.
 
+### 2026-07-13 — F10 Simulation Configuration
+
+- Work completed: balance schema + Standard defaults; preset/version persistence; bootstrap; Commissioner APIs; Settings UI; chemistry active-config integration; docs
+- Validation: 74 engine + 123 server tests; typecheck/build; F10 migration; bootstrap idempotent; manual UI **NOT RUN**
+- Remaining: F10 uncommitted; no match simulation
+
 ### 2026-07-13 — F9 Chemistry and Effective Performance
 
-- Work completed: chemistry engine + configs; non-linearity tests; chemistry API; Team Lines UI; docs
-- Validation: 66 engine + 115 server tests; typecheck/build; prisma validate/migrate status (7 migrations, no F9 migration); setup validate; API smoke PASS (Frostbite chemistry after auto-lineup, config `f9-v1`, deterministic); manual UI **NOT RUN**
-- Remaining: F9 uncommitted; familiarity not accumulated; no chemistry auto-lineup; manual UI pass
-
-### 2026-07-13 — F8 Lines and Auto-Lineup
-
-- Work completed: committed/pushed `2734258`
+- Work completed: committed/pushed `19771ee`
 
 ---
 
@@ -92,15 +89,15 @@ Unchanged.
 
 > Permanent history, newest first.
 
+### 2026-07-13 — F10 versioned balance presets
+
+- Significance: First persistent, immutable, activatable balance configuration path for future simulation.
+- Decision: Repository JSON remains the Standard source of truth; DB versions are immutable snapshots; exactly one active version; edits create new versions; F9 chemistry consumes active preset; F5 static for now.
+- Lasting impact: F11+ must request an immutable config snapshot + runtime overrides rather than reading mutable globals.
+
 ### 2026-07-13 — F9 non-linear chemistry foundation
 
-- Significance: First bounded, explainable performance layer beyond raw current ability.
-- Decision: Config-driven role/personality/coach/tactical fits; familiarity stubbed at 0; derive on read; READY unchanged by chemistry quality.
-- Lasting impact: F10+ simulation must consume these modifiers without collapsing back to overall-only production.
-
-### 2026-07-13 — F8 main lineup foundation
-
-- Related: commit `2734258`
+- Related: commit `19771ee`
 
 ---
 

@@ -7,9 +7,9 @@
 > Technical source of truth for stack, monorepo structure, data flow, and config-driven balance.
 > For game behavior, see `PRODUCT_RULES.md` and `PLAYER_MODEL.md`. For status, see `CURRENT_STATUS.md`.
 
-F9 adds config-driven chemistry and bounded effective performance in `packages/engine/src/chemistry` (config version `f9-v1`). Results are derived on read via `GET /api/teams/:id/chemistry` and shown on Team Lines. Familiarity is stubbed at 0. No chemistry persistence and no new Prisma migration.
+F10 adds versioned balance presets (`BalancePreset` / immutable `BalancePresetVersion` / singleton `ActiveBalanceConfiguration`). Repository Standard defaults are composed in `packages/engine/src/balance` (schemaVersion 1). Chemistry and future simulation load the active immutable snapshot. F5 player derivation still uses static JSON imports.
 
-F8 lineups remain the structural input; auto-lineup is not chemistry-optimized.
+F9 chemistry remains derived on read and now consumes the active preset chemistry section (with preset/version/hash metadata). Familiarity is still stubbed at 0.
 
 ---
 
@@ -25,9 +25,7 @@ F8 lineups remain the structural input; auto-lineup is not chemistry-optimized.
 | Icons | `lucide-react` | matches Atlas (Lucide) without CDN coupling |
 | Simulation logic | Plain TypeScript in `packages/engine` | testable; no Fastify/Prisma/React |
 | Server tests | Vitest + temp SQLite | schema/API/migration/setup checks (F2+) |
-| Validation | Zod (server) | F3 dataset manifest + row schemas |
-| Balance data | JSON under `packages/engine/src/config` | tune without rewriting logic |
-
+| Validation | Zod (engine balance + server requests) | F3 datasets; F10 balance schema; commissioner payloads |
 There is **no backend-less/client-only mode** — client-server from day one (see §7).
 
 ---
@@ -37,21 +35,22 @@ There is **no backend-less/client-only mode** — client-server from day one (se
 ```text
 franchise-hockey-manager/
 ├── packages/
-│   ├── engine/                  # pure TS — players, lineups, chemistry (F5–F9); no Prisma
-│   │   └── src/chemistry/       # F9 role/personality/coach/tactical fit + EP
+│   ├── engine/                  # pure TS — players, lineups, chemistry, balance (F5–F10)
+│   │   ├── src/chemistry/       # F9 role/personality/coach/tactical fit + EP
+│   │   └── src/balance/         # F10 schema, Standard defaults, canonicalize
 │   ├── server/                  # Fastify + Prisma + SQLite
 │   │   ├── src/
 │   │   │   ├── app.ts           # Fastify factory (tests + runtime)
-│   │   │   ├── initialization/  # F3 load → validate → persist
-│   │   │   ├── routes/          # /health, /api/* reads, /api/setup/*
-│   │   │   ├── services/        # readers + chemistry mapping (no formulas)
+│   │   │   ├── initialization/  # F3 load → validate → persist (+ balance bootstrap)
+│   │   │   ├── routes/          # /health, /api/*, /api/balance/*, /api/setup/*
+│   │   │   ├── services/        # readers + balance-config + chemistry mapping
 │   │   │   ├── mappers.ts       # Prisma → JSON DTOs
 │   │   │   └── db/client.ts
 │   │   ├── prisma/
-│   │   │   ├── schema.prisma    # AppMeta + domain + F3 source metadata
+│   │   │   ├── schema.prisma    # AppMeta + domain + balance presets (F10)
 │   │   │   └── migrations/
 │   │   └── tests/               # Vitest: migrations, schema, API, setup
-│   └── client/                  # React shell; Team Lines chemistry UI (F9)
+│   └── client/                  # React; Team Lines chemistry; Settings Game Balance
 ├── design/                      # Atlas references (not runtime)
 ├── data/
 │   ├── world/                   # intended owner-prepared production snapshot
@@ -86,7 +85,21 @@ Engine (pure TS)                 SQLite (via Prisma)
 
 ## 4. Config-Driven Balance
 
-Coefficients for F5 player ratings/roles live in `packages/engine/src/config/*.json`. F10 database balance presets are out of scope.
+Repository defaults live under `packages/engine/src/config/*.json` and are composed into the Standard balance preset by `getStandardBalanceConfig()` (`schemaVersion: 1`).
+
+F10 persistence:
+
+- `BalancePreset` / immutable `BalancePresetVersion` / singleton `ActiveBalanceConfiguration`
+- edits create new versions; never mutate prior `configJson`
+- SHA-256 of canonical JSON identifies identical configs
+- `npm run balance:bootstrap` is idempotent for existing worlds
+
+Runtime systems:
+
+- **F9 chemistry** loads the active preset chemistry section (server → engine config injection)
+- **F5 player derivation** still uses static JSON imports (documented deferral)
+
+Future match simulation must receive one immutable snapshot + explicit runtime overrides — never a mutable global.
 
 ---
 
@@ -118,7 +131,7 @@ Prisma source of truth: `packages/server/prisma/schema.prisma`.
 | **Competition** | Competition definition (`type`, optional simulation level) |
 | **CompetitionEdition** | Competition instance within a WorldSeason |
 
-Imported snapshot entities (Country, League, Team, Player, Coach, Competition) carry optional `externalId`, `sourceDataset`, `sourceUpdatedAt` with `@@unique([sourceDataset, externalId])`. CompetitionEdition uses local competition + WorldSeason links (no external ID required). BalancePreset deferred to F10.
+Imported snapshot entities (Country, League, Team, Player, Coach, Competition) carry optional `externalId`, `sourceDataset`, `sourceUpdatedAt` with `@@unique([sourceDataset, externalId])`. CompetitionEdition uses local competition + WorldSeason links (no external ID required). Balance presets are F10 (`BalancePreset` / `BalancePresetVersion` / `ActiveBalanceConfiguration`).
 
 ### Key relationships
 

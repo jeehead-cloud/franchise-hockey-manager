@@ -104,6 +104,8 @@ export {
   pairKey,
   chemistryLabel,
   summarizeUnitPlain,
+  defaultChemistryRuntimeConfig,
+  chemistryRuntimeFromBalance,
 } from './chemistry/index.js';
 
 export type {
@@ -121,4 +123,30 @@ export type {
   LineupChemistrySummary,
   EvaluateUnitInput,
   LineupChemistryInput,
+  ChemistryRuntimeConfig,
 } from './chemistry/index.js';
+
+export {
+  BALANCE_SCHEMA_VERSION,
+  balanceConfigSchema,
+  runtimeSimulationSettingsSchema,
+  validateBalanceConfig,
+  parseBalanceConfig,
+  validateRuntimeSimulationSettings,
+  getStandardBalanceConfig,
+  defaultRuntimeSimulationSettings,
+  canonicalizeBalanceConfig,
+  normalizeBalanceConfig,
+  sortJsonValue,
+  collectChangedPaths,
+} from './balance/index.js';
+
+export type {
+  BalanceConfig,
+  BalanceValidationIssue,
+  BalanceValidationResult,
+  RuntimeSimulationSettings,
+  LoggingLevel,
+  ChemistryBalanceSection,
+  PlayerModelBalanceSection,
+} from './balance/index.js';

@@ -1,12 +1,14 @@
 import {
+  chemistryRuntimeFromBalance,
   evaluateLineupChemistry,
   type ChemistryContext,
   type ChemistryPlayerInput,
   type LineupChemistrySummary,
 } from '@fhm/engine';
 import { prisma } from '../db/client.js';
-import { toLineupCandidate, type LineupPlayerRow, buildValidationForTeam, lineupPresenceFromValidation, serializeAssignments } from './lineup-helpers.js';
+import { type LineupPlayerRow, buildValidationForTeam, lineupPresenceFromValidation, serializeAssignments } from './lineup-helpers.js';
 import { compactPlayerModelFields, resolveModelStatus, type PlayerModelRow } from './player-model.js';
+import { getActiveBalanceSnapshot } from './balance-config.js';
 
 function stripAttr(row: { playerId?: string; createdAt?: Date; updatedAt?: Date } | null | undefined) {
   if (!row) return undefined;
@@ -59,6 +61,12 @@ export async function getTeamChemistry(teamId: string): Promise<{
     defense: number | null;
   } | null;
   lineup: { exists: boolean; presence: string; validationStatus: string | null };
+  balance: {
+    presetName: string;
+    versionNumber: number;
+    configHash: string;
+    schemaVersion: number;
+  };
   chemistry: LineupChemistrySummary;
 } | null> {
   const team = await prisma.team.findUnique({
@@ -76,6 +84,15 @@ export async function getTeamChemistry(teamId: string): Promise<{
     },
   });
   if (!team) return null;
+
+  const snapshot = await getActiveBalanceSnapshot();
+  const balanceMeta = {
+    presetName: snapshot.preset.name,
+    versionNumber: snapshot.version.versionNumber,
+    configHash: snapshot.version.configHash,
+    schemaVersion: snapshot.version.schemaVersion,
+  };
+  const chemistryConfig = chemistryRuntimeFromBalance(snapshot.config.chemistry);
 
   const byId = new Map(team.players.map((p) => [p.id, p]));
   const slotPlayer = (slot: string) => {
@@ -120,6 +137,8 @@ export async function getTeamChemistry(teamId: string): Promise<{
     starterGoalie: slotPlayer('G_STARTER'),
     backupGoalie: slotPlayer('G_BACKUP'),
     context,
+    chemistryConfig,
+    balanceMeta,
   });
 
   const assignments = team.lineup ? serializeAssignments(team.lineup.assignments) : [];
@@ -150,6 +169,7 @@ export async function getTeamChemistry(teamId: string): Promise<{
       presence,
       validationStatus: team.lineup ? validation.status : null,
     },
+    balance: balanceMeta,
     chemistry,
   };
 }

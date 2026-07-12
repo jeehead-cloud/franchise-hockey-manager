@@ -1,7 +1,7 @@
 # Franchise Hockey Manager — Deployment and Operations
 
 **Status:** Not deployed yet (local development only)
-**Last updated:** 2026-07-12
+**Last updated:** 2026-07-13
 **Repository:** `https://github.com/jeehead-cloud/franchise-hockey-manager`
 **Local repository path:** `C:\Projects\franchise-hockey-manager`
 
@@ -40,6 +40,7 @@ npm run dev:client
 Also useful:
 
 ```powershell
+npm run balance:bootstrap   # idempotent Standard preset for existing DBs
 npm run build
 npm run typecheck
 npm run test:server

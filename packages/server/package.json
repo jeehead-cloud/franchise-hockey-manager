@@ -16,6 +16,7 @@
     "setup:status": "tsx src/cli/setup.ts status",
     "setup:preview": "tsx src/cli/setup.ts preview",
     "setup:validate": "tsx src/cli/setup.ts validate",
+    "balance:bootstrap": "tsx src/cli/balance-bootstrap.ts",
     "test": "vitest run",
     "test:watch": "vitest"
   },

@@ -180,6 +180,12 @@ export function ChemistryOverallPanel({ chemistry }: { chemistry: LineupChemistr
   const { overall } = chemistry;
   return (
     <Panel title="Chemistry overview">
+      {chemistry.balance ? (
+        <p style={{ margin: '0 0 12px', font: 'var(--text-body-sm)', color: 'var(--text-secondary)' }}>
+          Balance: {chemistry.balance.presetName} v{chemistry.balance.versionNumber} ·{' '}
+          {chemistry.balance.configHash.slice(0, 8)}
+        </p>
+      ) : null}
       <div
         style={{
           display: 'grid',

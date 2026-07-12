@@ -1,4 +1,8 @@
-import { CHEMISTRY_CONFIG_VERSION } from './config.js';
+import {
+  CHEMISTRY_CONFIG_VERSION,
+  defaultChemistryRuntimeConfig,
+  type ChemistryRuntimeConfig,
+} from './config.js';
 import { computeBaseCompatibility } from './chemistry.js';
 import { coachFitScore } from './coach-fit.js';
 import { computeBaseAbility, computeEffectivePerformance } from './effective-performance.js';
@@ -42,6 +46,7 @@ function unavailable(
 }
 
 export function evaluateChemistryUnit(input: EvaluateUnitInput): ChemistryUnitResult {
+  const chemistryConfig = input.chemistryConfig ?? defaultChemistryRuntimeConfig();
   const expected =
     input.unitType === 'FORWARD_LINE' ? 3 : input.unitType === 'DEFENSE_PAIR' ? 2 : 1;
   const players = [...input.players].sort((a, b) => a.id.localeCompare(b.id));
@@ -63,17 +68,20 @@ export function evaluateChemistryUnit(input: EvaluateUnitInput): ChemistryUnitRe
     ]);
   }
 
-  const baseAbility = computeBaseAbility(players);
-  const coach = coachFitScore(players, input.context, input.unitType);
-  const tactics = tacticalFitScore(players, input.context);
+  const baseAbility = computeBaseAbility(players, chemistryConfig);
+  const coach = coachFitScore(players, input.context, input.unitType, chemistryConfig);
+  const tactics = tacticalFitScore(players, input.context, chemistryConfig);
 
   if (input.unitType === 'GOALIE') {
-    const perf = computeEffectivePerformance({
-      baseAbility,
-      chemistry0to100: null,
-      coachFitNeg1To1: coach.score,
-      tacticalFitNeg1To1: tactics.score,
-    });
+    const perf = computeEffectivePerformance(
+      {
+        baseAbility,
+        chemistry0to100: null,
+        coachFitNeg1To1: coach.score,
+        tacticalFitNeg1To1: tactics.score,
+      },
+      chemistryConfig,
+    );
     return {
       unitType: 'GOALIE',
       unitKey: input.unitKey,
@@ -97,13 +105,16 @@ export function evaluateChemistryUnit(input: EvaluateUnitInput): ChemistryUnitRe
     };
   }
 
-  const chem = computeBaseCompatibility(players);
-  const perf = computeEffectivePerformance({
-    baseAbility,
-    chemistry0to100: chem.currentChemistry,
-    coachFitNeg1To1: coach.score,
-    tacticalFitNeg1To1: tactics.score,
-  });
+  const chem = computeBaseCompatibility(players, chemistryConfig);
+  const perf = computeEffectivePerformance(
+    {
+      baseAbility,
+      chemistry0to100: chem.currentChemistry,
+      coachFitNeg1To1: coach.score,
+      tacticalFitNeg1To1: tactics.score,
+    },
+    chemistryConfig,
+  );
 
   const warnings: string[] = [];
   if (!input.context.coach) warnings.push('No head coach assigned.');
@@ -138,15 +149,24 @@ export interface LineupChemistryInput {
   starterGoalie: ChemistryPlayerInput | null;
   backupGoalie: ChemistryPlayerInput | null;
   context: ChemistryContext;
+  chemistryConfig?: ChemistryRuntimeConfig;
+  balanceMeta?: {
+    presetName: string;
+    versionNumber: number;
+    configHash: string;
+    schemaVersion: number;
+  } | null;
 }
 
 export function evaluateLineupChemistry(input: LineupChemistryInput): LineupChemistrySummary {
+  const chemistryConfig = input.chemistryConfig ?? defaultChemistryRuntimeConfig();
   const forwardLines = [0, 1, 2, 3].map((i) =>
     evaluateChemistryUnit({
       unitType: 'FORWARD_LINE',
       unitKey: `F${i + 1}`,
       players: input.forwardLines[i] ?? [],
       context: input.context,
+      chemistryConfig,
     }),
   );
   const defensePairs = [0, 1, 2].map((i) =>
@@ -155,6 +175,7 @@ export function evaluateLineupChemistry(input: LineupChemistryInput): LineupChem
       unitKey: `D${i + 1}`,
       players: input.defensePairs[i] ?? [],
       context: input.context,
+      chemistryConfig,
     }),
   );
   const starter = evaluateChemistryUnit({
@@ -162,12 +183,14 @@ export function evaluateLineupChemistry(input: LineupChemistryInput): LineupChem
     unitKey: 'G_STARTER',
     players: input.starterGoalie ? [input.starterGoalie] : [],
     context: input.context,
+    chemistryConfig,
   });
   const backup = evaluateChemistryUnit({
     unitType: 'GOALIE',
     unitKey: 'G_BACKUP',
     players: input.backupGoalie ? [input.backupGoalie] : [],
     context: input.context,
+    chemistryConfig,
   });
 
   const units = [...forwardLines, ...defensePairs, starter, backup];
@@ -190,7 +213,8 @@ export function evaluateLineupChemistry(input: LineupChemistryInput): LineupChem
   }
 
   return {
-    chemistryConfigVersion: CHEMISTRY_CONFIG_VERSION,
+    chemistryConfigVersion: chemistryConfig.version ?? CHEMISTRY_CONFIG_VERSION,
+    balance: input.balanceMeta ?? null,
     forwardLines,
     defensePairs,
     goalies: { starter, backup },

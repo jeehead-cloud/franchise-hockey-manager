@@ -37,6 +37,8 @@ This is the rule the entire project is organized around.
 
 F9 implements the first foundation layer in `packages/engine/src/chemistry` with versioned JSON under `packages/engine/src/config/` (`chemistry-weights.json`, `role-compatibility.json`, `personality-compatibility.json`, `coach-fit.json`, `tactical-fit.json`; config version `f9-v1`).
 
+F10: the active balance preset chemistry section is the runtime source for Team Lines / chemistry APIs. Repository JSON remains the Standard default and bootstrap source. Changing an active preset does not rewrite historical `BalancePresetVersion` rows.
+
 Invariants in force:
 
 - **Line/pairing synergy**: role compatibility is config-driven. Complementary roles can beat redundant higher-rated groups after bounded modifiers. Unknown role pairs use an explicit documented fallback.

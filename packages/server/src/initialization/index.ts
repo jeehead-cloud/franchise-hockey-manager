@@ -97,6 +97,8 @@ export async function initializeSetup(
   log('initialization started', { datasetId: dataset.manifest.datasetId });
   try {
     const result = await persistWorld(prisma, dataset, { failAfter: options?.failAfter });
+    const { bootstrapBalanceConfiguration } = await import('../services/balance-config.js');
+    await bootstrapBalanceConfiguration(prisma);
     log('initialization completed', {
       datasetId: result.datasetId,
       created: result.created,
