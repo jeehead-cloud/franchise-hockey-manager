@@ -1,0 +1,40 @@
+{
+  "defaultScore": -0.15,
+  "matrix": {
+    "AUTHORITARIAN": {
+      "AUTHORITARIAN": 1,
+      "AUTHORITATIVE": 0.45,
+      "DEMOCRATIC": -0.35,
+      "DEVELOPMENTAL": -0.2,
+      "HANDS_OFF": -0.55
+    },
+    "AUTHORITATIVE": {
+      "AUTHORITARIAN": 0.45,
+      "AUTHORITATIVE": 1,
+      "DEMOCRATIC": 0.25,
+      "DEVELOPMENTAL": 0.35,
+      "HANDS_OFF": -0.25
+    },
+    "DEMOCRATIC": {
+      "AUTHORITARIAN": -0.35,
+      "AUTHORITATIVE": 0.25,
+      "DEMOCRATIC": 1,
+      "DEVELOPMENTAL": 0.4,
+      "HANDS_OFF": 0.2
+    },
+    "DEVELOPMENTAL": {
+      "AUTHORITARIAN": -0.2,
+      "AUTHORITATIVE": 0.35,
+      "DEMOCRATIC": 0.4,
+      "DEVELOPMENTAL": 1,
+      "HANDS_OFF": 0.15
+    },
+    "HANDS_OFF": {
+      "AUTHORITARIAN": -0.55,
+      "AUTHORITATIVE": -0.25,
+      "DEMOCRATIC": 0.2,
+      "DEVELOPMENTAL": 0.15,
+      "HANDS_OFF": 1
+    }
+  }
+}

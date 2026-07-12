@@ -12,6 +12,10 @@ import {
 } from '../components/ui/DataBrowser';
 import { Dialog } from '../components/ui/Dialog';
 import { EmptyState, ErrorState, LoadingState } from '../components/ui/EmptyState';
+import {
+  ChemistryOverallPanel,
+  ChemistryUnitsPanel,
+} from '../components/ui/ChemistrySummary';
 import { LineupBoard, type AssignmentMap } from '../components/ui/LineupBoard';
 import { Panel } from '../components/ui/Panel';
 import { BackLink, RecordNotFound } from '../components/ui/RecordStates';
@@ -19,8 +23,10 @@ import { Tabs } from '../components/ui/Tabs';
 import {
   autoFillCommissionerTeamLineup,
   getTeam,
+  getTeamChemistry,
   getTeamLineup,
   saveCommissionerTeamLineup,
+  type LineupChemistrySummary,
   type LineupSlot,
   type TeamDetail,
   type TeamLineup,
@@ -43,6 +49,8 @@ export function TeamDetailPage() {
   const [lineup, setLineup] = useState<TeamLineup | null>(null);
   const [lineupLoading, setLineupLoading] = useState(false);
   const [lineupError, setLineupError] = useState<string | null>(null);
+  const [chemistry, setChemistry] = useState<LineupChemistrySummary | null>(null);
+  const [chemistryError, setChemistryError] = useState<string | null>(null);
   const [confirmKind, setConfirmKind] = useState<ConfirmKind | null>(null);
   const [actionReason, setActionReason] = useState('');
   const [actionBusy, setActionBusy] = useState(false);
@@ -74,8 +82,21 @@ export function TeamDetailPage() {
     const controller = new AbortController();
     setLineupLoading(true);
     setLineupError(null);
-    getTeamLineup(teamId, controller.signal)
-      .then((res) => setLineup(res.item))
+    setChemistryError(null);
+    void Promise.all([
+      getTeamLineup(teamId, controller.signal).then((res) => {
+        if (!controller.signal.aborted) setLineup(res.item);
+      }),
+      getTeamChemistry(teamId, controller.signal)
+        .then((res) => {
+          if (!controller.signal.aborted) setChemistry(res.item.chemistry);
+        })
+        .catch((err: unknown) => {
+          if (controller.signal.aborted) return;
+          setChemistry(null);
+          setChemistryError(err instanceof Error ? err.message : 'Failed to load chemistry');
+        }),
+    ])
       .catch((err: unknown) => {
         if (controller.signal.aborted) return;
         setLineupError(err instanceof Error ? err.message : 'Failed to load lineup');
@@ -135,10 +156,22 @@ export function TeamDetailPage() {
           mode: confirmKind,
         });
       }
-      const refreshed = await getTeamLineup(teamId);
+      const [refreshed, teamRes] = await Promise.all([
+        getTeamLineup(teamId),
+        getTeam(teamId),
+      ]);
       setLineup(refreshed.item);
-      const teamRes = await getTeam(teamId);
       setTeam(teamRes.item);
+      try {
+        const chemRes = await getTeamChemistry(teamId);
+        setChemistry(chemRes.item.chemistry);
+        setChemistryError(null);
+      } catch (chemErr: unknown) {
+        setChemistry(null);
+        setChemistryError(
+          chemErr instanceof Error ? chemErr.message : 'Failed to load chemistry',
+        );
+      }
       setConfirmKind(null);
       setActionReason('');
     } catch (err: unknown) {
@@ -388,6 +421,15 @@ export function TeamDetailPage() {
             ) : null}
             {actionError ? <ErrorState description={actionError} /> : null}
           </Panel>
+          {!lineupLoading && chemistryError ? (
+            <ErrorState description={chemistryError} />
+          ) : null}
+          {!lineupLoading && !chemistryError && chemistry ? (
+            <>
+              <ChemistryOverallPanel chemistry={chemistry} />
+              <ChemistryUnitsPanel chemistry={chemistry} />
+            </>
+          ) : null}
         </div>
       ) : null}
 

@@ -642,7 +642,7 @@ UNAVAILABLE
 
 # 13. F8 — Lines and Auto-Lineup
 
-**Status: implemented locally (2026-07-13).** Persistent main lineups, secondary positions, validation, deterministic auto-lineup (REPLACE/FILL_EMPTY), Commissioner editor, and lineup-aware readiness are complete; F9 chemistry remains out of scope.
+**Status: complete on main (`2734258`).** Persistent main lineups, secondary positions, validation, deterministic auto-lineup (REPLACE/FILL_EMPTY), Commissioner editor, and lineup-aware readiness are complete.
 
 ## Goal
 
@@ -700,6 +700,8 @@ Use:
 ---
 
 # 14. F9 — Chemistry and Effective Performance
+
+**Status: implemented locally (2026-07-13).** Config-driven chemistry, coach/tactical fit, bounded effective performance, explainable DTOs, Team Lines UI, and non-linearity tests are complete; familiarity accumulation and match simulation remain out of scope.
 
 ## Goal
 

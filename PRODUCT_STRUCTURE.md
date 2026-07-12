@@ -948,26 +948,21 @@ Scouting displays an estimate of this range, not the exact hidden values.
 
 ## 32. Chemistry
 
-Target model:
+F9 foundation (config version `f9-v1`) is live in `packages/engine/src/chemistry` and exposed at `GET /api/teams/:id/chemistry` / Team Lines.
 
 ```text
 Base Compatibility
-+ Accumulated Familiarity
++ Familiarity contribution (F9: always 0)
 = Current Chemistry
 ```
 
 Base compatibility depends on:
 
-- role combinations;
-- personality;
-- preferred coaching style;
-- preferred tactics;
-- actual coach;
-- actual tactics.
+- role combinations (config pairwise matrix);
+- personality (modest config contribution);
+- coach-style fit and tactical fit are separate modifiers on effective performance, not folded into chemistry score.
 
-Familiarity grows through shared games and minutes.
-
-Initial implementation may calculate only base compatibility.
+Familiarity is represented (`familiarity: 0`, `familiarityStatus: NOT_TRACKED_YET`) but does not accumulate yet.
 
 The interface shows:
 
@@ -980,29 +975,16 @@ The interface shows:
 
 ## 33. Effective Performance
 
-Conceptual model:
+F9 conceptual model:
 
 ```text
-Base Ability
-+ bounded percentage modifiers
-= Effective Performance
+effectivePerformance = baseAbility × (1 + clamp(totalModifier))
+totalModifier = chemistryContribution + coachFitContribution + tacticalFitContribution
 ```
 
-Possible modifiers:
+Component and total caps live in `chemistry-weights.json` (F9 defaults ±0.30 total).
 
-- role usage;
-- line chemistry;
-- tactical fit;
-- coach fit;
-- form;
-- stability-driven variance;
-- home advantage;
-- game context;
-- randomness.
-
-Total modifiers must remain bounded to prevent extreme outcomes.
-
-Exact coefficients belong in balance configuration.
+Later modifiers (form, fatigue, home advantage, randomness, hero moments) remain out of scope until match simulation milestones.
 
 ---
 
@@ -2415,7 +2397,7 @@ To be resolved during implementation and balancing:
 - exact initial league list;
 - final skater role tables;
 - exact role-change threshold;
-- final chemistry formula;
+- familiarity accumulation beyond F9 stub;
 - event probability model;
 - final shot model;
 - special-team lineup rules;

@@ -17,7 +17,7 @@ npm run db:generate --workspace=@fhm/server
 npm run db:migrate --workspace=@fhm/server
 ```
 
-`db:migrate` applies Prisma migrations to local SQLite (`packages/server/prisma/dev.db`). F1 → … → F7 team setup → **F8 lineups/secondary positions**. Do not commit `*.db` files.
+`db:migrate` applies Prisma migrations to local SQLite (`packages/server/prisma/dev.db`). F1 → … → F8 lineups → **F9 chemistry (engine/config only; no new migration)**. Do not commit `*.db` files.
 
 ## Run locally
 
@@ -34,10 +34,10 @@ npm run dev:server
 npm run dev:client
 ```
 
-- API: http://127.0.0.1:3000 (`GET /health`, read `GET /api/...`, setup `GET|POST /api/setup/*`, world summary `GET /api/world`)
+- API: http://127.0.0.1:3000 (`GET /health`, read `GET /api/...`, setup `GET|POST /api/setup/*`, world summary `GET /api/world`, chemistry `GET /api/teams/:id/chemistry`)
 - UI: http://localhost:5173 (Vite proxies `/health` and `/api`)
 - Setup World: http://localhost:5173/setup
-- Browsers: `/world`, `/teams`, `/players`, `/competitions` (+ detail routes)
+- Browsers: `/world`, `/teams`, `/players`, `/competitions`, `/coaches` (+ detail routes; Team Lines shows F9 chemistry)
 - Commissioner editor: `/players/:playerId/edit` (requires Commissioner Mode)
 - Settings: enable/disable Commissioner Mode (defaults off; confirm to enable)
 

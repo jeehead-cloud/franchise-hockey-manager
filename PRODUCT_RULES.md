@@ -35,12 +35,18 @@ This is the rule the entire project is organized around.
 
 ## 3. Chemistry & Tactics Fit Rules
 
-*(Design not finalized — formulas belong in `packages/engine/src/chemistry` and their weights in `packages/engine/src/config/chemistry-weights.json`, per `ARCHITECTURE.md` §4. This section records the invariants that must hold once implemented.)*
+F9 implements the first foundation layer in `packages/engine/src/chemistry` with versioned JSON under `packages/engine/src/config/` (`chemistry-weights.json`, `role-compatibility.json`, `personality-compatibility.json`, `coach-fit.json`, `tactical-fit.json`; config version `f9-v1`).
 
-- **Line/pairing synergy**: a forward line's (or defense pair's) effectiveness is a function of how its members' archetypes combine — not a sum of their individual overalls. Complementary archetypes (e.g. a playmaker with a sniper) should synergize better than redundant ones (e.g. two players optimized for the same role/attribute pair).
-- **Coach-style fit**: each player has a `Preferred coaching style` (Authoritarian / Authoritative / Democratic / Developmental / Hands-Off) and `Preferred tactics` (Combinational / Physical / Speed / System / Forechecking) — see `PLAYER_MODEL.md` §4. A team's actual coach has the same two properties. The gap/match between a player's preference and the team's actual coach/tactics should produce a performance modifier — matching preferences should help, large mismatches should hurt.
-- **Personality effects**: `Personality` (Leader / Competitor / Professional / Creative / Glue) should influence locker-room/line chemistry, not raw individual output — e.g. a "Leader" or "Glue" player might improve a line's chemistry ramp-up, while an ego-heavy mismatch could suppress it. Exact formula TBD; whatever is implemented must remain consistent with §2.
-- **Hero Rating** (clutch factor) should specifically affect high-leverage situations (late-game, playoffs) rather than uniformly boosting every game — otherwise it's redundant with overall rating.
+Invariants in force:
+
+- **Line/pairing synergy**: role compatibility is config-driven. Complementary roles can beat redundant higher-rated groups after bounded modifiers. Unknown role pairs use an explicit documented fallback.
+- **Coach-style fit**: player `preferredCoachingStyle` vs coach `coachingStyle` (missing coach → configured penalty). Coach ratings may scale magnitude slightly within caps.
+- **Tactical fit**: player `preferredTactics` vs `Team.tacticalStyle`, plus coach/team tactical alignment when a coach exists. Missing team tactics → configured penalty/fallback.
+- **Personality**: modest contribution to chemistry only — never permanent current ability. Existing enums only (Leader / Competitor / Professional / Creative / Glue).
+- **Familiarity**: field present; F9 contribution is always 0 (`NOT_TRACKED_YET`). No fake shared-games history.
+- **Effective performance**: `baseAbility × (1 + clamp(totalModifier))` with component and total caps in config (F9 defaults ±0.30 total). Never negative EP.
+- **Hero Rating / Stability**: not used in F9 chemistry.
+- Chemistry quality does **not** change team READY status (informational warning only if weak units).
 
 ---
 

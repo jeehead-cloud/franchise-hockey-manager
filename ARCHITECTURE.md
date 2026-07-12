@@ -7,9 +7,9 @@
 > Technical source of truth for stack, monorepo structure, data flow, and config-driven balance.
 > For game behavior, see `PRODUCT_RULES.md` and `PLAYER_MODEL.md`. For status, see `CURRENT_STATUS.md`.
 
-F8 adds pure engine lineup validation and deterministic auto-lineup (`packages/engine/src/lineups`). Persistence is `TeamLineup` / `LineupAssignment` plus `PlayerSecondaryPosition`. Commissioner lineup writes are transactional and audited (`TEAM_LINEUP`). Team readiness is lineup-aware: READY requires a complete valid main lineup. No chemistry or special teams.
+F9 adds config-driven chemistry and bounded effective performance in `packages/engine/src/chemistry` (config version `f9-v1`). Results are derived on read via `GET /api/teams/:id/chemistry` and shown on Team Lines. Familiarity is stubbed at 0. No chemistry persistence and no new Prisma migration.
 
-F7 readiness evaluator remains the structural base (coach, tactics, depth); F8 extends it with lineup presence.
+F8 lineups remain the structural input; auto-lineup is not chemistry-optimized.
 
 ---
 
@@ -37,20 +37,21 @@ There is **no backend-less/client-only mode** — client-server from day one (se
 ```text
 franchise-hockey-manager/
 ├── packages/
-│   ├── engine/                  # pure TS — player model (F5+); no Prisma
+│   ├── engine/                  # pure TS — players, lineups, chemistry (F5–F9); no Prisma
+│   │   └── src/chemistry/       # F9 role/personality/coach/tactical fit + EP
 │   ├── server/                  # Fastify + Prisma + SQLite
 │   │   ├── src/
 │   │   │   ├── app.ts           # Fastify factory (tests + runtime)
 │   │   │   ├── initialization/  # F3 load → validate → persist
 │   │   │   ├── routes/          # /health, /api/* reads, /api/setup/*
-│   │   │   ├── services/        # entity-specific list/detail readers
+│   │   │   ├── services/        # readers + chemistry mapping (no formulas)
 │   │   │   ├── mappers.ts       # Prisma → JSON DTOs
 │   │   │   └── db/client.ts
 │   │   ├── prisma/
 │   │   │   ├── schema.prisma    # AppMeta + domain + F3 source metadata
 │   │   │   └── migrations/
 │   │   └── tests/               # Vitest: migrations, schema, API, setup
-│   └── client/                  # React shell; Setup World functional (F3)
+│   └── client/                  # React shell; Team Lines chemistry UI (F9)
 ├── design/                      # Atlas references (not runtime)
 ├── data/
 │   ├── world/                   # intended owner-prepared production snapshot
@@ -263,4 +264,4 @@ Milestone M8 (public deployment) remains an explicit goal. See `DEPLOYMENT.md`.
 
 ## Guiding Rule
 
-**Keep the engine pure and the server/client thin around it.** Database models and DTOs live in the server; player-model formulas live in `@fhm/engine` (`packages/engine/src/players`, `goalies`, `config`).
+**Keep the engine pure and the server/client thin around it.** Database models and DTOs live in the server; player-model, lineup, and chemistry formulas live in `@fhm/engine` (`packages/engine/src/players`, `goalies`, `lineups`, `chemistry`, `config`).

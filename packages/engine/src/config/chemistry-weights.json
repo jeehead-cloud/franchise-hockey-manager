@@ -1,0 +1,32 @@
+{
+  "version": "f9-v1",
+  "weights": {
+    "roleCompatibility": 0.7,
+    "personalityCompatibility": 0.3
+  },
+  "roleRatingBaseContribution": 0.02,
+  "caps": {
+    "chemistry": 0.14,
+    "coachFit": 0.09,
+    "tacticalFit": 0.09,
+    "totalMin": -0.30,
+    "totalMax": 0.30
+  },
+  "labels": [
+    { "maxExclusive": 35, "label": "POOR" },
+    { "maxExclusive": 45, "label": "WEAK" },
+    { "maxExclusive": 55, "label": "NEUTRAL" },
+    { "maxExclusive": 70, "label": "GOOD" },
+    { "maxExclusive": 101, "label": "EXCELLENT" }
+  ],
+  "missingCoachFit": -0.35,
+  "missingTacticsFit": -0.25,
+  "coachRatingScale": {
+    "minOverall": 1,
+    "maxOverall": 20,
+    "minMultiplier": 0.7,
+    "maxMultiplier": 1.15
+  },
+  "coachAlignmentWeight": 0.25,
+  "playerTacticsWeight": 0.75
+}

@@ -1,0 +1,40 @@
+{
+  "defaultScore": -0.2,
+  "matrix": {
+    "COMBINATIONAL": {
+      "COMBINATIONAL": 1,
+      "PHYSICAL": -0.55,
+      "SPEED": 0.2,
+      "SYSTEM": 0.35,
+      "FORECHECKING": -0.25
+    },
+    "PHYSICAL": {
+      "COMBINATIONAL": -0.55,
+      "PHYSICAL": 1,
+      "SPEED": -0.35,
+      "SYSTEM": -0.4,
+      "FORECHECKING": 0.4
+    },
+    "SPEED": {
+      "COMBINATIONAL": 0.2,
+      "PHYSICAL": -0.35,
+      "SPEED": 1,
+      "SYSTEM": -0.25,
+      "FORECHECKING": 0.3
+    },
+    "SYSTEM": {
+      "COMBINATIONAL": 0.35,
+      "PHYSICAL": -0.4,
+      "SPEED": -0.25,
+      "SYSTEM": 1,
+      "FORECHECKING": 0.15
+    },
+    "FORECHECKING": {
+      "COMBINATIONAL": -0.25,
+      "PHYSICAL": 0.4,
+      "SPEED": 0.3,
+      "SYSTEM": 0.15,
+      "FORECHECKING": 1
+    }
+  }
+}

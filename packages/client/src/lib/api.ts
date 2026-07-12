@@ -358,6 +358,77 @@ export interface LineupAuditItem {
   changedFields: string[];
 }
 
+export type ChemistryUnitType = 'FORWARD_LINE' | 'DEFENSE_PAIR' | 'GOALIE';
+export type ChemistryLabel = 'POOR' | 'WEAK' | 'NEUTRAL' | 'GOOD' | 'EXCELLENT';
+export type ChemistryUnitStatus = 'AVAILABLE' | 'UNAVAILABLE';
+
+export interface ChemistryFactor {
+  code: string;
+  label: string;
+  impact: number;
+  direction: 'POSITIVE' | 'NEGATIVE' | 'NEUTRAL';
+  details: string;
+}
+
+export interface ChemistryUnitResult {
+  unitType: ChemistryUnitType;
+  unitKey: string;
+  status: ChemistryUnitStatus;
+  playerIds: string[];
+  baseAbility: number | null;
+  roleCompatibility: number | null;
+  personalityCompatibility: number | null;
+  baseCompatibility: number | null;
+  familiarity: number;
+  familiarityStatus: 'NOT_TRACKED_YET';
+  currentChemistry: number | null;
+  label: ChemistryLabel | null;
+  coachFit: number | null;
+  tacticalFit: number | null;
+  totalModifier: number | null;
+  effectivePerformance: number | null;
+  factors: ChemistryFactor[];
+  warnings: string[];
+  unavailableReasons: string[];
+}
+
+export interface LineupChemistrySummary {
+  chemistryConfigVersion: string;
+  forwardLines: ChemistryUnitResult[];
+  defensePairs: ChemistryUnitResult[];
+  goalies: {
+    starter: ChemistryUnitResult;
+    backup: ChemistryUnitResult;
+  };
+  overall: {
+    averageForwardEffective: number | null;
+    averageDefenseEffective: number | null;
+    starterGoalieEffective: number | null;
+    averageChemistry: number | null;
+    goodOrExcellentUnits: number;
+    weakOrPoorUnits: number;
+    availableUnits: number;
+    unavailableUnits: number;
+  };
+  warnings: string[];
+}
+
+export interface TeamChemistry {
+  team: { id: string; name: string; shortName: string | null; tacticalStyle: string | null };
+  coach: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    coachingStyle: string;
+    tacticalStyle: string;
+    overallCoaching: number | null;
+    offense: number | null;
+    defense: number | null;
+  } | null;
+  lineup: { exists: boolean; presence: string; validationStatus: string | null };
+  chemistry: LineupChemistrySummary;
+}
+
 export interface TeamDetail extends TeamListItem {
   externalId: string | null;
   sourceDataset: string | null;
@@ -769,6 +840,13 @@ export const updateTeamRosterStatus = (id: string, payload: { playerId: string; 
 
 export async function getTeamLineup(id: string, signal?: AbortSignal): Promise<{ item: TeamLineup }> {
   return getJson(`/api/teams/${id}/lineup`, signal);
+}
+
+export async function getTeamChemistry(
+  id: string,
+  signal?: AbortSignal,
+): Promise<{ item: TeamChemistry }> {
+  return getJson(`/api/teams/${id}/chemistry`, signal);
 }
 
 export async function getCommissionerTeamLineup(

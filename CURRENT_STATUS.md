@@ -12,39 +12,39 @@
 
 ## 1. Current Development Phase
 
-**F8 — Lines and Auto-Lineup: implemented locally (not committed).** Persistent 20-slot main lineups, secondary positions, deterministic auto-lineup (REPLACE / FILL_EMPTY), Commissioner-gated editing with audit/concurrency, lineup-aware readiness, and schemaVersion 4 import (Frostbite expanded to full depth).
+**F9 — Chemistry and Effective Performance: implemented locally (not committed).** Config-driven role/personality chemistry, coach and tactical fit, bounded effective performance, explainable unit results, read-only Team Lines UI, and `GET /api/teams/:id/chemistry`. Familiarity is represented as 0 / `NOT_TRACKED_YET`. No new Prisma migration.
 
-**Next milestone: F9 — Chemistry and Effective Performance** (do not start until requested).
+**Next milestone: F10 — Simulation Configuration** (do not start until requested).
 
-F1–F7 remain complete on `main` (through `542d733`).
+F1–F8 remain complete on `main` (through `2734258`).
 
 ---
 
 ## 2. Milestone Status
 
-### F1–F6
+### F1–F7
 
-Complete on `main` (`bf1d0ab` … `d8dccb1`).
+Complete on `main`.
 
-### F7 — Coaches, Tactics, and Team Setup (Done)
+### F8 — Lines and Auto-Lineup (Done)
 
-Committed/pushed: `542d733`.
+Committed/pushed: `2734258`.
 
-### F8 — Lines and Auto-Lineup (Done locally)
+### F9 — Chemistry and Effective Performance (Done locally)
 
 Implemented:
-- `TeamLineup` + `LineupAssignment` (20 slots); partial saves allowed
-- `PlayerSecondaryPosition` join model; Commissioner player editor manages secondaries
-- Engine `packages/engine/src/lineups/` — validation + deterministic auto-lineup
-- Eligibility: ACTIVE/RESERVE + complete model; PROSPECT/UNAVAILABLE excluded
-- Invalid assignments retained and surfaced (not silently deleted) when roster/status changes
-- Commissioner PUT / auto-fill / audit; normal GET lineup
-- Team Lines tab + `/teams/:teamId/lines/edit` (dnd-kit + keyboard fallback)
-- Readiness: READY requires valid complete lineup; INVALID → NOT_READY; absent/incomplete → WARNING
-- schemaVersion **4**; Frostbite fixture has 20 eligible skaters/goalies; other clubs remain thin
+- Engine `packages/engine/src/chemistry/` + config JSON (`chemistry-weights`, role/personality/coach/tactical fit)
+- Config version `f9-v1`; validated matrices and caps
+- Unit chemistry for forward lines and defense pairs; goalie context fit without fake line chemistry
+- Effective performance = baseAbility × (1 + clamped totalModifier); total cap ±0.30
+- Familiarity field present but not accumulated
+- Derived on read — not persisted
+- `GET /api/teams/:id/chemistry` (normal mode)
+- Team Lines chemistry summary + unit cards
+- Non-linearity proof tests (lower CA + strong fit can beat higher CA + weak fit)
 
-Not in F8:
-- Chemistry, tactical/coach fit, special teams, matches, auth
+Not in F9:
+- Familiarity growth, match simulation, chemistry-optimized auto-lineup, F10 balance presets
 
 ### M1–M8
 
@@ -54,20 +54,21 @@ Unchanged.
 
 ## 3. Known Bugs / Limitations Worth Remembering
 
-- Default dataset remains fictional. Cedar/Owls remain under-depth → partial auto-lineup / NOT_READY structural checks.
-- Commissioner header is a **local safety boundary**, not security.
-- Manual UI verification for F8 was **NOT RUN** in the implementing agent session.
-- Auto-lineup uses ability + position + limited role tie-break only — not chemistry.
-- Invalid lineup assignments are retained until Commissioner corrects them.
-- F8 changes not yet committed/pushed.
+- Chemistry weights are F9 foundation balance approximations — tune via config, not code forks.
+- Familiarity does not accumulate yet.
+- Auto-lineup remains F8 (ability/position), not chemistry-aware.
+- Poor chemistry is informational only — does not change READY.
+- Manual UI verification for F9 was **NOT RUN**.
+- F9 changes not yet committed/pushed.
+- Commissioner header is not security.
 
 ---
 
 ## 4. Nearest Next Steps
 
-1. Commit/push F8 when the owner requests.
-2. Manual UI pass on disposable schemaVersion 4 DB (Lines editor, DnD, auto-fill, invalidation).
-3. **F9 — Chemistry** (when requested). Do not start match simulation early.
+1. Commit/push F9 when the owner requests.
+2. Manual UI pass on disposable DB (complementary vs redundant, coach/tactics edits).
+3. **F10 — Simulation Configuration** (when requested). Do not start match events early.
 
 ---
 
@@ -75,15 +76,15 @@ Unchanged.
 
 > Ordinary repository-relevant history, newest first.
 
+### 2026-07-13 — F9 Chemistry and Effective Performance
+
+- Work completed: chemistry engine + configs; non-linearity tests; chemistry API; Team Lines UI; docs
+- Validation: 66 engine + 115 server tests; typecheck/build; prisma validate/migrate status (7 migrations, no F9 migration); setup validate; API smoke PASS (Frostbite chemistry after auto-lineup, config `f9-v1`, deterministic); manual UI **NOT RUN**
+- Remaining: F9 uncommitted; familiarity not accumulated; no chemistry auto-lineup; manual UI pass
+
 ### 2026-07-13 — F8 Lines and Auto-Lineup
 
-- Work completed: lineup persistence; secondary positions; engine validation/auto-lineup; schema v4 + Frostbite depth; Commissioner lineup APIs; Lines UI/editor; readiness/world integration; docs
-- Validation: 50 engine + 110 server tests; migrate empty→F8 and F7→F8; setup validate/init; typecheck/build; API smoke PASS; manual UI **NOT RUN**
-- Remaining: F8 uncommitted; no chemistry
-
-### 2026-07-13 — F7 Coaches, Tactics, and Team Setup
-
-- Work completed: committed/pushed `542d733`
+- Work completed: committed/pushed `2734258`
 
 ---
 
@@ -91,19 +92,15 @@ Unchanged.
 
 > Permanent history, newest first.
 
+### 2026-07-13 — F9 non-linear chemistry foundation
+
+- Significance: First bounded, explainable performance layer beyond raw current ability.
+- Decision: Config-driven role/personality/coach/tactical fits; familiarity stubbed at 0; derive on read; READY unchanged by chemistry quality.
+- Lasting impact: F10+ simulation must consume these modifiers without collapsing back to overall-only production.
+
 ### 2026-07-13 — F8 main lineup foundation
 
-- Significance: First persisted team lineups and secondary-position model before chemistry.
-- Decision: Exact primary/secondary slot fit only; partial saves allowed; invalid assignments retained; auto-lineup deterministic without chemistry; READY requires complete valid 20-slot lineup.
-- Lasting impact: F9 chemistry must consume lineups without reinventing slot/eligibility rules.
-
-### 2026-07-13 — F7 team readiness and setup foundation
-
-- Related: commit `542d733`
-
-### 2026-07-13 — F6 Commissioner Mode
-
-- Related: commit `d8dccb1`
+- Related: commit `2734258`
 
 ---
 

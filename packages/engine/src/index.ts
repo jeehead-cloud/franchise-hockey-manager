@@ -87,3 +87,38 @@ export type {
   ValidateLineupInput,
   AutoLineupInput,
 } from './lineups/index.js';
+
+export {
+  CHEMISTRY_CONFIG_VERSION,
+  validateChemistryConfig,
+  evaluateChemistryUnit,
+  evaluateLineupChemistry,
+  computeBaseAbility,
+  computeEffectivePerformance,
+  computeBaseCompatibility,
+  roleCompatibilityScore,
+  personalityCompatibilityScore,
+  coachFitScore,
+  tacticalFitScore,
+  getRolePairScore,
+  pairKey,
+  chemistryLabel,
+  summarizeUnitPlain,
+} from './chemistry/index.js';
+
+export type {
+  ChemistryCoachingStyle,
+  ChemistryTacticalStyle,
+  ChemistryPersonality,
+  ChemistryUnitType,
+  ChemistryLabel,
+  ChemistryUnitStatus,
+  ChemistryPlayerInput,
+  ChemistryCoachInput,
+  ChemistryContext,
+  ChemistryFactor,
+  ChemistryUnitResult,
+  LineupChemistrySummary,
+  EvaluateUnitInput,
+  LineupChemistryInput,
+} from './chemistry/index.js';
