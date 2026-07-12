@@ -139,6 +139,8 @@ export {
   normalizeBalanceConfig,
   sortJsonValue,
   collectChangedPaths,
+  isF11CompatibleBalanceConfig,
+  BALANCE_SCHEMA_VERSIONS,
 } from './balance/index.js';
 
 export type {
@@ -149,4 +151,61 @@ export type {
   LoggingLevel,
   ChemistryBalanceSection,
   PlayerModelBalanceSection,
+  MatchBalanceSection,
 } from './balance/index.js';
+
+export {
+  FHM_ENGINE_VERSION,
+  F11_SIMULATION_MODE,
+  REGULATION_PERIODS,
+  PERIOD_DURATION_SECONDS,
+  FORBIDDEN_F11_EVENT_TYPES,
+  validateSimulationInput,
+  canonicalizeSimulationInput,
+  getMatchConfig,
+  createRng,
+  restoreRng,
+  nextFloat,
+  nextInt,
+  chance,
+  pick,
+  weightedPick,
+  createInitialMatchState,
+  simulateNextEvent,
+  simulateUntil,
+  simulateRegulation,
+  simulateStep,
+  computeDiagnostics,
+  serializeMatchSnapshot,
+  restoreMatchSnapshot,
+  computeTraceHash,
+  InvalidSimulationInputError,
+  IncompatibleBalanceConfigError,
+  InvalidSnapshotError,
+  SafetyLimitExceededError,
+  IllegalStateTransitionError,
+  SimulationError,
+} from './simulation/index.js';
+
+export type {
+  SimulationInput,
+  SimulationTeamInput,
+  SimulationPlayerProfile,
+  SimulationBalanceRef,
+  RegulationRules,
+  MatchState,
+  MatchEvent,
+  MatchEventType,
+  MatchSnapshot,
+  SimulationResult,
+  SimulationDiagnostics,
+  StepMode,
+  StepResult,
+  EventDetailLevel,
+  PossessionSide,
+  PossessionZone,
+  SimulationStatus,
+  ActiveLines,
+} from './simulation/index.js';
+
+export { buildTestSimulationInput } from './simulation/match/fixture.js';

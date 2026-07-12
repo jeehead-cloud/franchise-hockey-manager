@@ -19,11 +19,14 @@ function hash(config: ReturnType<typeof getStandardBalanceConfig>) {
 describe('balance config', () => {
   it('parses Standard defaults with required sections', () => {
     const config = getStandardBalanceConfig();
-    expect(config.schemaVersion).toBe(1);
+    expect(config.schemaVersion).toBe(2);
     expect(config.presetKey).toBe('standard');
     expect(config.chemistry.active).toBe(true);
     expect(config.playerModel.active).toBe(true);
-    expect(config.match.active).toBe(false);
+    expect(config.match.active).toBe(true);
+    if (config.match.active) {
+      expect(config.match.regulationPeriods).toBe(3);
+    }
     expect(config.chemistry.weights.version).toBe('f9-v1');
     const result = validateBalanceConfig(config);
     expect(result.ok).toBe(true);

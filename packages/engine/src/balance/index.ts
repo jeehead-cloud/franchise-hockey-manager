@@ -1,6 +1,7 @@
 export type * from './types.js';
 export {
   BALANCE_SCHEMA_VERSION,
+  BALANCE_SCHEMA_VERSIONS,
 } from './types.js';
 export {
   balanceConfigSchema,
@@ -8,6 +9,7 @@ export {
   validateBalanceConfig,
   parseBalanceConfig,
   validateRuntimeSimulationSettings,
+  isF11CompatibleBalanceConfig,
 } from './schema.js';
 export {
   getStandardBalanceConfig,

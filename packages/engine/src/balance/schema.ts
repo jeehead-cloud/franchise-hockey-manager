@@ -4,6 +4,7 @@ import {
   type BalanceConfig,
   type BalanceValidationIssue,
   type BalanceValidationResult,
+  type MatchBalanceSection,
   type RuntimeSimulationSettings,
 } from './types.js';
 
@@ -78,9 +79,38 @@ const chemistryWeightsSchema = z
   })
   .strict();
 
+const activeMatchSectionSchema = z
+  .object({
+    active: z.literal(true),
+    regulationPeriods: z.number().int().min(1).max(5),
+    periodDurationSeconds: z.number().int().min(60).max(3600),
+    minimumShiftSeconds: z.number().int().min(5).max(120),
+    maximumShiftSeconds: z.number().int().min(5).max(180),
+    averageShiftSeconds: z.number().int().min(5).max(180),
+    minimumPossessionSeconds: z.number().int().min(1).max(60),
+    maximumPossessionSeconds: z.number().int().min(1).max(120),
+    stoppageSeconds: z.number().int().min(1).max(30),
+    homeIcePossessionBonus: unit01,
+    faceoffHomeAdvantage: unit01,
+    turnoverBaseProbability: unit01,
+    eventSafetyLimit: z.number().int().min(100).max(100000),
+    forwardLineUsageWeights: z.record(z.string(), finite.positive()),
+    defensePairUsageWeights: z.record(z.string(), finite.positive()),
+    zoneTransitionWeights: z
+      .object({
+        neutralZoneEntry: unit01,
+        defensiveZoneExit: unit01,
+        offensiveHold: unit01,
+        offensiveTurnover: unit01,
+        offensiveStoppage: unit01,
+      })
+      .strict(),
+  })
+  .strict();
+
 export const balanceConfigSchema = z
   .object({
-    schemaVersion: z.literal(BALANCE_SCHEMA_VERSION),
+    schemaVersion: z.union([z.literal(1), z.literal(2), z.literal(BALANCE_SCHEMA_VERSION)]),
     presetKey: z.string().min(1).max(64),
     name: z.string().min(1).max(120),
     description: z.string().max(2000).nullable(),
@@ -136,7 +166,7 @@ export const balanceConfigSchema = z
         notes: z.string().min(1),
       })
       .strict(),
-    match: inactiveSectionSchema,
+    match: z.union([inactiveSectionSchema, activeMatchSectionSchema]),
     shots: inactiveSectionSchema,
     goalies: inactiveSectionSchema,
     penalties: inactiveSectionSchema,
@@ -279,12 +309,38 @@ function chemistrySemanticErrors(config: BalanceConfig): BalanceValidationIssue[
   return errors;
 }
 
+function matchSemanticErrors(config: BalanceConfig): BalanceValidationIssue[] {
+  const errors: BalanceValidationIssue[] = [];
+  if (config.match.active !== true) return errors;
+  const m = config.match as MatchBalanceSection;
+  if (m.regulationPeriods !== 3) {
+    errors.push({ path: 'match.regulationPeriods', message: 'F11 requires regulationPeriods = 3' });
+  }
+  if (!(m.minimumShiftSeconds <= m.averageShiftSeconds && m.averageShiftSeconds <= m.maximumShiftSeconds)) {
+    errors.push({ path: 'match.averageShiftSeconds', message: 'Shift seconds must satisfy min <= avg <= max' });
+  }
+  if (!(m.minimumPossessionSeconds <= m.maximumPossessionSeconds)) {
+    errors.push({ path: 'match.minimumPossessionSeconds', message: 'Possession min must be <= max' });
+  }
+  const fwdTotal = Object.values(m.forwardLineUsageWeights).reduce((s, n) => s + n, 0);
+  const defTotal = Object.values(m.defensePairUsageWeights).reduce((s, n) => s + n, 0);
+  if (!(fwdTotal > 0)) errors.push({ path: 'match.forwardLineUsageWeights', message: 'Must sum > 0' });
+  if (!(defTotal > 0)) errors.push({ path: 'match.defensePairUsageWeights', message: 'Must sum > 0' });
+  return errors;
+}
+
+export function isF11CompatibleBalanceConfig(
+  config: BalanceConfig,
+): config is BalanceConfig & { match: MatchBalanceSection } {
+  return config.match.active === true && config.schemaVersion >= 2;
+}
+
 export function validateBalanceConfig(input: unknown): BalanceValidationResult {
   const parsed = balanceConfigSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, errors: zodIssues(parsed.error) };
   }
-  const semantic = chemistrySemanticErrors(parsed.data as BalanceConfig);
+  const semantic = [...chemistrySemanticErrors(parsed.data as BalanceConfig), ...matchSemanticErrors(parsed.data as BalanceConfig)];
   if (semantic.length) return { ok: false, errors: semantic };
   return { ok: true, config: parsed.data as BalanceConfig };
 }

@@ -11,8 +11,35 @@ import { parseBalanceConfig } from './schema.js';
 import type { BalanceConfig, RuntimeSimulationSettings } from './types.js';
 import { BALANCE_SCHEMA_VERSION } from './types.js';
 
-/** Keep in sync with packages/engine/src/index.ts ENGINE_VERSION. */
-const ENGINE_COMPAT_VERSION = '0.1.0';
+/** Keep in sync with simulation FHM_ENGINE_VERSION. */
+const ENGINE_COMPAT_VERSION = 'f11.1';
+
+function defaultMatchSection() {
+  return {
+    active: true as const,
+    regulationPeriods: 3,
+    periodDurationSeconds: 1200,
+    minimumShiftSeconds: 25,
+    maximumShiftSeconds: 55,
+    averageShiftSeconds: 40,
+    minimumPossessionSeconds: 3,
+    maximumPossessionSeconds: 18,
+    stoppageSeconds: 4,
+    homeIcePossessionBonus: 0.03,
+    faceoffHomeAdvantage: 0.04,
+    turnoverBaseProbability: 0.22,
+    eventSafetyLimit: 15000,
+    forwardLineUsageWeights: { F1: 0.3, F2: 0.27, F3: 0.24, F4: 0.19 },
+    defensePairUsageWeights: { D1: 0.38, D2: 0.34, D3: 0.28 },
+    zoneTransitionWeights: {
+      neutralZoneEntry: 0.55,
+      defensiveZoneExit: 0.5,
+      offensiveHold: 0.35,
+      offensiveTurnover: 0.4,
+      offensiveStoppage: 0.25,
+    },
+  };
+}
 
 function inactive(milestone: string, notes: string) {
   return {
@@ -73,7 +100,7 @@ export function getStandardBalanceConfig(): BalanceConfig {
       notes:
         'Coach-style and tactical preference matrices used by F9 live under chemistry.coachFit and chemistry.tacticalFit.',
     },
-    match: inactive('F11', 'Match event engine probabilities are deferred until F11.'),
+    match: defaultMatchSection(),
     shots: inactive('F12', 'Shot resolution coefficients are deferred until F12.'),
     goalies: inactive('F12', 'Goalie save resolution beyond F5 model is deferred until F12.'),
     penalties: inactive('F13', 'Penalty and special-teams coefficients are deferred until F13.'),

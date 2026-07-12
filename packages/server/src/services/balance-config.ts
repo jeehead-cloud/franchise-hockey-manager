@@ -11,6 +11,7 @@ import {
   collectChangedPaths,
   defaultRuntimeSimulationSettings,
   getStandardBalanceConfig,
+  isF11CompatibleBalanceConfig,
   normalizeBalanceConfig,
   parseBalanceConfig,
   validateBalanceConfig,
@@ -346,8 +347,34 @@ export async function bootstrapBalanceConfiguration(db?: DbClient): Promise<{
     created = true;
   }
 
-  const latest = standard.versions[0];
-  if (!latest) {
+  const repoStandard = normalizeBalanceConfig(getStandardBalanceConfig());
+  const compatibleRepoVersion = repoStandard.schemaVersion;
+  const hasCompatibleVersion = standard.versions.some((v) => v.schemaVersion >= compatibleRepoVersion);
+  if (!hasCompatibleVersion) {
+    const nextVersionNumber = (standard.versions[0]?.versionNumber ?? 0) + 1;
+    const configJson = canonicalizeBalanceConfig(repoStandard);
+    assertConfigJsonSize(configJson);
+    const configHash = hashBalanceConfig(repoStandard);
+    await client.balancePresetVersion.create({
+      data: {
+        presetId: standard.id,
+        versionNumber: nextVersionNumber,
+        schemaVersion: repoStandard.schemaVersion,
+        configJson,
+        configHash,
+        changeReason: `Bootstrap repository Standard schemaVersion ${repoStandard.schemaVersion}`,
+        createdBySource: null,
+      },
+    });
+    standard = await client.balancePreset.findFirstOrThrow({
+      where: { id: standard.id },
+      include: { versions: { orderBy: { versionNumber: 'desc' } } },
+    });
+    created = true;
+  }
+
+  const latestCompatible = standard.versions.find((v) => v.schemaVersion >= compatibleRepoVersion) ?? standard.versions[0];
+  if (!latestCompatible) {
     throw new Error('Standard balance preset has no versions after bootstrap');
   }
 
@@ -359,10 +386,26 @@ export async function bootstrapBalanceConfiguration(db?: DbClient): Promise<{
     await client.activeBalanceConfiguration.create({
       data: {
         id: 'default',
-        activePresetVersionId: latest.id,
+        activePresetVersionId: latestCompatible.id,
       },
     });
     activated = true;
+  } else {
+    const activeVersion = await client.balancePresetVersion.findUnique({
+      where: { id: existingActive.activePresetVersionId },
+    });
+    if (activeVersion) {
+      const activeConfig = requireValidConfig(JSON.parse(activeVersion.configJson));
+      const activeCompatible = isF11CompatibleBalanceConfig(activeConfig);
+      const activeIsStandard = activeVersion.presetId === standard.id;
+      if (activeIsStandard && !activeCompatible && latestCompatible.id !== activeVersion.id) {
+        await client.activeBalanceConfiguration.update({
+          where: { id: 'default' },
+          data: { activePresetVersionId: latestCompatible.id },
+        });
+        activated = true;
+      }
+    }
   }
 
   if (created || activated) {

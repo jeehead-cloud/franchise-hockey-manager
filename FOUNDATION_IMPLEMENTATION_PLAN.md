@@ -807,6 +807,8 @@ BalancePresetVersion
 
 # 16. F11 — Event Engine Core
 
+**Status: implemented locally (2026-07-13).** Pure deterministic regulation match engine (`f11.1`), balance schemaVersion 2 active match section, debug API, technical `/simulation-lab` page. Shots/scoring/persistence remain F12+.
+
 ## Goal
 
 Create the deterministic match state machine.

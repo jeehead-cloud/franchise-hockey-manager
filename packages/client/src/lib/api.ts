@@ -1163,3 +1163,111 @@ export async function getCommissionerBalanceAudit(
 ): Promise<Paginated<BalanceAuditItem>> {
   return commissionerGetJson(`/api/commissioner/balance/audit${qs(params)}`, signal);
 }
+
+export type TechnicalEventDetail = 'NONE' | 'SUMMARY' | 'FULL';
+export type TechnicalStepMode = 'NEXT_EVENT' | 'NEXT_SHIFT' | 'END_PERIOD' | 'END_REGULATION';
+
+export interface TechnicalSimulationMetadata {
+  engineVersion: string;
+  simulationMode: string;
+  balancePresetId: string;
+  balanceVersionId: string;
+  balanceVersionNumber: number;
+  balanceHash: string;
+  seed: string | number;
+  inputFingerprint: string;
+}
+
+export interface TechnicalMatchEvent {
+  index: number;
+  type: string;
+  period: number;
+  elapsedSeconds: number;
+  remainingSeconds: number;
+  teamId: string | null;
+  playerIds: string[];
+  zone: string | null;
+  possession: string;
+  visibility: string;
+  details: Record<string, unknown>;
+}
+
+export interface TechnicalSimulationDiagnostics {
+  totalEvents: number;
+  eventsByType: Record<string, number>;
+  traceHash: string;
+  faceoffWins: { home: number; away: number };
+  possessionSecondsByTeam: { home: number; away: number; none: number };
+  safetyLimitHit: boolean;
+}
+
+export interface TechnicalMatchSnapshot {
+  schemaVersion: number;
+  engineVersion: string;
+  inputFingerprint: string;
+  balanceHash: string;
+  seed: string | number;
+  traceHash: string;
+  state: Record<string, unknown>;
+  events: TechnicalMatchEvent[];
+}
+
+async function postJson<T>(path: string, payload: unknown, signal?: AbortSignal): Promise<T> {
+  const res = await fetch(`${apiBase()}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+    signal,
+  });
+  if (!res.ok) {
+    const err = new Error(await readError(res)) as Error & { status?: number };
+    err.status = res.status;
+    throw err;
+  }
+  return res.json() as Promise<T>;
+}
+
+export async function simulateTechnicalRegulation(
+  payload: {
+    homeTeamId: string;
+    awayTeamId: string;
+    seed: string | number;
+    eventDetail?: TechnicalEventDetail;
+  },
+  signal?: AbortSignal,
+): Promise<{
+  item: {
+    metadata: TechnicalSimulationMetadata;
+    finalState: Record<string, unknown>;
+    diagnostics: TechnicalSimulationDiagnostics;
+    events?: TechnicalMatchEvent[];
+    eventSummary?: { total: number; byType: Record<string, number> };
+    notice: string;
+  };
+}> {
+  return postJson('/api/simulation/debug/regulation', payload, signal);
+}
+
+export async function stepTechnicalSimulation(
+  payload: {
+    homeTeamId: string;
+    awayTeamId: string;
+    seed: string | number;
+    stepMode: TechnicalStepMode;
+    snapshot?: TechnicalMatchSnapshot | null;
+    eventDetail?: TechnicalEventDetail;
+  },
+  signal?: AbortSignal,
+): Promise<{
+  item: {
+    metadata: TechnicalSimulationMetadata;
+    state: Record<string, unknown>;
+    snapshot: TechnicalMatchSnapshot;
+    diagnostics: TechnicalSimulationDiagnostics;
+    events?: TechnicalMatchEvent[];
+    completed: boolean;
+    notice: string;
+  };
+}> {
+  return postJson('/api/simulation/debug/step', payload, signal);
+}

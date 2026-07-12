@@ -39,6 +39,8 @@ F9 implements the first foundation layer in `packages/engine/src/chemistry` with
 
 F10: the active balance preset chemistry section is the runtime source for Team Lines / chemistry APIs. Repository JSON remains the Standard default and bootstrap source. Changing an active preset does not rewrite historical `BalancePresetVersion` rows.
 
+F11: regulation technical simulation is pure engine code — no Prisma/Fastify/React inside `packages/engine/src/simulation`. Same immutable input + active balance snapshot + seed must reproduce identical event traces. F11 emits technical events only; regulation score remains 0–0 until F12. Zone is relative to the possession team. Snapshots must match engine version, input fingerprint, balance hash, and seed on resume.
+
 Invariants in force:
 
 - **Line/pairing synergy**: role compatibility is config-driven. Complementary roles can beat redundant higher-rated groups after bounded modifiers. Unknown role pairs use an explicit documented fallback.

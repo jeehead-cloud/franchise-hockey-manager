@@ -1,4 +1,6 @@
-export const BALANCE_SCHEMA_VERSION = 1 as const;
+export const BALANCE_SCHEMA_VERSION = 2 as const;
+
+export const BALANCE_SCHEMA_VERSIONS = [1, 2] as const;
 
 export type LoggingLevel = 'MINIMAL' | 'STANDARD' | 'DETAILED' | 'DEBUG';
 
@@ -99,12 +101,37 @@ export interface PlayerModelBalanceSection {
   notes?: string;
 }
 
+export interface MatchBalanceSection {
+  active: true;
+  regulationPeriods: number;
+  periodDurationSeconds: number;
+  minimumShiftSeconds: number;
+  maximumShiftSeconds: number;
+  averageShiftSeconds: number;
+  minimumPossessionSeconds: number;
+  maximumPossessionSeconds: number;
+  stoppageSeconds: number;
+  homeIcePossessionBonus: number;
+  faceoffHomeAdvantage: number;
+  turnoverBaseProbability: number;
+  eventSafetyLimit: number;
+  forwardLineUsageWeights: Record<string, number>;
+  defensePairUsageWeights: Record<string, number>;
+  zoneTransitionWeights: {
+    neutralZoneEntry: number;
+    defensiveZoneExit: number;
+    offensiveHold: number;
+    offensiveTurnover: number;
+    offensiveStoppage: number;
+  };
+}
+
 export interface BalanceConfig extends BalanceMetadata {
   randomness: RandomnessConfig;
   playerModel: PlayerModelBalanceSection;
   chemistry: ChemistryBalanceSection;
   tactics: ActiveTacticsSection;
-  match: InactiveSection;
+  match: MatchBalanceSection | InactiveSection;
   shots: InactiveSection;
   goalies: InactiveSection;
   penalties: InactiveSection;

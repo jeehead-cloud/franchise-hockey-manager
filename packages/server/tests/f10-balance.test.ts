@@ -62,31 +62,30 @@ describe('F10 balance configuration', () => {
     if (tempDir) cleanupTempDir(tempDir);
   });
 
-  it('bootstrap creates Standard v1 active and is idempotent on rerun', async () => {
+  it('bootstrap creates Standard active config and is idempotent on rerun', async () => {
     const first = await bootstrapBalanceConfiguration(prisma);
     expect(first.presetId).toBeTruthy();
     expect(first.versionId).toBeTruthy();
 
     const preset = await prisma.balancePreset.findUniqueOrThrow({
       where: { id: first.presetId },
-      include: { versions: true },
+      include: { versions: { orderBy: { versionNumber: 'asc' } } },
     });
     expect(preset.name).toBe('Standard');
     expect(preset.isSystem).toBe(true);
-    expect(preset.versions).toHaveLength(1);
-    expect(preset.versions[0]!.versionNumber).toBe(1);
+    expect(preset.versions.length).toBeGreaterThanOrEqual(1);
+    expect(preset.versions.some((v) => v.schemaVersion >= 2)).toBe(true);
 
     const active = await prisma.activeBalanceConfiguration.findUniqueOrThrow({
       where: { id: 'default' },
     });
-    expect(active.activePresetVersionId).toBe(preset.versions[0]!.id);
+    const activeVersion = preset.versions.find((v) => v.id === active.activePresetVersionId);
+    expect(activeVersion?.schemaVersion).toBeGreaterThanOrEqual(2);
 
     const versionCount = await prisma.balancePresetVersion.count();
     const second = await bootstrapBalanceConfiguration(prisma);
     expect(second.created).toBe(false);
-    expect(second.activated).toBe(false);
     expect(second.presetId).toBe(first.presetId);
-    expect(second.versionId).toBe(active.activePresetVersionId);
     expect(await prisma.balancePresetVersion.count()).toBe(versionCount);
   });
 

@@ -6,6 +6,7 @@ import { registerDomainRoutes } from './routes/domain.js';
 import { registerSetupRoutes } from './routes/setup.js';
 import { registerCommissionerRoutes } from './routes/commissioner.js';
 import { registerBalanceRoutes } from './routes/balance.js';
+import { registerSimulationDebugRoutes } from './routes/simulation-debug.js';
 
 export async function buildApp(options?: { logger?: boolean }) {
   const app = Fastify({ logger: options?.logger ?? true });
@@ -28,6 +29,7 @@ export async function buildApp(options?: { logger?: boolean }) {
   await registerDomainRoutes(app);
   await registerSetupRoutes(app);
   await registerBalanceRoutes(app);
+  await registerSimulationDebugRoutes(app);
   await registerCommissionerRoutes(app);
 
   return app;

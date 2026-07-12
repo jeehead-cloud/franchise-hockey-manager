@@ -17,7 +17,7 @@ npm run db:generate --workspace=@fhm/server
 npm run db:migrate --workspace=@fhm/server
 ```
 
-`db:migrate` applies Prisma migrations to local SQLite (`packages/server/prisma/dev.db`). F1 → … → F8 lineups → F9 chemistry (no migration) → **F10 balance presets**. After migrate on an existing world, run `npm run balance:bootstrap` if Standard is missing (also runs on server start / world init). Do not commit `*.db` files.
+`db:migrate` applies Prisma migrations to local SQLite (`packages/server/prisma/dev.db`). F1 → … → F10 balance presets → **F11 event engine (no new DB migration; balance JSON schemaVersion 2)**. After migrate on an existing world, run `npm run balance:bootstrap` if Standard v2 is missing (also runs on server start / world init; upgrades active Standard v1 → v2 only). Do not commit `*.db` files.
 
 ## Run locally
 
@@ -34,10 +34,11 @@ npm run dev:server
 npm run dev:client
 ```
 
-- API: http://127.0.0.1:3000 (`GET /health`, read `GET /api/...`, balance `GET /api/balance/*`, setup `GET|POST /api/setup/*`, world summary `GET /api/world`, chemistry `GET /api/teams/:id/chemistry`)
+- API: http://127.0.0.1:3000 (`GET /health`, read `GET /api/...`, balance `GET /api/balance/*`, setup `GET|POST /api/setup/*`, world summary `GET /api/world`, chemistry `GET /api/teams/:id/chemistry`, **F11 debug** `POST /api/simulation/debug/*` when enabled)
 - UI: http://localhost:5173 (Vite proxies `/health` and `/api`)
 - Setup World: http://localhost:5173/setup
 - Settings: `/settings` (Game Balance / Runtime & Debug / Commissioner Mode)
+- **Technical simulation (F11):** `/simulation-lab` — regulation debug only; 0–0; not batch Simulation Lab
 - Browsers: `/world`, `/teams`, `/players`, `/competitions`, `/coaches` (+ detail routes; Team Lines shows chemistry + active balance meta)
 - Commissioner editor: `/players/:playerId/edit` (requires Commissioner Mode)
 - Settings: enable/disable Commissioner Mode (defaults off; confirm to enable)
@@ -73,6 +74,7 @@ Initialize only against an empty disposable database (duplicate init is blocked)
 ```powershell
 npm run test:engine
 npm run test:server
+npm run verify:event-engine
 ```
 
 Vitest uses isolated temporary SQLite databases for server tests (does not mutate the normal `dev.db` except when you run migrate yourself).

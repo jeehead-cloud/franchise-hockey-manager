@@ -15,11 +15,13 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "dev": "tsc -p tsconfig.json --watch",
-    "test": "vitest run"
+    "test": "vitest run",
+    "verify:event-engine": "tsx src/simulation/match/verify-event-engine.ts"
   },
   "devDependencies": {
     "typescript": "^5.8.2",
-    "vitest": "^3.0.9"
+    "vitest": "^3.0.9",
+    "tsx": "^4.19.3"
   },
   "dependencies": {
     "zod": "^4.4.3"
