@@ -21,6 +21,7 @@ import {
   type LeagueItem,
 } from '../lib/api';
 import { RegularSeasonStagePanel } from '../components/competitions/RegularSeasonStagePanel';
+import { AggregatedLeaguePanel } from '../components/competitions/AggregatedLeaguePanel';
 import { PlayoffStagePanel } from '../components/competitions/PlayoffStagePanel';
 import { ArchiveEditionPanel } from '../components/competitions/ArchiveEditionPanel';
 
@@ -57,7 +58,7 @@ function lifecycleBanner(status: string): string {
     case 'READY':
       return 'Validated and locked pending activation.';
     case 'ACTIVE':
-      return 'Active edition. Regular season (F18) and playoffs (F19) operate on detailed stages.';
+      return 'Active edition. Detailed stages use F18/F19; AGGREGATED leagues use F21 fast season simulation.';
     case 'COMPLETED':
       return 'Completed — ready to archive when Commissioner confirms.';
     case 'ARCHIVED':
@@ -248,10 +249,19 @@ export function CompetitionEditionPage() {
               <Row label="Participants" value={String(item.participantCount)} />
               <Row label="Stages" value={String(item.stageCount)} />
               <Row label="Matches" value={String(item.matchCount)} />
+              <Row
+                label="Simulation"
+                value={String(item.competition?.simulationLevel ?? 'DETAILED')}
+              />
               <Row label="Prepared" value={item.preparedAt ?? '—'} />
               <Row label="Activated" value={item.activatedAt ?? '—'} />
               <Row label="Completed" value={item.completedAt ?? '—'} />
               <Row label="Archived" value={item.archivedAt ?? '—'} />
+              {item.competition?.simulationLevel === 'AGGREGATED' ? (
+                <div style={{ marginTop: 8 }}>
+                  <Badge tone="neutral">Aggregated Simulation</Badge>
+                </div>
+              ) : null}
             </Panel>
             <Panel title="Notice">
               <p style={{ margin: 0, font: 'var(--text-body-sm)', color: 'var(--text-secondary)' }}>
@@ -581,12 +591,68 @@ export function CompetitionEditionPage() {
         <>
           {(() => {
             const rs = item.stages.find((s) => s.stageType === 'REGULAR_SEASON');
+            const isAggregated = item.competition?.simulationLevel === 'AGGREGATED';
             if (!rs) {
               return (
                 <EmptyState
                   title="No regular-season stage"
-                  description="Add a DETAILED REGULAR_SEASON stage while the edition is editable."
+                  description="Add a REGULAR_SEASON stage while the edition is editable."
                 />
+              );
+            }
+            if (isAggregated) {
+              if (tab === 'matches') {
+                return (
+                  <>
+                    <AggregatedLeaguePanel
+                      stageId={rs.id}
+                      stageUpdatedAt={rs.updatedAt ?? item.updatedAt}
+                      section="overview"
+                      onStageChanged={() => void reload()}
+                    />
+                    <div style={{ height: 12 }} />
+                    <AggregatedLeaguePanel
+                      stageId={rs.id}
+                      stageUpdatedAt={rs.updatedAt ?? item.updatedAt}
+                      section="results"
+                      onStageChanged={() => void reload()}
+                    />
+                  </>
+                );
+              }
+              if (tab === 'standings') {
+                return (
+                  <AggregatedLeaguePanel
+                    stageId={rs.id}
+                    stageUpdatedAt={rs.updatedAt ?? item.updatedAt}
+                    section="standings"
+                    onStageChanged={() => void reload()}
+                  />
+                );
+              }
+              return (
+                <>
+                  <AggregatedLeaguePanel
+                    stageId={rs.id}
+                    stageUpdatedAt={rs.updatedAt ?? item.updatedAt}
+                    section="players"
+                    onStageChanged={() => void reload()}
+                  />
+                  <div style={{ height: 12 }} />
+                  <AggregatedLeaguePanel
+                    stageId={rs.id}
+                    stageUpdatedAt={rs.updatedAt ?? item.updatedAt}
+                    section="teams"
+                    onStageChanged={() => void reload()}
+                  />
+                  <div style={{ height: 12 }} />
+                  <AggregatedLeaguePanel
+                    stageId={rs.id}
+                    stageUpdatedAt={rs.updatedAt ?? item.updatedAt}
+                    section="diagnostics"
+                    onStageChanged={() => void reload()}
+                  />
+                </>
               );
             }
             if (tab === 'matches') {

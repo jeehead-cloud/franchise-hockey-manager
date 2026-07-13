@@ -631,12 +631,13 @@ model CompetitionEdition {
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
 
-  competition  Competition              @relation(fields: [competitionId], references: [id], onDelete: Restrict)
-  worldSeason  WorldSeason              @relation(fields: [worldSeasonId], references: [id], onDelete: Restrict)
-  participants CompetitionParticipant[]
-  stages       CompetitionStage[]
-  matches      Match[]
-  archives     CompetitionArchive[]
+  competition    Competition              @relation(fields: [competitionId], references: [id], onDelete: Restrict)
+  worldSeason    WorldSeason              @relation(fields: [worldSeasonId], references: [id], onDelete: Restrict)
+  participants   CompetitionParticipant[]
+  stages         CompetitionStage[]
+  matches        Match[]
+  archives       CompetitionArchive[]
+  aggregatedRuns AggregatedSeasonRun[]
 
   @@unique([competitionId, worldSeasonId])
   @@index([worldSeasonId])
@@ -696,18 +697,23 @@ model CompetitionStage {
   championTeamNameSnapshot String?
   championSeed             Int?
   championshipSeriesId     String?
+  /// F21 aggregated season
+  currentAggregatedRunId   String?
+  simulationModeSnapshot   String?
   createdAt                DateTime                  @default(now())
   updatedAt                DateTime                  @updatedAt
 
-  edition       CompetitionEdition           @relation(fields: [competitionEditionId], references: [id], onDelete: Restrict)
-  sourceStage   CompetitionStage?            @relation("StageDependency", fields: [sourceStageId], references: [id], onDelete: Restrict)
-  dependents    CompetitionStage[]           @relation("StageDependency")
-  participants  StageParticipant[]
-  matches       Match[]
-  standings     CompetitionStageStanding[]
-  teamStats     CompetitionStageTeamStat[]
-  playerStats   CompetitionStagePlayerStat[]
-  playoffSeries PlayoffSeries[]
+  edition           CompetitionEdition           @relation(fields: [competitionEditionId], references: [id], onDelete: Restrict)
+  sourceStage       CompetitionStage?            @relation("StageDependency", fields: [sourceStageId], references: [id], onDelete: Restrict)
+  dependents        CompetitionStage[]           @relation("StageDependency")
+  participants      StageParticipant[]
+  matches           Match[]
+  standings         CompetitionStageStanding[]
+  teamStats         CompetitionStageTeamStat[]
+  playerStats       CompetitionStagePlayerStat[]
+  playoffSeries     PlayoffSeries[]
+  aggregatedRuns    AggregatedSeasonRun[]
+  aggregatedMatches AggregatedMatchSummary[]
 
   @@unique([competitionEditionId, stageOrder])
   @@index([competitionEditionId])
@@ -1479,4 +1485,107 @@ model ArchiveAward {
 
   @@index([competitionArchiveId, awardType])
   @@index([sourcePlayerId])
+}
+
+// ---------------------------------------------------------------------------
+// F21 — Aggregated league simulation
+// ---------------------------------------------------------------------------
+
+enum AggregatedSeasonRunStatus {
+  PREPARED
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+  SUPERSEDED
+}
+
+model AggregatedSeasonRun {
+  id                   String                    @id @default(cuid())
+  competitionEditionId String
+  competitionStageId   String
+  runVersion           Int
+  status               AggregatedSeasonRunStatus @default(PREPARED)
+  seed                 String
+  configSnapshotText   String
+  configHash           String
+  inputSnapshotText    String
+  inputHash            String
+  balanceVersionId     String?
+  balanceHash          String?
+  scheduleHash         String
+  resultHash           String?
+  anomaliesText        String                    @default("[]")
+  totalGames           Int                       @default(0)
+  completedGames       Int                       @default(0)
+  progress             Float                     @default(0)
+  currentRound         Int?
+  currentScheduleOrder Int?
+  isCurrent            Boolean                   @default(false)
+  supersedesRunId      String?
+  supersededByRunId    String?
+  errorMessage         String?
+  startedAt            DateTime?
+  completedAt          DateTime?
+  failedAt             DateTime?
+  cancelledAt          DateTime?
+  createdAt            DateTime                  @default(now())
+  updatedAt            DateTime                  @updatedAt
+
+  edition CompetitionEdition       @relation(fields: [competitionEditionId], references: [id], onDelete: Restrict)
+  stage   CompetitionStage         @relation(fields: [competitionStageId], references: [id], onDelete: Restrict)
+  matches AggregatedMatchSummary[]
+
+  @@unique([competitionStageId, runVersion])
+  @@index([competitionStageId, status])
+  @@index([competitionStageId, isCurrent])
+  @@index([inputHash])
+  @@index([configHash])
+  @@index([resultHash])
+}
+
+model AggregatedMatchSummary {
+  id                           String    @id @default(cuid())
+  competitionEditionId         String
+  competitionStageId           String
+  runId                        String
+  scheduleKey                  String
+  scheduleOrder                Int
+  roundNumber                  Int
+  slotNumber                   Int
+  homeCompetitionParticipantId String
+  awayCompetitionParticipantId String
+  homeTeamNameSnapshot         String
+  awayTeamNameSnapshot         String
+  homeScore                    Int
+  awayScore                    Int
+  decisionType                 String
+  homePoints                   Int
+  awayPoints                   Int
+  homeShots                    Int       @default(0)
+  awayShots                    Int       @default(0)
+  homeSaves                    Int       @default(0)
+  awaySaves                    Int       @default(0)
+  homePenalties                Int       @default(0)
+  awayPenalties                Int       @default(0)
+  homePim                      Int       @default(0)
+  awayPim                      Int       @default(0)
+  homePpOpportunities          Int       @default(0)
+  awayPpOpportunities          Int       @default(0)
+  homePpGoals                  Int       @default(0)
+  awayPpGoals                  Int       @default(0)
+  homePossessionEstimate       Float     @default(0.5)
+  awayPossessionEstimate       Float     @default(0.5)
+  seed                         String
+  resultHash                   String
+  completedAt                  DateTime?
+  createdAt                    DateTime  @default(now())
+
+  stage CompetitionStage    @relation(fields: [competitionStageId], references: [id], onDelete: Restrict)
+  run   AggregatedSeasonRun @relation(fields: [runId], references: [id], onDelete: Restrict)
+
+  @@unique([runId, scheduleKey])
+  @@index([competitionStageId, scheduleOrder])
+  @@index([runId, scheduleOrder])
+  @@index([resultHash])
 }

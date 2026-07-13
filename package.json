@@ -33,7 +33,8 @@
     "verify:simulation-lab": "npm run verify:simulation-lab --workspace=@fhm/engine",
     "verify:regular-season": "npm run verify:regular-season --workspace=@fhm/engine",
     "verify:playoffs": "npm run verify:playoffs --workspace=@fhm/engine",
-    "verify:archive-history": "npm run verify:archive-history --workspace=@fhm/engine"
+    "verify:archive-history": "npm run verify:archive-history --workspace=@fhm/engine",
+    "verify:aggregated-league": "npm run verify:aggregated-league --workspace=@fhm/engine"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

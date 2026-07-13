@@ -7,3 +7,4 @@ export * from './hash-input.js';
 export * from './regular-season/index.js';
 export * from './playoffs/index.js';
 export * from './history/index.js';
+export * from './aggregated/index.js';

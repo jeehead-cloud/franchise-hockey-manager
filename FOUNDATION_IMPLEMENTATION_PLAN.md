@@ -1294,7 +1294,7 @@ Simulate Next Match
 
 Turn completed competitions into persistent history.
 
-**Status: implemented locally (2026-07-13).** Engine history module; Prisma CompetitionArchive + children; Commissioner archive with backup; history APIs/UI; awards/records; ARCHIVED write locks. F21 next-season/aggregated leagues remain deferred.
+**Status: implemented locally (2026-07-13).** Engine history module; Prisma CompetitionArchive + children; Commissioner archive with backup; history APIs/UI; awards/records; ARCHIVED write locks. F21 aggregated leagues implemented separately.
 
 ## Scope
 
@@ -1335,6 +1335,8 @@ Add simple records.
 
 Simulate lower and foreign leagues efficiently.
 
+**Status: implemented locally (2026-07-13).** Engine aggregated module; `AggregatedSeasonRun` / `AggregatedMatchSummary`; prepare/simulate APIs; standings/stat snapshots; champion; F20 archive AGGREGATED path; Aggregated UI panel. Promotion/relegation, national teams, and next-season generation remain F22+.
+
 ## Scope
 
 Generate:
@@ -1359,7 +1361,7 @@ No detailed event storage required.
 
 - multiple aggregated leagues can complete quickly;
 - output is mathematically consistent;
-- results feed player development and national-team selection;
+- results feed player development and national-team selection (consumers arrive in later milestones);
 - tests pass.
 
 ---

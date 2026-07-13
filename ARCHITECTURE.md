@@ -405,6 +405,35 @@ Client: History sidebar entry; archive detail tabs; edition Archive panel.
 
 Verifier: `npm run verify:archive-history`
 
+## 7g. Aggregated League Simulation (F21)
+
+Pure engine (`packages/engine/src/competitions/aggregated/`):
+- Versioned `AggregatedSeasonConfig` (schedule format, home advantage, randomness, OT/SO targets, stat-allocation shares)
+- Immutable team-strength snapshots from roster ability (no hidden potential)
+- Deterministic schedule via F18 schedule generator; compact game summaries (no events)
+- Team totals → player/goalie season allocation with exact reconciliation
+- Hashes: input / config / schedule / result
+
+Persistence:
+- `AggregatedSeasonRun` (PREPARED → RUNNING → COMPLETED | FAILED | CANCELLED | SUPERSEDED)
+- `AggregatedMatchSummary` (no MatchEvent / PlayerGameStat relation)
+- Final rows reuse `CompetitionStageStanding` / TeamStat / PlayerStat with `statsJson` source AGGREGATED
+- Pre-simulate SQLite backup; atomic publication after reconciliation
+
+APIs:
+- Commissioner preview / prepare / discard / diagnostics
+- Public simulate / status / matches / run detail
+- Standings/stats endpoints shared with F18 once FINAL snapshots exist
+
+Archive:
+- F20 readiness accepts AGGREGATED path (current completed run + stage snapshots; no Match rows required)
+- Archive builder emits match summaries from `AggregatedMatchSummary` with `agg:` source ids and `aggregated-f21` engine label
+- History UI must treat simulationLevel AGGREGATED as estimate-labeled seasons
+
+Client: Aggregated badge + `AggregatedLeaguePanel` on edition Schedule/Standings/Statistics tabs when competition is AGGREGATED.
+
+Verifier: `npm run verify:aggregated-league`
+
 ---
 
 ## 8. Why Client-Server From Day One

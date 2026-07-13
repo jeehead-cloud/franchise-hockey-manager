@@ -350,6 +350,18 @@ export {
   defaultMinimumGoalieGames,
   deriveHistoricalRecords,
   reconcileArchive,
+  DEFAULT_AGGREGATED_SEASON_CONFIG,
+  parseAggregatedSeasonConfig,
+  validateAggregatedSeasonConfig,
+  computeTeamStrength,
+  computeLeagueStrengthSnapshots,
+  generateAggregatedSchedule,
+  runAggregatedSeason,
+  hashAggregatedConfig,
+  hashAggregatedInput,
+  hashAggregatedResult,
+  reconcileAggregatedSeason,
+  AggregatedLeagueError,
 } from './competitions/index.js';
 
 export type {
@@ -427,4 +439,11 @@ export type {
   ArchiveRecordSource,
   ArchiveReconciliationIssue,
   ArchiveReconciliationResult,
+  AggregatedSeasonConfig,
+  AggregatedRosterPlayer,
+  AggregatedTeamStrengthInput,
+  AggregatedTeamStrengthSnapshot,
+  AggregatedGameSummary,
+  AggregatedSeasonResult,
+  AggregatedAnomaly,
 } from './competitions/index.js';

@@ -45,6 +45,8 @@ describe('Migrations', () => {
       expect(names).toContain('CompetitionArchive');
       expect(names).toContain('ArchiveParticipant');
       expect(names).toContain('ArchiveAward');
+      expect(names).toContain('AggregatedSeasonRun');
+      expect(names).toContain('AggregatedMatchSummary');
       const cols = await prisma.$queryRaw<Array<{ name: string }>>`
         PRAGMA table_info('AppMeta')
       `;
@@ -60,7 +62,7 @@ describe('Migrations', () => {
     }
   });
 
-  it('records F1–F20 migrations in history', async () => {
+  it('records F1–F21 migrations in history', async () => {
     const { url, dir } = createTempDatabaseUrl();
     try {
       migrateTempDatabase(url);
@@ -76,7 +78,8 @@ describe('Migrations', () => {
       expect(names.some((n) => n.includes('f18_regular_season'))).toBe(true);
       expect(names.some((n) => n.includes('f19_playoffs'))).toBe(true);
       expect(names.some((n) => n.includes('f20_competition_archive'))).toBe(true);
-      expect(names).toHaveLength(14);
+      expect(names.some((n) => n.includes('f21_aggregated_league'))).toBe(true);
+      expect(names).toHaveLength(15);
       expect(names.some((n) => n.includes('f1_bootstrap'))).toBe(true);
       expect(names.some((n) => n.includes('f2_core_domain'))).toBe(true);
       expect(names.some((n) => n.includes('f3_source_metadata_and_init'))).toBe(true);

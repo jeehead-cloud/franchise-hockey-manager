@@ -18,6 +18,7 @@ export async function getArchiveReadiness(
   const edition = await db.competitionEdition.findUnique({
     where: { id: editionId },
     include: {
+      competition: { select: { simulationLevel: true } },
       participants: { orderBy: { participantOrder: 'asc' } },
       stages: {
         orderBy: { stageOrder: 'asc' },
@@ -26,6 +27,10 @@ export async function getArchiveReadiness(
           teamStats: true,
           playerStats: true,
           playoffSeries: true,
+          aggregatedRuns: {
+            where: { isCurrent: true, status: 'COMPLETED' },
+            take: 1,
+          },
         },
       },
       matches: {
@@ -37,6 +42,7 @@ export async function getArchiveReadiness(
   });
   if (!edition) return null;
 
+  const isAggregated = edition.competition.simulationLevel === 'AGGREGATED';
   const checks: ArchiveReadinessCheck[] = [];
   const blockers: string[] = [];
   const warnings: string[] = [];
@@ -82,6 +88,13 @@ export async function getArchiveReadiness(
     } else {
       pass('stats', `Team/player stats present for ${stage.name}`);
     }
+    if (isAggregated) {
+      if (stage.aggregatedRuns.length === 0) {
+        fail('aggregated_run', `Aggregated stage ${stage.name} has no current completed run`);
+      } else {
+        pass('aggregated_run', `Current aggregated run present for ${stage.name}`);
+      }
+    }
   }
 
   const playoffStages = requiredStages.filter(
@@ -97,39 +110,51 @@ export async function getArchiveReadiness(
     }
   }
   if (playoffStages.length === 0) {
-    warn('champion', 'No playoff stage — champion award will be omitted');
+    const rsChampion = rsStages.find((s) => s.championParticipantId);
+    if (rsChampion?.championParticipantId) {
+      championParticipantId = rsChampion.championParticipantId;
+      pass('champion', `League champion recorded on ${rsChampion.name}`);
+    } else {
+      fail('champion', 'No playoff stage and no regular-season champion');
+    }
   }
 
-  const openMatches = edition.matches.filter(
-    (m) => m.status === 'PREPARED' || m.status === 'SIMULATING' || m.status === 'FAILED',
-  );
-  if (openMatches.length > 0) {
-    fail('matches_open', `${openMatches.length} official matches are not completed`);
+  if (isAggregated) {
+    pass('matches_open', 'Aggregated competition — detailed Match rows not required');
+    pass('matches_result', 'Aggregated competition — MatchResult rows not required');
+    pass('superseded', 'Aggregated competition — MatchResult supersession checks skipped');
   } else {
-    pass('matches_open', 'No unresolved official matches');
-  }
-
-  const missingResult = edition.matches.filter(
-    (m) => m.status === 'COMPLETED' && !m.currentResultId,
-  );
-  if (missingResult.length > 0) {
-    fail('matches_result', `${missingResult.length} completed matches lack currentResultId`);
-  } else {
-    pass('matches_result', 'Every completed official match has a current result');
-  }
-
-  const supersededCounted = edition.matches.filter((m) => {
-    if (!m.currentResultId) return false;
-    const current = m.results.find((r) => r.id === m.currentResultId);
-    return current?.supersededAt != null;
-  });
-  if (supersededCounted.length > 0) {
-    fail(
-      'superseded',
-      `${supersededCounted.length} matches point at a superseded current result`,
+    const openMatches = edition.matches.filter(
+      (m) => m.status === 'PREPARED' || m.status === 'SIMULATING' || m.status === 'FAILED',
     );
-  } else {
-    pass('superseded', 'No superseded MatchResults counted as current');
+    if (openMatches.length > 0) {
+      fail('matches_open', `${openMatches.length} official matches are not completed`);
+    } else {
+      pass('matches_open', 'No unresolved official matches');
+    }
+
+    const missingResult = edition.matches.filter(
+      (m) => m.status === 'COMPLETED' && !m.currentResultId,
+    );
+    if (missingResult.length > 0) {
+      fail('matches_result', `${missingResult.length} completed matches lack currentResultId`);
+    } else {
+      pass('matches_result', 'Every completed official match has a current result');
+    }
+
+    const supersededCounted = edition.matches.filter((m) => {
+      if (!m.currentResultId) return false;
+      const current = m.results.find((r) => r.id === m.currentResultId);
+      return current?.supersededAt != null;
+    });
+    if (supersededCounted.length > 0) {
+      fail(
+        'superseded',
+        `${supersededCounted.length} matches point at a superseded current result`,
+      );
+    } else {
+      pass('superseded', 'No superseded MatchResults counted as current');
+    }
   }
 
   if (!edition.rulesHash) {
@@ -160,14 +185,25 @@ export async function getArchiveReadiness(
   const balanceVersions = new Set<string>();
   const currentResultIds: string[] = [];
   const resultTraceHashes: string[] = [];
-  for (const m of edition.matches) {
-    if (!m.currentResultId) continue;
-    const r = m.results.find((x) => x.id === m.currentResultId);
-    if (!r) continue;
-    engineVersions.add(r.engineVersion);
-    balanceVersions.add(`${r.balancePresetId}@${r.balanceVersionNumber}`);
-    currentResultIds.push(r.id);
-    resultTraceHashes.push(r.traceHash);
+  if (!isAggregated) {
+    for (const m of edition.matches) {
+      if (!m.currentResultId) continue;
+      const r = m.results.find((x) => x.id === m.currentResultId);
+      if (!r) continue;
+      engineVersions.add(r.engineVersion);
+      balanceVersions.add(`${r.balancePresetId}@${r.balanceVersionNumber}`);
+      currentResultIds.push(r.id);
+      resultTraceHashes.push(r.traceHash);
+    }
+  } else {
+    for (const stage of rsStages) {
+      for (const run of stage.aggregatedRuns) {
+        if (run.resultHash) resultTraceHashes.push(run.resultHash);
+        if (run.balanceHash) balanceVersions.add(run.balanceHash);
+        engineVersions.add('aggregated-f21');
+        currentResultIds.push(run.id);
+      }
+    }
   }
   if (engineVersions.size > 1) {
     warn('engine_versions', `Multiple engine versions used: ${[...engineVersions].join(', ')}`);
@@ -180,6 +216,8 @@ export async function getArchiveReadiness(
   }
   if (engineVersions.size > 0) {
     pass('metadata', 'Engine/balance metadata collectable from official results');
+  } else if (isAggregated) {
+    warn('metadata', 'Aggregated run metadata incomplete');
   } else if (edition.matches.length === 0) {
     warn('metadata', 'No official matches — engine/balance metadata empty');
   }

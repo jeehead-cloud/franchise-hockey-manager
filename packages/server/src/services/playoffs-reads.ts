@@ -201,8 +201,13 @@ export async function getEditionCompletionReadiness(editionId: string) {
   const playoff = required.find(
     (s) => s.stageType === 'BEST_OF_SERIES' || s.stageType === 'KNOCKOUT',
   );
-  if (!playoff?.championParticipantId) {
-    blockers.push('Playoff champion has not been determined');
+  const regularSeason = required.find((s) => s.stageType === 'REGULAR_SEASON');
+  if (playoff) {
+    if (!playoff.championParticipantId) {
+      blockers.push('Playoff champion has not been determined');
+    }
+  } else if (!regularSeason?.championParticipantId) {
+    blockers.push('League champion has not been determined (regular-season rank 1)');
   }
   const openMatches = await prisma.match.count({
     where: {
@@ -215,6 +220,8 @@ export async function getEditionCompletionReadiness(editionId: string) {
     blockers.push(`${openMatches} competition matches are not completed`);
   }
 
+  const championStage = playoff ?? regularSeason ?? null;
+
   return {
     editionId,
     status: edition.status,
@@ -226,12 +233,12 @@ export async function getEditionCompletionReadiness(editionId: string) {
       stageType: s.stageType,
     })),
     activeStages: incomplete.map((s) => ({ id: s.id, name: s.name, status: s.status })),
-    champion: playoff
+    champion: championStage?.championParticipantId
       ? {
-          competitionParticipantId: playoff.championParticipantId,
-          teamNameSnapshot: playoff.championTeamNameSnapshot,
-          seed: playoff.championSeed,
-          seriesId: playoff.championshipSeriesId,
+          competitionParticipantId: championStage.championParticipantId,
+          teamNameSnapshot: championStage.championTeamNameSnapshot,
+          seed: championStage.championSeed ?? null,
+          seriesId: championStage.championshipSeriesId ?? null,
         }
       : null,
   };

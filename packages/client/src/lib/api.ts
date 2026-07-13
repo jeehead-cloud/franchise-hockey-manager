@@ -920,6 +920,84 @@ export async function cancelRegularSeasonSimulation(stageId: string, runId: stri
   );
 }
 
+/** F21 Aggregated league */
+export async function getAggregatedStatus(stageId: string, signal?: AbortSignal) {
+  return getJson<{ item: Record<string, unknown> }>(
+    `/api/competition-stages/${stageId}/aggregated-status`,
+    signal,
+  );
+}
+
+export async function getAggregatedMatches(
+  stageId: string,
+  params: Record<string, string | number | undefined | null> = {},
+  signal?: AbortSignal,
+) {
+  return getJson<{
+    items: unknown[];
+    total: number;
+    page: number;
+    pageSize: number;
+  }>(`/api/competition-stages/${stageId}/aggregated-matches${qs(params)}`, signal);
+}
+
+export async function previewAggregatedSeason(stageId: string) {
+  return commissionerWrite<{ item: Record<string, unknown> }>(
+    `/api/commissioner/competition-stages/${stageId}/aggregated-preview`,
+    'POST',
+    {},
+  );
+}
+
+export async function prepareAggregatedSeason(
+  stageId: string,
+  payload: {
+    expectedUpdatedAt: string;
+    seed: string;
+    balanceVersionId?: string | null;
+    reason: string;
+  },
+) {
+  return commissionerWrite<{ item: Record<string, unknown> }>(
+    `/api/commissioner/competition-stages/${stageId}/prepare-aggregated-season`,
+    'POST',
+    payload,
+  );
+}
+
+export async function discardPreparedAggregatedRun(
+  stageId: string,
+  payload: {
+    expectedUpdatedAt: string;
+    seed?: never;
+    reason: string;
+    runId: string;
+  },
+) {
+  return commissionerWrite<{ item: { discarded: boolean; runId: string } }>(
+    `/api/commissioner/competition-stages/${stageId}/discard-prepared-aggregate-run`,
+    'POST',
+    payload,
+  );
+}
+
+export async function simulateAggregatedSeason(
+  stageId: string,
+  body: { runId: string; confirmation: true },
+) {
+  return postJson<{ item: Record<string, unknown> }>(
+    `/api/competition-stages/${stageId}/simulate-aggregated-season`,
+    body,
+  );
+}
+
+export async function getAggregatedDiagnostics(stageId: string, signal?: AbortSignal) {
+  return commissionerGetJson<{ item: Record<string, unknown> }>(
+    `/api/commissioner/competition-stages/${stageId}/aggregated-diagnostics`,
+    signal,
+  );
+}
+
 export async function previewRegularSeasonSchedule(stageId: string, body: { seed: string }) {
   return commissionerWrite<{ item: unknown }>(
     `/api/commissioner/competition-stages/${stageId}/schedule-preview`,

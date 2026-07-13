@@ -131,6 +131,16 @@ F20 Archive & History invariants:
 - ARCHIVED editions and their matches cannot be simulated, resimulated, or structurally edited.
 - Archive corrections create a new version / supersession — never mutate archive contents in place.
 - F20 does not create a new WorldSeason or simulate matches.
+- AGGREGATED archives are allowed without Match/MatchEvent rows when AggregatedSeasonRun + stage snapshots reconcile.
+
+F21 Aggregated League invariants:
+
+- AGGREGATED competitions never use the detailed F14 event engine.
+- No MatchEvent rows are created for aggregated seasons.
+- Official aggregate results publish only after reconciliation; failed/cancelled runs never count.
+- Final team/player/goalie stats are deterministic aggregate estimates (not event-derived).
+- Completed aggregate stages are locked; completed editions archive through F20 with AGGREGATED labeling.
+- No promotion/relegation or cross-league movement in F21.
 
 Invariants in force:
 

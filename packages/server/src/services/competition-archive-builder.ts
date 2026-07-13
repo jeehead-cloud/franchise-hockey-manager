@@ -100,11 +100,16 @@ export async function buildNormalizedArchive(
             orderBy: [{ scheduleOrder: 'asc' }, { playoffGameNumber: 'asc' }],
             include: { results: true },
           },
+          aggregatedMatches: {
+            orderBy: { scheduleOrder: 'asc' },
+            include: { run: true },
+          },
         },
       },
     },
   });
 
+  const isAggregated = edition.competition.simulationLevel === 'AGGREGATED';
   const teamIdToParticipant = new Map(
     edition.participants.map((p) => [p.teamId, p] as const),
   );
@@ -113,7 +118,8 @@ export async function buildNormalizedArchive(
   const playoffStage = edition.stages.find(
     (s) => s.stageType === 'BEST_OF_SERIES' || s.stageType === 'KNOCKOUT',
   );
-  const championSourceParticipantId = playoffStage?.championParticipantId ?? null;
+  const championSourceParticipantId =
+    playoffStage?.championParticipantId ?? rsStage?.championParticipantId ?? null;
   const championParticipant = edition.participants.find(
     (p) => p.id === championSourceParticipantId,
   );
@@ -126,7 +132,9 @@ export async function buildNormalizedArchive(
 
   const participants = edition.participants.map((p) => {
     const standing = rsStage?.standings.find((s) => s.competitionParticipantId === p.id);
-    const qualified = standing?.qualified ?? qualifiedIds.has(p.id);
+    const qualified = playoffStage
+      ? (standing?.qualified ?? qualifiedIds.has(p.id))
+      : Boolean(standing);
     const playoffSp = playoffStage?.matches.length
       ? allSeries.find(
           (s) => s.participant1Id === p.id || s.participant2Id === p.id,
@@ -138,6 +146,17 @@ export async function buildNormalizedArchive(
         : playoffSp?.participant2Id === p.id
           ? playoffSp.participant2Seed
           : null;
+    const finalPlayoffResult = playoffStage
+      ? playoffResultFor(
+          p.id,
+          championSourceParticipantId,
+          allSeries,
+          maxRound,
+          Boolean(qualified),
+        )
+      : p.id === championSourceParticipantId
+        ? ('CHAMPION' as const)
+        : null;
     return {
       sourceCompetitionParticipantId: p.id,
       sourceTeamId: p.teamId,
@@ -152,13 +171,7 @@ export async function buildNormalizedArchive(
       qualifiedForPlayoffs: Boolean(qualified),
       playoffSeed: seedFromSeries,
       finalRegularSeasonRank: standing?.rank ?? null,
-      finalPlayoffResult: playoffResultFor(
-        p.id,
-        championSourceParticipantId,
-        allSeries,
-        maxRound,
-        Boolean(qualified),
-      ),
+      finalPlayoffResult,
     };
   });
 
@@ -172,7 +185,9 @@ export async function buildNormalizedArchive(
     configHash: s.configHash,
     scheduleHash: s.scheduleHash,
     bracketHash: s.bracketHash,
-    matchCount: s.matches.length,
+    matchCount: isAggregated
+      ? s.aggregatedMatches.filter((m) => m.run.isCurrent && m.run.status === 'COMPLETED').length
+      : s.matches.length,
     completedAtSnapshot: s.completedAt?.toISOString() ?? null,
     championSourceParticipantId: s.championParticipantId,
     snapshotHash: s.bracketHash || s.scheduleHash || s.configHash || s.id,
@@ -302,42 +317,77 @@ export async function buildNormalizedArchive(
   const currentResultIds: string[] = [];
   const resultTraceHashes: string[] = [];
 
-  for (const stage of edition.stages) {
-    for (const m of stage.matches) {
-      if (m.status !== 'COMPLETED' || !m.currentResultId) continue;
-      const result = m.results.find((r) => r.id === m.currentResultId);
-      if (!result || result.supersededAt) continue;
-      const homePart = teamIdToParticipant.get(m.homeTeamId);
-      const awayPart = teamIdToParticipant.get(m.awayTeamId);
-      if (!homePart || !awayPart) continue;
-      engineVersions.add(result.engineVersion);
-      const bal = `${result.balancePresetId}@${result.balanceVersionNumber}`;
-      balanceVersions.add(bal);
-      currentResultIds.push(result.id);
-      resultTraceHashes.push(result.traceHash);
-      matches.push({
-        sourceStageId: stage.id,
-        sourceMatchId: m.id,
-        sourceCurrentResultId: result.id,
-        sourcePlayoffSeriesId: m.playoffSeriesId,
-        scheduleOrder: m.scheduleOrder,
-        roundNumber: m.competitionRoundNumber,
-        slotNumber: m.competitionSlotNumber,
-        gameNumber: m.playoffGameNumber,
-        homeSourceParticipantId: homePart.id,
-        awaySourceParticipantId: awayPart.id,
-        homeNameSnapshot: homePart.teamNameSnapshot,
-        awayNameSnapshot: awayPart.teamNameSnapshot,
-        homeScore: result.homeScore,
-        awayScore: result.awayScore,
-        decisionType: result.decisionType,
-        matchStatus: m.status,
-        seed: result.randomSeed,
-        engineVersion: result.engineVersion,
-        balanceVersionSnapshot: bal,
-        resultTraceHash: result.traceHash,
-        completedAtSnapshot: result.completedAt?.toISOString() ?? null,
-      });
+  if (isAggregated) {
+    for (const stage of edition.stages) {
+      for (const m of stage.aggregatedMatches) {
+        if (!m.run.isCurrent || m.run.status !== 'COMPLETED') continue;
+        engineVersions.add('aggregated-f21');
+        if (m.run.balanceHash) balanceVersions.add(m.run.balanceHash);
+        currentResultIds.push(m.id);
+        resultTraceHashes.push(m.resultHash);
+        matches.push({
+          sourceStageId: stage.id,
+          sourceMatchId: `agg:${m.id}`,
+          sourceCurrentResultId: m.resultHash,
+          sourcePlayoffSeriesId: null,
+          scheduleOrder: m.scheduleOrder,
+          roundNumber: m.roundNumber,
+          slotNumber: m.slotNumber,
+          gameNumber: null,
+          homeSourceParticipantId: m.homeCompetitionParticipantId,
+          awaySourceParticipantId: m.awayCompetitionParticipantId,
+          homeNameSnapshot: m.homeTeamNameSnapshot,
+          awayNameSnapshot: m.awayTeamNameSnapshot,
+          homeScore: m.homeScore,
+          awayScore: m.awayScore,
+          decisionType: m.decisionType,
+          matchStatus: 'COMPLETED',
+          seed: m.seed,
+          engineVersion: 'aggregated-f21',
+          balanceVersionSnapshot: m.run.balanceHash ?? 'aggregated',
+          resultTraceHash: m.resultHash,
+          completedAtSnapshot: m.completedAt?.toISOString() ?? null,
+        });
+      }
+    }
+  } else {
+    for (const stage of edition.stages) {
+      for (const m of stage.matches) {
+        if (m.status !== 'COMPLETED' || !m.currentResultId) continue;
+        const result = m.results.find((r) => r.id === m.currentResultId);
+        if (!result || result.supersededAt) continue;
+        const homePart = teamIdToParticipant.get(m.homeTeamId);
+        const awayPart = teamIdToParticipant.get(m.awayTeamId);
+        if (!homePart || !awayPart) continue;
+        engineVersions.add(result.engineVersion);
+        const bal = `${result.balancePresetId}@${result.balanceVersionNumber}`;
+        balanceVersions.add(bal);
+        currentResultIds.push(result.id);
+        resultTraceHashes.push(result.traceHash);
+        matches.push({
+          sourceStageId: stage.id,
+          sourceMatchId: m.id,
+          sourceCurrentResultId: result.id,
+          sourcePlayoffSeriesId: m.playoffSeriesId,
+          scheduleOrder: m.scheduleOrder,
+          roundNumber: m.competitionRoundNumber,
+          slotNumber: m.competitionSlotNumber,
+          gameNumber: m.playoffGameNumber,
+          homeSourceParticipantId: homePart.id,
+          awaySourceParticipantId: awayPart.id,
+          homeNameSnapshot: homePart.teamNameSnapshot,
+          awayNameSnapshot: awayPart.teamNameSnapshot,
+          homeScore: result.homeScore,
+          awayScore: result.awayScore,
+          decisionType: result.decisionType,
+          matchStatus: m.status,
+          seed: result.randomSeed,
+          engineVersion: result.engineVersion,
+          balanceVersionSnapshot: bal,
+          resultTraceHash: result.traceHash,
+          completedAtSnapshot: result.completedAt?.toISOString() ?? null,
+        });
+      }
     }
   }
 
@@ -407,7 +457,17 @@ export async function buildNormalizedArchive(
     });
 
   const scheduledTeamGames = rsStage
-    ? Math.max(1, Math.floor((rsStage.matches.length * 2) / Math.max(1, edition.participants.length)))
+    ? Math.max(
+        1,
+        Math.floor(
+          ((isAggregated
+            ? rsStage.aggregatedMatches.filter((m) => m.run.isCurrent && m.run.status === 'COMPLETED')
+                .length
+            : rsStage.matches.length) *
+            2) /
+            Math.max(1, edition.participants.length),
+        ),
+      )
     : 1;
   const minimumGoalieGames = defaultMinimumGoalieGames(scheduledTeamGames);
 
@@ -415,7 +475,10 @@ export async function buildNormalizedArchive(
     minimumGoalieGames,
     championSourceParticipantId,
     championNameSnapshot:
-      playoffStage?.championTeamNameSnapshot ?? championParticipant?.teamNameSnapshot ?? null,
+      playoffStage?.championTeamNameSnapshot ??
+      rsStage?.championTeamNameSnapshot ??
+      championParticipant?.teamNameSnapshot ??
+      null,
     regularSeasonStageId: rsStage?.id ?? null,
     playoffStageId: playoffStage?.id ?? null,
     standings,
@@ -444,7 +507,10 @@ export async function buildNormalizedArchive(
     championSourceParticipantId,
     championTeamSourceId: championParticipant?.teamId ?? null,
     championNameSnapshot:
-      playoffStage?.championTeamNameSnapshot ?? championParticipant?.teamNameSnapshot ?? null,
+      playoffStage?.championTeamNameSnapshot ??
+      rsStage?.championTeamNameSnapshot ??
+      championParticipant?.teamNameSnapshot ??
+      null,
     championShortNameSnapshot: championParticipant?.teamShortNameSnapshot ?? null,
     sourceSnapshotHash,
     participants,
