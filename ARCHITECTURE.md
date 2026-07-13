@@ -17,6 +17,8 @@ F10 adds versioned balance presets (`BalancePreset` / immutable `BalancePresetVe
 
 **F14** extends the engine to `f14.1` / `F14_PLAYABLE_MATCH`: `simulateCompleteMatch()` runs regulation then optional 3v3 OT (no OT penalties) and shootout. Server persists `Match`, `MatchResult`, `MatchEvent`, `PlayerGameStat`, and `TeamGameStat` atomically via `/api/matches/*`. Commissioner resimulation at `/api/commissioner/matches/:id/resimulate` reuses stored immutable input with a new seed and supersedes the prior result. Client `/matches` is the first persistent match UI.
 
+**F15** adds match-viewer read models (no engine formula changes, no Prisma migration): `GET /api/matches/:id/overview` (period scores derived from GOAL events, scoring/shootout summaries, stats, line usage), public event feed filters (`format=view`), CSV/JSON exports, and Commissioner diagnostics/technical events/attempt inspection. Historical display uses immutable simulation-input snapshots. Polished Match Detail tabs separate public viewing from diagnostics.
+
 F9 chemistry remains derived on read and now consumes the active preset chemistry section (with preset/version/hash metadata). Familiarity is still stubbed at 0.
 
 ---

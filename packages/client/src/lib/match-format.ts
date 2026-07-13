@@ -32,6 +32,36 @@ export function formatDisplayScore(
   return base;
 }
 
+/** Format a 0–1 ratio (or null) as a percentage string. */
+export function formatPct(value: number | null | undefined, digits = 1): string {
+  if (value == null || !Number.isFinite(value)) return '—';
+  return `${(value * 100).toFixed(digits)}%`;
+}
+
+export function formatPlayerName(
+  firstName: string | null | undefined,
+  lastName: string | null | undefined,
+  fallbackId?: string | null,
+): string {
+  const name = [firstName, lastName].filter(Boolean).join(' ').trim();
+  if (name) return name;
+  if (fallbackId) return fallbackId.slice(0, 8);
+  return 'Unknown';
+}
+
+export function formatPeriodLabel(period: number): string {
+  if (period === 4) return 'OT';
+  if (period === 5) return 'SO';
+  return `P${period}`;
+}
+
+export function formatSecondsAsClock(totalSeconds: number | null | undefined): string {
+  if (totalSeconds == null || !Number.isFinite(totalSeconds)) return '—';
+  const m = Math.floor(totalSeconds / 60);
+  const s = Math.floor(totalSeconds % 60);
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
 function formatInfraction(infraction: unknown): string {
   if (typeof infraction !== 'string' || !infraction) return 'penalty';
   return infraction.replace(/_/g, ' ').toLowerCase();

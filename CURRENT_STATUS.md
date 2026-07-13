@@ -1,4 +1,4 @@
-# Franchise Hockey Manager — Current Status
+﻿# Franchise Hockey Manager — Current Status
 
 **Status:** Active
 **Last updated:** 2026-07-13
@@ -12,37 +12,35 @@
 
 ## 1. Current Development Phase
 
-**F14 — Playable Match: implemented locally (not committed).** Adds persistent `Match` / `MatchResult` / events / game statistics, full regulation + 3v3 OT + shootout via `simulateCompleteMatch`, atomic server persistence, match APIs, `/matches` UI, and Commissioner-gated resimulation with superseded-result history.
+**F15 — Match UI and Diagnostics: implemented locally (not committed).** Polishes the persisted Match Detail experience: overview scoreboard/period scoring, public event feed with filters, team/skater/goalie stats, lines and usage, exports, and Commissioner-only diagnostics/attempts/technical events. No new simulation formulas; no Prisma schema change.
 
-**Next milestone: F15 — Match UI and Diagnostics** (do not start until requested).
+**Next milestone: F16 — Simulation Lab** (do not start until requested).
 
-F1–F13 remain complete on `main`. F14 work is local only.
+F1–F14 remain complete on `main` (F14 at `ed755df`).
 
 ---
 
 ## 2. Milestone Status
 
-### F1–F13
+### F1–F14
 
-Complete on `main` (F13 committed/pushed as `cd5cbe6`).
+Complete on `main`.
 
-### F14 — Playable Match (Done locally)
+### F15 — Match UI and Diagnostics (Done locally)
 
 Implemented:
-- Engine `f14.1` / mode `F14_PLAYABLE_MATCH`; snapshot schemaVersion **4** (rejects F11–F13 snapshots)
-- `simulateCompleteMatch()`: regulation → optional 5-minute 3v3 OT (sudden death, no OT penalties) → optional shootout
-- Shootout goals separate from player/team normal goals; `MATCH_END` final event
-- Balance schemaVersion **5** with `matchCompletion` (overtime + shootout); Standard v5 bootstrap / legacy Standard auto-upgrade
-- Prisma: `Match`, `MatchResult`, `MatchEvent`, `PlayerGameStat`, `TeamGameStat` + F14 migration
-- APIs: `POST/GET /api/matches`, simulate, result, events; Commissioner resimulate + attempts
-- Client: `/matches`, `/matches/new`, `/matches/:matchId` (overview, events, stats, metadata, Commissioner resimulation)
-- Verification: `npm run verify:playable-match-engine` (500 runs default)
+- Match overview read model (`GET /api/matches/:id/overview`) with period scores derived from GOAL events, scoring/shootout summaries, team comparison, skater/goalie rows, line usage, compact metadata
+- Public event feed with category/period/team filters, pagination, readable summaries; technical noise hidden by default
+- Historical display prefers immutable `simulationInputText` team/player names (current entity renames do not rewrite history)
+- Commissioner diagnostics (`/api/commissioner/matches/:id/diagnostics`), technical events, attempt selection, audit
+- Exports: result JSON, events/player/team CSV; Commissioner diagnostics JSON / technical events CSV
+- Client `/matches/:matchId` tabs: Overview, Events, Team/Player/Goalie stats, Lines & Usage; Commissioner Diagnostics + Attempts; URL state (`tab`, `resultId`, filters)
+- Current vs Superseded result labeling; F14 resimulation UI preserved
 
-Not in F14:
-- Competition schedules, standings, playoff series, batch season simulation
-- Live persisted pause/resume, graphical playback, Simulation Lab batches
-- NHL-style OT penalty carryover; 5v3/4v4 during OT
-- `useCurrentWorldState` resimulation (deferred; default is `ORIGINAL` immutable input)
+Not in F15:
+- New simulation behavior, balance tuning, schedules/standings
+- Live animation, rink coordinates, in-progress persistence
+- Simulation Lab batches (F16)
 
 ### M1–M8
 
@@ -52,21 +50,21 @@ Unchanged.
 
 ## 3. Known Bugs / Limitations Worth Remembering
 
-- Scoring rates remain high (~10 combined goals/game in batches) — first-version balance; defer broad realism tuning to F16.
-- F14 OT simplification: regulation-ending penalties are resolved for stats as in F13; OT starts even 3v3 with no new penalties.
-- Shootout uses deterministic shooter ordering; no chemistry optimization for OT units.
-- `/simulation-lab` remains F13 regulation debug — not replaced by Match pages.
-- Manual UI verification for F14 was **NOT RUN**.
-- F14 changes not yet committed/pushed.
+- Scoring rates remain high (~10 combined goals/game) — defer realism tuning to F16.
+- Period H/A scores are derived from persisted GOAL events (not a dedicated PeriodScore column).
+- Line usage shift counts are recorded simulation usage, not official NHL TOI.
+- Average shot quality in diagnostics is not an xG model.
+- Manual UI verification for F15 was **NOT RUN**.
+- F15 changes not yet committed/pushed.
 - Commissioner header is not security.
 
 ---
 
 ## 4. Nearest Next Steps
 
-1. Commit/push F14 when the owner requests.
-2. Manual UI pass on disposable DB with two READY teams and Standard v5 balance.
-3. **F15 — Match UI and Diagnostics** (when requested).
+1. Commit/push F15 when the owner requests.
+2. Manual UI pass on disposable DB (REG/OT/SO + resimulated match).
+3. **F16 — Simulation Lab** (when requested).
 
 ---
 
@@ -74,19 +72,19 @@ Unchanged.
 
 > Ordinary repository-relevant history, newest first.
 
+### 2026-07-13 — F15 Match UI and Diagnostics
+
+- Work completed: match-view/events/diagnostics/export read models; overview + public feed APIs; Commissioner diagnostics/attempts/audit/export; polished Match Detail tabs; historical snapshot names; no Prisma migration
+- Validation: 107 engine + 141 server tests PASS; typecheck/build PASS; playable-match verify 100 runs PASS; setup:validate PASS; manual UI **NOT RUN**
+- Remaining: F15 uncommitted; F16 deferred
+
 ### 2026-07-13 — F14 Playable Match
 
-- Work completed: engine OT/SO + `simulateCompleteMatch`, balance schema v5, Prisma match persistence, match APIs, Commissioner resimulation, `/matches` UI, `verify:playable-match-engine`
-- Validation: 107 engine + 135 server tests PASS; typecheck/build PASS; playable-match verify 500 runs PASS (431 REG / 47 OT / 22 SO; ~9.89 goals/game; PP% ~18.2%; 0 recon/replay/safety failures); scoring/special-teams verify 500 runs PASS; manual UI **NOT RUN**
-- Remaining: F14 uncommitted; F15 deferred
+- Committed/pushed on `main` (`ed755df`)
 
 ### 2026-07-13 — F13 Penalties and Special Teams
 
 - Committed/pushed on `main` (`cd5cbe6`)
-
-### 2026-07-13 — F12 Shots, Goalies, and Scoring
-
-- Committed/pushed on `main` (`6c09ff5`)
 
 ---
 
@@ -94,16 +92,16 @@ Unchanged.
 
 > Major architectural or product decisions only.
 
+### 2026-07-13 — F15 Match UI and Diagnostics (Significant)
+
+- Persisted match viewing is a first-class product surface separate from Simulation Lab
+- Public event feed hides technical noise; Commissioner diagnostics expose deterministic metadata without hidden potential
+- Historical match presentation uses immutable F14 snapshots, not live mutable entity names
+- Superseded result attempts remain inspectable and clearly labeled
+
 ### 2026-07-13 — F14 Playable Match (Significant)
 
-- First persisted match workflow: immutable simulation input + atomic result/events/stats persistence
-- OT/shootout as isolated post-regulation phases; shootout stats separated from normal goals
-- Commissioner resimulation reuses original input with new seed; prior results superseded not deleted
-- No schedule/standings impact in F14 (F17 will connect matches to competition stages)
-
-### 2026-07-13 — F13 Penalties and Special Teams (Significant)
-
-- One-active-minor 5v4 special teams model with event-derived PP/PK statistics
+- First persisted match workflow with atomic result/events/stats persistence
 
 ---
 
@@ -114,7 +112,7 @@ Unchanged.
 | Engine version (playable) | `f14.1` |
 | Simulation mode (playable) | `F14_PLAYABLE_MATCH` |
 | Balance schema (active) | **5** (Standard v5) |
-| Snapshot schema | **4** |
-| Debug simulation mode | `F13_SPECIAL_TEAMS` (regulation only) |
 | Match UI routes | `/matches`, `/matches/new`, `/matches/:matchId` |
+| Overview API | `GET /api/matches/:id/overview` |
+| Diagnostics API | `GET /api/commissioner/matches/:id/diagnostics` |
 | Verify command | `npm run verify:playable-match-engine` |

@@ -113,7 +113,7 @@ export function NewMatchPage() {
       <PageHeader
         title="New match"
         subtitle="Create a prepared match, then simulate with the deterministic engine"
-        badge="F14"
+        badge="F15"
       />
 
       <Panel title="Teams">
@@ -162,7 +162,7 @@ export function NewMatchPage() {
               <span style={{ fontFamily: 'var(--font-mono)' }}>{balance.version.configHash.slice(0, 16)}…</span>
             </div>
             <div style={{ color: 'var(--text-secondary)' }}>
-              Default F14 rules: 3×20 regulation, 5-minute 3v3 OT, 3-round shootout with sudden death.
+              Default rules: 3×20 regulation, 5-minute 3v3 OT, 3-round shootout with sudden death.
             </div>
           </div>
         ) : (

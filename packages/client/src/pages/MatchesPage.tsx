@@ -72,7 +72,7 @@ export function MatchesPage() {
       <PageHeader
         title="Matches"
         subtitle={data ? `${data.total} matches` : 'Persistent ad hoc match results'}
-        badge="F14"
+        badge="F15"
         actions={
           <Button variant="primary" onClick={() => navigate('/matches/new')}>
             New match
@@ -175,7 +175,7 @@ export function MatchesPage() {
       ) : null}
 
       <p style={{ marginTop: 16, font: 'var(--text-body-sm)', color: 'var(--text-tertiary)' }}>
-        F14 supports manual matches only — no schedules or standings updates.{' '}
+        Manual matches only — no schedules or standings updates.{' '}
         <Link to="/simulation-lab">Simulation Lab</Link> remains the technical debug tool.
       </p>
     </div>

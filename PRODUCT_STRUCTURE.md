@@ -2072,6 +2072,8 @@ The Simulation Lab is a first-class product area.
 
 **F14 partial implementation (2026-07-13):** `/matches` hosts **Playable Match (F14)** — create ad hoc matches, simulate regulation + OT + shootout, persist results/events/stats, reload identical outcomes. Commissioner resimulation with attempt history. Not a schedule view (F17).
 
+**F15 partial implementation (2026-07-13):** `/matches/:matchId` is the polished **Match Viewer** — Overview (scoreboard/period/scoring), public Events feed, Team/Player/Goalie stats, Lines & Usage, exports; Commissioner Diagnostics and Attempts. Simulation Lab remains the technical debug tool.
+
 Inputs:
 
 ```text

@@ -38,7 +38,7 @@ npm run dev:client
 - UI: http://localhost:5173 (Vite proxies `/health` and `/api`)
 - Setup World: http://localhost:5173/setup
 - Settings: `/settings` (Game Balance / Runtime & Debug / Commissioner Mode)
-- **Matches (F14):** `/matches`, `/matches/new`, `/matches/:matchId` — persistent ad hoc match results
+- **Matches (F15):** `/matches`, `/matches/new`, `/matches/:matchId` — persisted match viewer (overview, public events, stats, lines/usage; Commissioner diagnostics/attempts)
 - **Technical simulation (F13):** `/simulation-lab` — regulation scoring + basic 5v4 special teams; not batch Simulation Lab
 - Browsers: `/world`, `/teams`, `/players`, `/competitions`, `/coaches` (+ detail routes; Team Lines shows chemistry + active balance meta)
 - Commissioner editor: `/players/:playerId/edit` (requires Commissioner Mode)

@@ -1605,3 +1605,456 @@ export async function resimulateMatch(
 ): Promise<{ item: { matchId: string; previousResultId: string; resultId: string; seed: string; decisionType: string; homeScore: number; awayScore: number; traceHash: string } }> {
   return commissionerWrite(`/api/commissioner/matches/${id}/resimulate`, 'POST', payload);
 }
+
+export type MatchEventCategory =
+  | 'all'
+  | 'goals'
+  | 'shots'
+  | 'saves'
+  | 'penalties'
+  | 'faceoffs'
+  | 'overtime'
+  | 'shootout';
+
+export type MatchEventVisibility = 'PUBLIC' | 'TECHNICAL' | 'ALL';
+
+export interface MatchOverviewTeam {
+  id: string;
+  name: string;
+  currentName?: string;
+  side: 'HOME' | 'AWAY';
+}
+
+export interface MatchOverviewPeriodScore {
+  period: number;
+  home: number;
+  away: number;
+}
+
+export interface MatchOverviewScoringPlay {
+  period: number;
+  remainingSeconds: number;
+  teamId: string | null;
+  teamName: string | null;
+  scorerId: string | null;
+  scorerName: string | null;
+  primaryAssistId: string | null;
+  primaryAssistName: string | null;
+  secondaryAssistId: string | null;
+  secondaryAssistName: string | null;
+  strength: string;
+  scoreAfter: { home: number; away: number };
+}
+
+export interface MatchOverviewShootoutAttempt {
+  round: number | null;
+  attemptNumber: number | null;
+  teamId: string | null;
+  teamName: string | null;
+  shooterId: string | null;
+  shooterName: string | null;
+  goalieId: string | null;
+  goalieName: string | null;
+  scored: boolean;
+  shootoutScore: unknown;
+}
+
+export interface MatchOverviewTeamStat {
+  teamId: string;
+  teamName: string | null;
+  side: string;
+  goals: number;
+  shotsOnGoal: number;
+  shotAttempts: number | null;
+  blockedAttempts: number | null;
+  missedAttempts: number | null;
+  saves: number | null;
+  shootingPercentage: number | null;
+  faceoffWins: number | null;
+  possessionSeconds: number | null;
+  offensiveZoneSeconds: number | null;
+  defensiveZoneSeconds: number | null;
+  penalties: number;
+  penaltyMinutes: number;
+  powerPlayOpportunities: number | null;
+  powerPlayGoals: number;
+  powerPlayPercentage: number | null;
+  penaltyKillOpportunities: number | null;
+  penaltyKills: number | null;
+  penaltyKillPercentage: number | null;
+  shortHandedGoals: number;
+  shootoutAttempts: number;
+  shootoutGoals: number;
+  savePercentage: number | null;
+  stats: Record<string, number>;
+}
+
+export interface MatchOverviewSkater {
+  playerId: string;
+  teamId: string;
+  teamName: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  position: string;
+  lineupSlot: string | null;
+  goals: number;
+  assists: number;
+  points: number;
+  shotsOnGoal: number;
+  shotAttempts: number | null;
+  blockedAttempts: number | null;
+  missedAttempts: number | null;
+  blocks: number | null;
+  penaltyMinutes: number;
+  powerPlayGoals: number;
+  shortHandedGoals: number;
+  shootoutAttempts: number;
+  shootoutGoals: number;
+  timeOnIceSeconds: number | null;
+  stats: Record<string, unknown>;
+}
+
+export interface MatchOverviewGoalie {
+  playerId: string;
+  teamId: string;
+  teamName: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  lineupSlot: string | null;
+  shotsAgainst: number;
+  saves: number;
+  goalsAgainst: number;
+  savePercentage: number | null;
+  timeOnIceSeconds: number | null;
+  shootoutAttemptsFaced: number;
+  shootoutGoalsAllowed: number;
+  didNotPlay: boolean;
+  stats: Record<string, number | string>;
+}
+
+export interface MatchOverviewLineUnit {
+  unitKey: string;
+  playerIds: string[];
+  playerNames: string[];
+  effectivePerformance?: number;
+  shiftCount?: number;
+}
+
+export interface MatchOverviewLineUsageTeam {
+  teamId: string;
+  teamName: string;
+  forwardLines: MatchOverviewLineUnit[];
+  defensePairs: MatchOverviewLineUnit[];
+  starterGoalie: MatchOverviewLineUnit;
+}
+
+export interface MatchOverviewLineUsage {
+  home: MatchOverviewLineUsageTeam;
+  away: MatchOverviewLineUsageTeam;
+  note: string;
+}
+
+export interface MatchOverviewMetadata {
+  engineVersion: string;
+  simulationMode: string;
+  randomSeed: string;
+  inputFingerprint: string;
+  balance: {
+    presetId: string;
+    versionId: string;
+    versionNumber: number;
+    configHash: string;
+    presetName: string | null;
+    schemaVersion: string | number | null;
+  };
+  traceHash: string;
+  reconciliationStatus: string;
+  reconciliationOk: boolean;
+}
+
+export interface MatchOverviewResult {
+  resultId: string;
+  attemptNumber: number;
+  status: string;
+  decisionType: MatchDecisionType;
+  score: {
+    home: number;
+    away: number;
+    homeRegulation: number;
+    awayRegulation: number;
+    homeOvertime: number;
+    awayOvertime: number;
+    homeShootout: number;
+    awayShootout: number;
+  };
+  winnerTeamId: string | null;
+  completedAt: string | null;
+  supersededAt: string | null;
+  periodScores: MatchOverviewPeriodScore[];
+  scoringSummary: MatchOverviewScoringPlay[];
+  shootoutSummary: MatchOverviewShootoutAttempt[];
+  teamComparison: {
+    home: MatchOverviewTeamStat | null;
+    away: MatchOverviewTeamStat | null;
+  };
+  skaters: MatchOverviewSkater[];
+  goalies: MatchOverviewGoalie[];
+  lineUsage: MatchOverviewLineUsage | null;
+  metadata: MatchOverviewMetadata;
+}
+
+export interface MatchOverview {
+  matchId: string;
+  status: MatchStatus;
+  prepared: boolean;
+  isCurrent: boolean;
+  source: 'MANUAL' | 'COMPETITION';
+  currentResultId: string | null;
+  competitionEdition: {
+    id: string;
+    displayName: string;
+    status: string;
+  } | null;
+  homeTeam: MatchOverviewTeam;
+  awayTeam: MatchOverviewTeam;
+  result: MatchOverviewResult | null;
+}
+
+export interface MatchEventViewItem {
+  id: string;
+  eventIndex: number;
+  eventType: string;
+  period: number;
+  elapsedSeconds: number;
+  remainingSeconds: number;
+  teamId: string | null;
+  teamName: string | null;
+  primaryPlayerId: string | null;
+  primaryPlayerName: string | null;
+  visibility: string;
+  summary: string;
+  participants: {
+    primary?: string | null;
+    shooter?: string | null;
+    goalie?: string | null;
+    blocker?: string | null;
+    primaryAssist?: string | null;
+    secondaryAssist?: string | null;
+  };
+  details: Record<string, unknown>;
+  technical?: {
+    strengthState: string | null;
+    zone: string | null;
+    possession: string | null;
+    shiftNumber: number | null;
+    rawDetails: Record<string, unknown>;
+  };
+}
+
+export interface MatchEventViewPage extends Paginated<MatchEventViewItem> {
+  matchId: string;
+  resultId: string;
+  isCurrent: boolean;
+}
+
+export interface MatchDiagnosticsCheck {
+  code: string;
+  ok: boolean;
+  message: string;
+}
+
+export interface MatchDiagnostics {
+  matchId: string;
+  resultId: string;
+  attemptNumber: number;
+  isCurrent: boolean;
+  resultStatus: string;
+  identity: {
+    engineVersion: string;
+    simulationMode: string;
+    randomSeed: string;
+    inputFingerprint: string;
+    balance: {
+      presetId: string;
+      versionId: string;
+      versionNumber: number;
+      configHash: string;
+      presetName: string | null;
+      schemaVersion: string | number | null;
+    };
+    traceHash: string;
+    startedAt: string;
+    completedAt: string | null;
+    supersededAt: string | null;
+    supersededByResultId: string | null;
+  };
+  reconciliation: {
+    status: string;
+    stored: { ok: boolean; checks: MatchDiagnosticsCheck[] } | null;
+    lightweightChecks: MatchDiagnosticsCheck[];
+    overallOk: boolean;
+  };
+  eventCounts: {
+    total: number;
+    public: number;
+    technical: number;
+    byType: Record<string, number>;
+    byPeriod: Record<string, number>;
+    publicEventTypes: readonly string[];
+  };
+  diagnostics: Record<string, unknown> | null;
+  shotDiagnostics: Record<string, unknown> | null;
+  specialTeams: Record<string, unknown> | null;
+  possessionAndZones: Record<string, unknown> | null;
+  lineUsage: unknown;
+  inputSummary: Record<string, unknown> | null;
+}
+
+export interface MatchAuditItem {
+  id: string;
+  entityType: string;
+  entityId: string;
+  action: string;
+  reason: string;
+  source: string;
+  createdAt: string;
+  before: unknown;
+  after: unknown;
+}
+
+export async function getMatchOverview(
+  id: string,
+  params: { resultId?: string | null } = {},
+  signal?: AbortSignal,
+): Promise<{ item: MatchOverview }> {
+  return getJson(`/api/matches/${id}/overview${qs({ resultId: params.resultId ?? undefined })}`, signal);
+}
+
+export async function getMatchEventsView(
+  id: string,
+  params: Record<string, string | number | undefined | null> = {},
+  signal?: AbortSignal,
+): Promise<MatchEventViewPage> {
+  return getJson(`/api/matches/${id}/events${qs({ format: 'view', visibility: 'PUBLIC', ...params })}`, signal);
+}
+
+export async function getMatchDiagnostics(
+  id: string,
+  params: { resultId?: string | null } = {},
+  signal?: AbortSignal,
+): Promise<{ item: MatchDiagnostics }> {
+  return commissionerGetJson(
+    `/api/commissioner/matches/${id}/diagnostics${qs({ resultId: params.resultId ?? undefined })}`,
+    signal,
+  );
+}
+
+export async function getMatchTechnicalEvents(
+  id: string,
+  resultId: string,
+  params: Record<string, string | number | undefined | null> = {},
+  signal?: AbortSignal,
+): Promise<MatchEventViewPage> {
+  return commissionerGetJson(
+    `/api/commissioner/matches/${id}/results/${resultId}/events${qs(params)}`,
+    signal,
+  );
+}
+
+export async function getMatchAudit(
+  id: string,
+  params: Record<string, string | number | undefined | null> = {},
+  signal?: AbortSignal,
+): Promise<Paginated<MatchAuditItem>> {
+  return commissionerGetJson(`/api/commissioner/matches/${id}/audit${qs(params)}`, signal);
+}
+
+function filenameFromDisposition(header: string | null, fallback: string): string {
+  if (!header) return fallback;
+  const match = /filename="?([^"]+)"?/i.exec(header);
+  return match?.[1] ?? fallback;
+}
+
+async function downloadFromApi(
+  path: string,
+  fallbackFilename: string,
+  opts?: { commissioner?: boolean; signal?: AbortSignal },
+): Promise<void> {
+  const res = await fetch(`${apiBase()}${path}`, {
+    signal: opts?.signal,
+    headers: opts?.commissioner ? { [COMMISSIONER_HEADER]: 'enabled' } : undefined,
+  });
+  if (!res.ok) {
+    const err = new Error(await readError(res)) as Error & { status?: number };
+    err.status = res.status;
+    throw err;
+  }
+  const blob = await res.blob();
+  const filename = filenameFromDisposition(res.headers.get('Content-Disposition'), fallbackFilename);
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+export async function exportMatchResultJson(
+  id: string,
+  params: { resultId?: string | null } = {},
+  signal?: AbortSignal,
+): Promise<void> {
+  return downloadFromApi(
+    `/api/matches/${id}/result/export${qs({ resultId: params.resultId ?? undefined })}`,
+    `match-${id}-result.json`,
+    { signal },
+  );
+}
+
+export async function exportMatchEventsCsv(
+  id: string,
+  params: Record<string, string | number | undefined | null> = {},
+  signal?: AbortSignal,
+): Promise<void> {
+  return downloadFromApi(
+    `/api/matches/${id}/events/export${qs({ visibility: 'PUBLIC', ...params })}`,
+    `match-${id}-events.csv`,
+    { signal },
+  );
+}
+
+export async function exportMatchPlayerStatsCsv(
+  id: string,
+  params: { resultId?: string | null } = {},
+  signal?: AbortSignal,
+): Promise<void> {
+  return downloadFromApi(
+    `/api/matches/${id}/player-stats/export${qs({ resultId: params.resultId ?? undefined })}`,
+    `match-${id}-player-stats.csv`,
+    { signal },
+  );
+}
+
+export async function exportMatchTeamStatsCsv(
+  id: string,
+  params: { resultId?: string | null } = {},
+  signal?: AbortSignal,
+): Promise<void> {
+  return downloadFromApi(
+    `/api/matches/${id}/team-stats/export${qs({ resultId: params.resultId ?? undefined })}`,
+    `match-${id}-team-stats.csv`,
+    { signal },
+  );
+}
+
+export async function exportMatchDiagnosticsJson(
+  id: string,
+  params: { resultId?: string | null } = {},
+  signal?: AbortSignal,
+): Promise<void> {
+  return downloadFromApi(
+    `/api/commissioner/matches/${id}/diagnostics/export${qs({ resultId: params.resultId ?? undefined })}`,
+    `match-${id}-diagnostics.json`,
+    { commissioner: true, signal },
+  );
+}

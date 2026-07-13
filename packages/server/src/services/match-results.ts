@@ -87,6 +87,8 @@ export async function getMatchResult(matchId: string) {
   const { match, result } = loaded;
   const playerDirectory = buildPlayerDirectory(result.simulationInputText);
   const teamDirectory = buildTeamDirectory(result.simulationInputText);
+  const homeSnapshot = teamDirectory.get(match.homeTeamId);
+  const awaySnapshot = teamDirectory.get(match.awayTeamId);
 
   const [playerStats, teamStats] = await Promise.all([
     prisma.playerGameStat.findMany({ where: { matchResultId: result.id }, orderBy: { points: 'desc' } }),
@@ -101,12 +103,14 @@ export async function getMatchResult(matchId: string) {
     decisionType: result.decisionType,
     homeTeam: {
       id: match.homeTeamId,
-      name: match.homeTeam.name,
+      name: homeSnapshot?.teamName ?? match.homeTeam.name,
+      currentName: match.homeTeam.name,
       side: 'HOME' as const,
     },
     awayTeam: {
       id: match.awayTeamId,
-      name: match.awayTeam.name,
+      name: awaySnapshot?.teamName ?? match.awayTeam.name,
+      currentName: match.awayTeam.name,
       side: 'AWAY' as const,
     },
     score: {

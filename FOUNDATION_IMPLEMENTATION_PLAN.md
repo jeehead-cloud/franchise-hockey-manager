@@ -1033,6 +1033,8 @@ TeamGameStat
 
 # 20. F15 — Match UI and Diagnostics
 
+**Status: implemented locally (2026-07-13).** Match overview/events/diagnostics/export read models; polished Match Detail tabs; public vs technical event boundary; historical snapshot names; no Prisma migration; no new simulation formulas. F16 Simulation Lab remains next.
+
 ## Goal
 
 Make a simulated match understandable and debuggable.

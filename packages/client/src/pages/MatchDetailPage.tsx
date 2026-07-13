@@ -1,162 +1,282 @@
-import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { PageHeader } from '../components/layout/PageHeader';
+import { GoalieStatsTable } from '../components/match/GoalieStatsTable';
+import { LineUsagePanel } from '../components/match/LineUsagePanel';
+import { MatchAttemptsPanel } from '../components/match/MatchAttemptsPanel';
+import { MatchDiagnosticsPanel } from '../components/match/MatchDiagnosticsPanel';
+import { MatchEventFeed } from '../components/match/MatchEventFeed';
+import { MatchMetadataCard } from '../components/match/MatchMetadataCard';
+import { MatchResimulateDialog } from '../components/match/MatchResimulateDialog';
+import { MatchScoreboard } from '../components/match/MatchScoreboard';
+import { PeriodScoreTable } from '../components/match/PeriodScoreTable';
+import { ReconciliationPanel } from '../components/match/ReconciliationPanel';
+import { ScoringSummary } from '../components/match/ScoringSummary';
+import { SkaterStatsTable } from '../components/match/SkaterStatsTable';
+import { TeamComparison } from '../components/match/TeamComparison';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
-import {
-  DataRow,
-  DataTable,
-  Field,
-  Pagination,
-  SelectInput,
-  Td,
-  TextInput,
-} from '../components/ui/DataBrowser';
 import { ErrorState, LoadingState } from '../components/ui/EmptyState';
-import { Dialog } from '../components/ui/Dialog';
 import { Panel } from '../components/ui/Panel';
+import { Tabs } from '../components/ui/Tabs';
 import { useCommissioner } from '../lib/commissioner';
 import {
-  formatDecisionLabel,
-  formatDisplayScore,
-  formatPersistedMatchEvent,
-} from '../lib/match-format';
-import {
-  getMatch,
+  exportMatchDiagnosticsJson,
+  exportMatchEventsCsv,
+  exportMatchPlayerStatsCsv,
+  exportMatchResultJson,
+  exportMatchTeamStatsCsv,
   getMatchAttempts,
-  getMatchEvents,
-  getMatchResult,
+  getMatchAudit,
+  getMatchDiagnostics,
+  getMatchEventsView,
+  getMatchOverview,
   resimulateMatch,
+  simulateMatch,
   type MatchAttemptItem,
-  type MatchDetail,
-  type MatchEventItem,
-  type MatchResultDetail,
+  type MatchAuditItem,
+  type MatchDiagnostics,
+  type MatchEventViewPage,
+  type MatchOverview,
   type Paginated,
 } from '../lib/api';
 
-type TabId = 'overview' | 'events' | 'teams' | 'players' | 'goalies' | 'metadata';
+type TabId =
+  | 'overview'
+  | 'events'
+  | 'teams'
+  | 'players'
+  | 'goalies'
+  | 'lines'
+  | 'diagnostics'
+  | 'attempts';
 
-function tabStyle(active: boolean): CSSProperties {
-  return {
-    padding: '8px 12px',
-    border: 'none',
-    borderBottom: active ? '2px solid var(--accent-primary)' : '2px solid transparent',
-    background: 'transparent',
-    color: active ? 'var(--accent-primary)' : 'var(--text-secondary)',
-    font: active ? '600 var(--text-size-sm)/1 var(--font-sans)' : 'var(--text-body-sm)',
-    cursor: 'pointer',
-  };
+const PUBLIC_TABS: { value: TabId; label: string }[] = [
+  { value: 'overview', label: 'Overview' },
+  { value: 'events', label: 'Events' },
+  { value: 'teams', label: 'Team Statistics' },
+  { value: 'players', label: 'Player Statistics' },
+  { value: 'goalies', label: 'Goalies' },
+  { value: 'lines', label: 'Lines & Usage' },
+];
+
+const COMMISSIONER_TABS: { value: TabId; label: string }[] = [
+  { value: 'diagnostics', label: 'Diagnostics' },
+  { value: 'attempts', label: 'Attempts' },
+];
+
+function parseTab(raw: string | null, commissioner: boolean): TabId {
+  const allowed = new Set<string>([
+    ...PUBLIC_TABS.map((t) => t.value),
+    ...(commissioner ? COMMISSIONER_TABS.map((t) => t.value) : []),
+  ]);
+  if (raw && allowed.has(raw)) return raw as TabId;
+  return 'overview';
 }
 
 export function MatchDetailPage() {
   const { matchId = '' } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { enabled: commissionerEnabled } = useCommissioner();
-  const [match, setMatch] = useState<MatchDetail | null>(null);
-  const [result, setResult] = useState<MatchResultDetail | null>(null);
-  const [events, setEvents] = useState<Paginated<MatchEventItem> | null>(null);
+
+  const tab = parseTab(searchParams.get('tab'), commissionerEnabled);
+  const resultId = searchParams.get('resultId');
+  const period = searchParams.get('period') ?? '';
+  const category = searchParams.get('category') ?? '';
+  const teamId = searchParams.get('teamId') ?? '';
+  const eventsPage = Number(searchParams.get('eventsPage') || '1') || 1;
+
+  const [overview, setOverview] = useState<MatchOverview | null>(null);
+  const [events, setEvents] = useState<MatchEventViewPage | null>(null);
+  const [eventsLoading, setEventsLoading] = useState(false);
   const [attempts, setAttempts] = useState<Paginated<MatchAttemptItem> | null>(null);
-  const [tab, setTab] = useState<TabId>('overview');
+  const [attemptsPage, setAttemptsPage] = useState(1);
+  const [diagnostics, setDiagnostics] = useState<MatchDiagnostics | null>(null);
+  const [diagnosticsError, setDiagnosticsError] = useState<string | null>(null);
+  const [audit, setAudit] = useState<Paginated<MatchAuditItem> | null>(null);
+  const [auditPage, setAuditPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notFound, setNotFound] = useState(false);
-  const [eventPage, setEventPage] = useState(1);
-  const [eventPeriod, setEventPeriod] = useState('');
-  const [eventType, setEventType] = useState('');
+  const [exportError, setExportError] = useState<string | null>(null);
+  const [simulateBusy, setSimulateBusy] = useState(false);
   const [resimOpen, setResimOpen] = useState(false);
   const [resimSeed, setResimSeed] = useState('');
   const [resimReason, setResimReason] = useState('Commissioner resimulation');
   const [resimBusy, setResimBusy] = useState(false);
   const [resimError, setResimError] = useState<string | null>(null);
 
-  const reload = useCallback(async (signal?: AbortSignal) => {
-    setLoading(true);
-    setError(null);
-    setNotFound(false);
-    try {
-      const matchRes = await getMatch(matchId, signal);
-      setMatch(matchRes.item);
-      if (matchRes.item.status === 'COMPLETED') {
-        const [resultRes, eventsRes] = await Promise.all([
-          getMatchResult(matchId, signal),
-          getMatchEvents(matchId, { page: 1, pageSize: 50 }, signal),
-        ]);
-        setResult(resultRes.item);
-        setEvents(eventsRes);
-        if (commissionerEnabled) {
-          const attemptsRes = await getMatchAttempts(matchId, { page: 1, pageSize: 20 }, signal);
-          setAttempts(attemptsRes);
-        } else {
-          setAttempts(null);
-        }
-      } else {
-        setResult(null);
-        setEvents(null);
-        setAttempts(null);
+  const setParam = useCallback(
+    (patch: Record<string, string | null | undefined>, replace = false) => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          for (const [key, value] of Object.entries(patch)) {
+            if (value == null || value === '') next.delete(key);
+            else next.set(key, value);
+          }
+          return next;
+        },
+        { replace },
+      );
+    },
+    [setSearchParams],
+  );
+
+  const reloadOverview = useCallback(
+    async (signal?: AbortSignal, overrideResultId?: string | null) => {
+      setLoading(true);
+      setError(null);
+      setNotFound(false);
+      try {
+        const resolvedResultId =
+          overrideResultId !== undefined ? overrideResultId : resultId;
+        const res = await getMatchOverview(
+          matchId,
+          { resultId: resolvedResultId },
+          signal,
+        );
+        setOverview(res.item);
+      } catch (err: unknown) {
+        if (signal?.aborted) return;
+        const status = (err as Error & { status?: number }).status;
+        if (status === 404) setNotFound(true);
+        else setError(err instanceof Error ? err.message : 'Failed to load match');
+      } finally {
+        if (!signal?.aborted) setLoading(false);
       }
-    } catch (err: unknown) {
-      const status = (err as Error & { status?: number }).status;
-      if (status === 404) {
-        setNotFound(true);
-      } else {
-        setError(err instanceof Error ? err.message : 'Failed to load match');
-      }
-    } finally {
-      if (!signal?.aborted) setLoading(false);
-    }
-  }, [matchId, commissionerEnabled]);
+    },
+    [matchId, resultId],
+  );
 
   useEffect(() => {
     const controller = new AbortController();
-    void reload(controller.signal);
+    void reloadOverview(controller.signal);
     return () => controller.abort();
-  }, [reload]);
+  }, [reloadOverview]);
 
   useEffect(() => {
-    if (match?.status !== 'COMPLETED' || tab !== 'events') return;
+    if (!overview || overview.prepared || !overview.result) {
+      setEvents(null);
+      return;
+    }
+    if (tab !== 'events') return;
     const controller = new AbortController();
-    getMatchEvents(
+    setEventsLoading(true);
+    getMatchEventsView(
       matchId,
       {
-        page: eventPage,
+        page: eventsPage,
         pageSize: 50,
-        period: eventPeriod ? Number(eventPeriod) : undefined,
-        eventType: eventType || undefined,
+        period: period || undefined,
+        category: category || undefined,
+        teamId: teamId || undefined,
+        resultId: resultId || undefined,
+        visibility: 'PUBLIC',
+        format: 'view',
       },
       controller.signal,
     )
-      .then(setEvents)
+      .then((res) => {
+        if (!controller.signal.aborted) setEvents(res);
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setEvents(null);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setEventsLoading(false);
+      });
+    return () => controller.abort();
+  }, [overview, matchId, tab, eventsPage, period, category, teamId, resultId]);
+
+  useEffect(() => {
+    if (!commissionerEnabled || !overview || overview.prepared) {
+      setAttempts(null);
+      return;
+    }
+    if (tab !== 'attempts' && tab !== 'overview') return;
+    const controller = new AbortController();
+    getMatchAttempts(matchId, { page: attemptsPage, pageSize: 20 }, controller.signal)
+      .then((res) => {
+        if (!controller.signal.aborted) setAttempts(res);
+      })
       .catch(() => undefined);
     return () => controller.abort();
-  }, [matchId, match?.status, tab, eventPage, eventPeriod, eventType]);
+  }, [commissionerEnabled, overview, matchId, tab, attemptsPage]);
 
-  const goalies = useMemo(
-    () => (result?.playerStats ?? []).filter((p) => p.position === 'G' || p.stats.role === 'GOALIE'),
-    [result],
-  );
+  useEffect(() => {
+    if (!commissionerEnabled || !overview || overview.prepared || !overview.result) {
+      setDiagnostics(null);
+      setAudit(null);
+      return;
+    }
+    if (tab !== 'diagnostics' && tab !== 'overview') return;
+    const controller = new AbortController();
+    setDiagnosticsError(null);
+    getMatchDiagnostics(matchId, { resultId: resultId || overview.result.resultId }, controller.signal)
+      .then((res) => {
+        if (!controller.signal.aborted) setDiagnostics(res.item);
+      })
+      .catch((err: unknown) => {
+        if (!controller.signal.aborted) {
+          setDiagnostics(null);
+          setDiagnosticsError(err instanceof Error ? err.message : 'Failed to load diagnostics');
+        }
+      });
+    getMatchAudit(matchId, { page: auditPage, pageSize: 20 }, controller.signal)
+      .then((res) => {
+        if (!controller.signal.aborted) setAudit(res);
+      })
+      .catch(() => undefined);
+    return () => controller.abort();
+  }, [commissionerEnabled, overview, matchId, tab, resultId, auditPage]);
 
-  const skaters = useMemo(
-    () => (result?.playerStats ?? []).filter((p) => p.position !== 'G' && p.stats.role !== 'GOALIE'),
-    [result],
-  );
+  const tabItems = useMemo(() => {
+    const items = [...PUBLIC_TABS];
+    if (commissionerEnabled) items.push(...COMMISSIONER_TABS);
+    return items;
+  }, [commissionerEnabled]);
+
+  const runSimulate = async () => {
+    setSimulateBusy(true);
+    setExportError(null);
+    try {
+      await simulateMatch(matchId, {});
+      await reloadOverview();
+    } catch (err: unknown) {
+      setExportError(err instanceof Error ? err.message : 'Simulation failed');
+    } finally {
+      setSimulateBusy(false);
+    }
+  };
 
   const runResimulation = async () => {
-    if (!result || !match?.currentResultId) return;
+    if (!overview?.currentResultId) return;
     setResimBusy(true);
     setResimError(null);
     try {
       await resimulateMatch(matchId, {
-        expectedCurrentResultId: match.currentResultId,
+        expectedCurrentResultId: overview.currentResultId,
         reason: resimReason.trim() || 'Commissioner resimulation',
         inputMode: 'ORIGINAL',
         ...(resimSeed.trim() ? { seed: resimSeed.trim() } : {}),
       });
       setResimOpen(false);
-      setEventPage(1);
-      await reload();
+      setParam({ resultId: null, eventsPage: '1' });
+      await reloadOverview(undefined, null);
     } catch (err: unknown) {
       setResimError(err instanceof Error ? err.message : 'Resimulation failed');
     } finally {
       setResimBusy(false);
+    }
+  };
+
+  const withExport = async (fn: () => Promise<void>) => {
+    setExportError(null);
+    try {
+      await fn();
+    } catch (err: unknown) {
+      setExportError(err instanceof Error ? err.message : 'Export failed');
     }
   };
 
@@ -169,350 +289,236 @@ export function MatchDetailPage() {
       </div>
     );
   }
-  if (error || !match) return <ErrorState description={error ?? 'Failed to load match'} />;
+  if (error || !overview) return <ErrorState description={error ?? 'Failed to load match'} />;
 
-  const scoreboard =
-    result &&
-    formatDisplayScore(result.score.home, result.score.away, result.decisionType);
+  const result = overview.result;
+  const title = `${overview.awayTeam.name} @ ${overview.homeTeam.name}`;
+  const statusBadge = overview.prepared
+    ? overview.status
+    : overview.isCurrent
+      ? 'Current'
+      : 'Superseded';
 
   return (
     <div style={{ padding: 20 }}>
       <PageHeader
-        title={`${match.awayTeamName} @ ${match.homeTeamName}`}
-        subtitle="Persisted match result"
-        badge={match.status === 'COMPLETED' ? 'Persisted' : match.status}
+        title={title}
+        subtitle={
+          overview.competitionEdition
+            ? overview.competitionEdition.displayName
+            : overview.source === 'MANUAL'
+              ? 'Manual match'
+              : 'Competition match'
+        }
+        badge={statusBadge}
         actions={
-          commissionerEnabled && match.status === 'COMPLETED' ? (
-            <Button variant="danger" onClick={() => setResimOpen(true)}>
-              Resimulate
-            </Button>
-          ) : undefined
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {result ? (
+              <>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() =>
+                    void withExport(() =>
+                      exportMatchResultJson(matchId, { resultId: result.resultId }),
+                    )
+                  }
+                >
+                  Export result
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() =>
+                    void withExport(() =>
+                      exportMatchEventsCsv(matchId, { resultId: result.resultId }),
+                    )
+                  }
+                >
+                  Export events
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() =>
+                    void withExport(() =>
+                      exportMatchPlayerStatsCsv(matchId, { resultId: result.resultId }),
+                    )
+                  }
+                >
+                  Export player stats
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() =>
+                    void withExport(() =>
+                      exportMatchTeamStatsCsv(matchId, { resultId: result.resultId }),
+                    )
+                  }
+                >
+                  Export team stats
+                </Button>
+              </>
+            ) : null}
+            {commissionerEnabled && overview.status === 'COMPLETED' && overview.isCurrent ? (
+              <Button variant="danger" onClick={() => setResimOpen(true)}>
+                Resimulate
+              </Button>
+            ) : null}
+          </div>
         }
       />
 
-      {match.status !== 'COMPLETED' && (
+      {exportError ? (
+        <div style={{ marginBottom: 12 }}>
+          <ErrorState description={exportError} />
+        </div>
+      ) : null}
+
+      {overview.prepared || !result ? (
         <Panel>
-          <p style={{ margin: 0 }}>
-            Match status: <strong>{match.status}</strong>.{' '}
-            {match.status === 'PREPARED' && (
-              <Link to="/matches/new">Simulate from New Match</Link>
-            )}
-          </p>
-        </Panel>
-      )}
-
-      {result && (
-        <>
-          <Panel>
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '1fr auto 1fr',
-                gap: 16,
-                alignItems: 'center',
-                textAlign: 'center',
-              }}
-            >
-              <div>
-                <div style={{ font: 'var(--text-data-sm)', color: 'var(--text-tertiary)' }}>Away</div>
-                <div style={{ fontSize: 22, fontWeight: 700 }}>{result.awayTeam.name}</div>
-                <div style={{ fontSize: 36, fontWeight: 800 }}>{result.score.away}</div>
-              </div>
-              <div>
-                <div style={{ fontSize: 28, fontWeight: 800 }}>{scoreboard}</div>
-                <Badge tone="success">{formatDecisionLabel(result.decisionType)}</Badge>
-                {result.winnerTeamId && (
-                  <div style={{ marginTop: 6, font: 'var(--text-body-sm)', color: 'var(--text-secondary)' }}>
-                    Winner:{' '}
-                    {result.winnerTeamId === result.homeTeam.id
-                      ? result.homeTeam.name
-                      : result.awayTeam.name}
-                  </div>
-                )}
-              </div>
-              <div>
-                <div style={{ font: 'var(--text-data-sm)', color: 'var(--text-tertiary)' }}>Home</div>
-                <div style={{ fontSize: 22, fontWeight: 700 }}>{result.homeTeam.name}</div>
-                <div style={{ fontSize: 36, fontWeight: 800 }}>{result.score.home}</div>
-              </div>
-            </div>
-
-            <div
-              style={{
-                marginTop: 16,
-                display: 'flex',
-                gap: 16,
-                flexWrap: 'wrap',
-                font: 'var(--text-body-sm)',
-                color: 'var(--text-secondary)',
-              }}
-            >
-              <span>
-                Regulation: {result.score.homeRegulation}–{result.score.awayRegulation}
+          <div style={{ display: 'grid', gap: 12 }}>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+              <span style={{ font: 'var(--text-body-sm)' }}>
+                Match status: <strong>{overview.status}</strong>
               </span>
-              {(result.score.homeOvertime > 0 || result.score.awayOvertime > 0) && (
-                <span>
-                  OT goals: {result.score.homeOvertime}–{result.score.awayOvertime}
-                </span>
-              )}
-              {(result.score.homeShootout > 0 ||
-                result.score.awayShootout > 0 ||
-                result.decisionType === 'SHOOTOUT') && (
-                <span>
-                  Shootout: {result.score.homeShootout}–{result.score.awayShootout}
-                </span>
-              )}
+              <Badge tone="neutral">Prepared</Badge>
             </div>
-          </Panel>
+            <p style={{ margin: 0, font: 'var(--text-body-sm)', color: 'var(--text-secondary)' }}>
+              This match has no completed result yet. Simulate it here, or continue from the New Match
+              flow.
+            </p>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {overview.status === 'PREPARED' ? (
+                <Button variant="primary" disabled={simulateBusy} onClick={() => void runSimulate()}>
+                  {simulateBusy ? 'Simulating…' : 'Simulate match'}
+                </Button>
+              ) : null}
+              <Link to="/matches/new">
+                <Button variant="secondary">Open New Match</Button>
+              </Link>
+            </div>
+          </div>
+        </Panel>
+      ) : (
+        <>
+          {!overview.isCurrent ? (
+            <Panel style={{ marginBottom: 12 }}>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                <Badge tone="warning">Superseded result</Badge>
+                <span style={{ font: 'var(--text-body-sm)', color: 'var(--text-secondary)' }}>
+                  Viewing a historical attempt. Names below are from the simulation snapshot.
+                </span>
+                {overview.currentResultId ? (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setParam({ resultId: null })}
+                  >
+                    View current
+                  </Button>
+                ) : null}
+              </div>
+            </Panel>
+          ) : (
+            <div style={{ marginBottom: 12, display: 'flex', gap: 8, alignItems: 'center' }}>
+              <Badge tone="success">Current result</Badge>
+              <span style={{ font: 'var(--text-body-sm)', color: 'var(--text-tertiary)' }}>
+                Attempt #{result.attemptNumber}
+              </span>
+            </div>
+          )}
 
-          <div style={{ display: 'flex', gap: 4, borderBottom: '1px solid var(--border-subtle)', marginTop: 16 }}>
-            {(
-              [
-                ['overview', 'Overview'],
-                ['events', 'Events'],
-                ['teams', 'Team stats'],
-                ['players', 'Player stats'],
-                ['goalies', 'Goalies'],
-                ['metadata', 'Technical'],
-              ] as const
-            ).map(([id, label]) => (
-              <button key={id} type="button" style={tabStyle(tab === id)} onClick={() => setTab(id)}>
-                {label}
-              </button>
-            ))}
+          <MatchScoreboard overview={overview} result={result} />
+
+          <div style={{ marginTop: 16 }}>
+            <Tabs
+              items={tabItems}
+              value={tab}
+              onChange={(value) => setParam({ tab: value === 'overview' ? null : value })}
+            />
           </div>
 
-          {tab === 'overview' && (
-            <Panel style={{ marginTop: 16 }}>
-              <div style={{ display: 'grid', gap: 8, font: 'var(--text-body-sm)' }}>
-                <div>
-                  <strong>Result ID:</strong>{' '}
-                  <span style={{ fontFamily: 'var(--font-mono)' }}>{result.resultId}</span>
-                </div>
-                <div>
-                  <strong>Attempt:</strong> #{result.attemptNumber}
-                </div>
-                <div>
-                  <strong>Completed:</strong>{' '}
-                  {result.completedAt ? new Date(result.completedAt).toLocaleString() : '—'}
-                </div>
-                <div>
-                  <strong>Reconciliation:</strong>{' '}
-                  {result.reconciliation?.ok ? (
-                    <Badge tone="success">OK</Badge>
-                  ) : (
-                    <Badge tone="danger">Failed</Badge>
-                  )}
-                </div>
-              </div>
-            </Panel>
-          )}
+          <div style={{ marginTop: 16, display: 'grid', gap: 16 }}>
+            {tab === 'overview' && (
+              <>
+                <PeriodScoreTable
+                  periodScores={result.periodScores}
+                  homeName={overview.homeTeam.name}
+                  awayName={overview.awayTeam.name}
+                  finalHome={result.score.home}
+                  finalAway={result.score.away}
+                />
+                <ScoringSummary goals={result.scoringSummary} shootout={result.shootoutSummary} />
+                <MatchMetadataCard metadata={result.metadata} />
+                <ReconciliationPanel metadata={result.metadata} diagnostics={diagnostics} />
+              </>
+            )}
 
-          {tab === 'events' && events && (
-            <Panel style={{ marginTop: 16 }}>
-              <div style={{ display: 'flex', gap: 12, marginBottom: 12, flexWrap: 'wrap' }}>
-                <Field label="Period" htmlFor="event-period">
-                  <SelectInput
-                    id="event-period"
-                    value={eventPeriod}
-                    onChange={(e) => {
-                      setEventPeriod(e.target.value);
-                      setEventPage(1);
-                    }}
-                  >
-                    <option value="">All</option>
-                    {[1, 2, 3, 4, 5].map((p) => (
-                      <option key={p} value={String(p)}>
-                        P{p}
-                      </option>
-                    ))}
-                  </SelectInput>
-                </Field>
-                <Field label="Event type" htmlFor="event-type">
-                  <TextInput
-                    id="event-type"
-                    value={eventType}
-                    placeholder="e.g. GOAL"
-                    onChange={(e) => {
-                      setEventType(e.target.value);
-                      setEventPage(1);
-                    }}
-                  />
-                </Field>
-              </div>
-              <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'grid', gap: 6 }}>
-                {events.items.map((ev) => (
-                  <li
-                    key={ev.id}
-                    style={{
-                      padding: '8px 10px',
-                      borderRadius: 'var(--radius-sm)',
-                      background: 'var(--surface-subtle)',
-                      font: 'var(--text-body-sm)',
-                    }}
-                  >
-                    {formatPersistedMatchEvent(ev)}
-                  </li>
-                ))}
-              </ul>
-              <Pagination
-                page={events.page}
-                totalPages={events.totalPages}
-                total={events.total}
-                onPage={setEventPage}
+            {tab === 'events' && (
+              <MatchEventFeed
+                events={events}
+                loading={eventsLoading}
+                homeTeam={overview.homeTeam}
+                awayTeam={overview.awayTeam}
+                period={period}
+                category={category}
+                teamId={teamId}
+                onPeriodChange={(value) => setParam({ period: value || null, eventsPage: '1' })}
+                onCategoryChange={(value) => setParam({ category: value || null, eventsPage: '1' })}
+                onTeamChange={(value) => setParam({ teamId: value || null, eventsPage: '1' })}
+                onPageChange={(page) => setParam({ eventsPage: String(page) })}
               />
-            </Panel>
-          )}
+            )}
 
-          {tab === 'teams' && (
-            <Panel style={{ marginTop: 16 }}>
-              <DataTable
-                headers={[
-                  { key: 'team', label: 'Team' },
-                  { key: 'g', label: 'G' },
-                  { key: 'sog', label: 'SOG' },
-                  { key: 'pim', label: 'PIM' },
-                  { key: 'ppg', label: 'PPG' },
-                  { key: 'shg', label: 'SHG' },
-                  { key: 'so', label: 'SO att' },
-                ]}
-              >
-                {result.teamStats.map((row) => (
-                  <DataRow key={row.teamId}>
-                    <Td primary>{row.teamName ?? row.teamId}</Td>
-                    <Td>{row.goals}</Td>
-                    <Td>{row.shotsOnGoal}</Td>
-                    <Td>{row.penaltyMinutes}</Td>
-                    <Td>{row.powerPlayGoals}</Td>
-                    <Td>{row.shortHandedGoals}</Td>
-                    <Td>
-                      {row.shootoutGoals}/{row.shootoutAttempts}
-                    </Td>
-                  </DataRow>
-                ))}
-              </DataTable>
-            </Panel>
-          )}
+            {tab === 'teams' && (
+              <TeamComparison
+                home={result.teamComparison.home}
+                away={result.teamComparison.away}
+                homeName={overview.homeTeam.name}
+                awayName={overview.awayTeam.name}
+              />
+            )}
 
-          {tab === 'players' && (
-            <Panel style={{ marginTop: 16 }}>
-              <DataTable
-                headers={[
-                  { key: 'player', label: 'Player' },
-                  { key: 'pos', label: 'Pos' },
-                  { key: 'g', label: 'G' },
-                  { key: 'a', label: 'A' },
-                  { key: 'p', label: 'P' },
-                  { key: 'sog', label: 'SOG' },
-                  { key: 'pim', label: 'PIM' },
-                ]}
-              >
-                {skaters.map((row) => (
-                  <DataRow key={row.playerId}>
-                    <Td primary>
-                      {[row.firstName, row.lastName].filter(Boolean).join(' ') || row.playerId.slice(0, 8)}
-                    </Td>
-                    <Td>{row.position}</Td>
-                    <Td>{row.goals}</Td>
-                    <Td>{row.assists}</Td>
-                    <Td>{row.points}</Td>
-                    <Td>{row.shotsOnGoal}</Td>
-                    <Td>{row.penaltyMinutes}</Td>
-                  </DataRow>
-                ))}
-              </DataTable>
-            </Panel>
-          )}
+            {tab === 'players' && <SkaterStatsTable skaters={result.skaters} />}
 
-          {tab === 'goalies' && (
-            <Panel style={{ marginTop: 16 }}>
-              <DataTable
-                headers={[
-                  { key: 'goalie', label: 'Goalie' },
-                  { key: 'sa', label: 'SA' },
-                  { key: 'sv', label: 'SV' },
-                  { key: 'ga', label: 'GA' },
-                ]}
-              >
-                {goalies.map((row) => {
-                  const g = row.stats as { shotsAgainst?: number; saves?: number; goalsAgainst?: number };
-                  return (
-                    <DataRow key={row.playerId}>
-                      <Td primary>
-                        {[row.firstName, row.lastName].filter(Boolean).join(' ') || row.playerId.slice(0, 8)}
-                      </Td>
-                      <Td>{g.shotsAgainst ?? '—'}</Td>
-                      <Td>{g.saves ?? '—'}</Td>
-                      <Td>{g.goalsAgainst ?? row.goals}</Td>
-                    </DataRow>
-                  );
-                })}
-              </DataTable>
-            </Panel>
-          )}
+            {tab === 'goalies' && <GoalieStatsTable goalies={result.goalies} />}
 
-          {tab === 'metadata' && (
-            <Panel style={{ marginTop: 16 }}>
-              <div style={{ display: 'grid', gap: 8, font: 'var(--text-body-sm)' }}>
-                <div>
-                  <strong>Engine:</strong> {result.engineVersion} ({result.simulationMode})
-                </div>
-                <div>
-                  <strong>Seed:</strong>{' '}
-                  <span style={{ fontFamily: 'var(--font-mono)' }}>{result.randomSeed}</span>
-                </div>
-                <div>
-                  <strong>Input fingerprint:</strong>{' '}
-                  <span style={{ fontFamily: 'var(--font-mono)' }}>{result.inputFingerprint}</span>
-                </div>
-                <div>
-                  <strong>Trace hash:</strong>{' '}
-                  <span style={{ fontFamily: 'var(--font-mono)' }}>{result.traceHash}</span>
-                </div>
-                <div>
-                  <strong>Balance:</strong> v{result.balance.versionNumber} ·{' '}
-                  <span style={{ fontFamily: 'var(--font-mono)' }}>{result.balance.configHash.slice(0, 16)}…</span>
-                </div>
-              </div>
-            </Panel>
-          )}
+            {tab === 'lines' && <LineUsagePanel lineUsage={result.lineUsage} />}
 
-          {commissionerEnabled && attempts && attempts.items.length > 0 && (
-            <Panel title="Attempt history (Commissioner)" style={{ marginTop: 16 }}>
-              <DataTable
-                headers={[
-                  { key: 'attempt', label: '#' },
-                  { key: 'status', label: 'Status' },
-                  { key: 'score', label: 'Score' },
-                  { key: 'decision', label: 'Decision' },
-                  { key: 'seed', label: 'Seed' },
-                  { key: 'completed', label: 'Completed' },
-                ]}
-              >
-                {attempts.items.map((row) => (
-                  <DataRow key={row.id}>
-                    <Td primary>
-                      #{row.attemptNumber}
-                      {row.id === match.currentResultId ? (
-                        <span style={{ marginLeft: 6 }}>
-                          <Badge tone="success">Current</Badge>
-                        </span>
-                      ) : null}
-                    </Td>
-                    <Td>{row.status}</Td>
-                    <Td>{formatDisplayScore(row.homeScore, row.awayScore, row.decisionType)}</Td>
-                    <Td>{formatDecisionLabel(row.decisionType)}</Td>
-                    <Td>
-                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12 }}>
-                        {row.randomSeed.slice(0, 12)}
-                      </span>
-                    </Td>
-                    <Td>{row.completedAt ? new Date(row.completedAt).toLocaleString() : '—'}</Td>
-                  </DataRow>
-                ))}
-              </DataTable>
-            </Panel>
-          )}
+            {tab === 'diagnostics' && commissionerEnabled && (
+              <MatchDiagnosticsPanel
+                diagnostics={diagnostics}
+                audit={audit}
+                error={diagnosticsError}
+                onExport={() =>
+                  void withExport(() =>
+                    exportMatchDiagnosticsJson(matchId, {
+                      resultId: resultId || result.resultId,
+                    }),
+                  )
+                }
+                onAuditPage={setAuditPage}
+              />
+            )}
+
+            {tab === 'attempts' && commissionerEnabled && (
+              <MatchAttemptsPanel
+                attempts={attempts}
+                currentResultId={overview.currentResultId}
+                selectedResultId={resultId || overview.currentResultId}
+                onSelectResult={(id) =>
+                  setParam({
+                    resultId: id === overview.currentResultId ? null : id,
+                    tab: 'overview',
+                  })
+                }
+                onViewCurrent={() => setParam({ resultId: null })}
+                onPageChange={setAttemptsPage}
+              />
+            )}
+          </div>
         </>
       )}
 
@@ -520,36 +526,17 @@ export function MatchDetailPage() {
         <Link to="/matches">← Back to matches</Link>
       </p>
 
-      <Dialog
+      <MatchResimulateDialog
         open={resimOpen}
-        title="Resimulate match?"
-        confirmLabel="Resimulate with new seed"
-        confirmVariant="danger"
         busy={resimBusy}
+        error={resimError}
+        reason={resimReason}
+        seed={resimSeed}
+        onReasonChange={setResimReason}
+        onSeedChange={setResimSeed}
         onClose={() => setResimOpen(false)}
         onConfirm={() => void runResimulation()}
-      >
-        <p style={{ margin: '0 0 8px' }}>
-          The current result will be <strong>superseded</strong>, not deleted. The original immutable simulation
-          input is reused; only the seed changes. Standings are not affected in F14.
-        </p>
-        <Field label="Reason" htmlFor="resim-reason">
-          <TextInput id="resim-reason" value={resimReason} onChange={(e) => setResimReason(e.target.value)} />
-        </Field>
-        <Field label="New seed (optional)" htmlFor="resim-seed">
-          <TextInput
-            id="resim-seed"
-            value={resimSeed}
-            placeholder="Leave blank for server-generated seed"
-            onChange={(e) => setResimSeed(e.target.value)}
-          />
-        </Field>
-        {resimError && (
-          <p style={{ color: 'var(--status-danger)', marginTop: 8 }} role="alert">
-            {resimError}
-          </p>
-        )}
-      </Dialog>
+      />
     </div>
   );
 }

@@ -75,6 +75,14 @@ F14 playable-match invariants:
 - Overtime: even 3v3, sudden death, no penalties generated during OT in F14; regulation-ending penalties resolved per F13 stats rules.
 - Engine remains Prisma-free; server owns immutable input construction and atomic persistence.
 
+F15 match-viewer invariants:
+
+- Official displayed score and statistics come from persisted F14 rows/events only — the client does not recompute official results.
+- Public event feed hides technical noise (shifts/possessions/zone transitions) by default.
+- Historical match presentation prefers immutable simulation-input snapshots for team/player names and lineup context.
+- Superseded result attempts remain inspectable and clearly labeled; normal mode cannot alter results.
+- Commissioner diagnostics may expose technical detail and immutable input summaries but not hidden potential or secrets.
+
 Invariants in force:
 
 - **Line/pairing synergy**: role compatibility is config-driven. Complementary roles can beat redundant higher-rated groups after bounded modifiers. Unknown role pairs use an explicit documented fallback.
