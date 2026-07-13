@@ -21,6 +21,8 @@ F10 adds versioned balance presets (`BalancePreset` / immutable `BalancePresetVe
 
 **F16** adds Simulation Lab batch analysis in `packages/engine/src/simulation/batch/` (seeds, aggregates, anomalies, comparison, batch hash) and an in-memory server run registry under `/api/simulation-lab/*`. Batches of 1/10/100/1000 unpersisted F14 games; ALTERNATE/FIXED side modes; optional paired balance-version comparison; no official Match persistence. Client `/simulation-lab` is tabbed: Batch Lab + Single Match Debug.
 
+**F17** adds the universal competition framework: engine rules/lifecycle/readiness in `packages/engine/src/competitions/`, Prisma participants/stages/rules snapshots, Commissioner preparation APIs, and `/competitions/:id/editions/:editionId`. Edition activation is structural only — schedules and standings remain F18+.
+
 F9 chemistry remains derived on read and now consumes the active preset chemistry section (with preset/version/hash metadata). Familiarity is still stubbed at 0.
 
 ---
@@ -270,6 +272,8 @@ Vite proxies `/health` and `/api` to `127.0.0.1:3000`. No client Prisma. F5 Play
 
 F16: `/simulation-lab` — Batch Lab (default) for unpersisted aggregate analysis; Single Match Debug tab preserves F13 technical simulation. Lab runs are in-memory only (lost on server restart).
 
+F17: `/competitions/:competitionId/editions/:editionId` — structural competition preparation (participants, stages, rules, readiness, lifecycle). Matches/Standings tabs remain disabled.
+
 ---
 
 ## 7b. Simulation Lab (F16)
@@ -291,6 +295,30 @@ Server:
 - Gate: `FHM_SIMULATION_LAB_ENABLED`
 - Limits: max 1000 games; max 2 concurrent; retain ~20 / 30 min; chunk size 25
 - Does not create Match/Result/Event/stat/audit rows; does not activate balance presets
+
+---
+
+## 7c. Competition Framework (F17)
+
+Pure engine (`packages/engine/src/competitions/`):
+
+- Validated competition rules schema (schemaVersion 1) + structural templates
+- Stage config validation and dependency graph checks
+- Edition lifecycle transitions and structural readiness
+- Rules/config hashing uses a browser-safe deterministic digest (same family as Simulation Lab; no node:crypto in engine exports)
+
+Server:
+
+- Extended Competition / CompetitionEdition; CompetitionParticipant; CompetitionStage; StageParticipant
+- Nullable `Match.competitionStageId` (stage must belong to edition)
+- Public reads under `/api/competitions*`, `/api/competition-editions*`, `/api/competition-stages*`
+- Commissioner writes under `/api/commissioner/competitions*` and edition/stage/participant routes
+- Dataset **schemaVersion 5**
+
+Client:
+
+- Competition detail + nested edition page tabs (Overview, Participants, Stages, Rules, Readiness, History)
+- Matches / Standings / Statistics tabs disabled until later milestones
 
 ---
 

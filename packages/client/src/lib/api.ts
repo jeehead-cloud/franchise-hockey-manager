@@ -551,13 +551,28 @@ export interface CompetitionListItem {
   shortName: string | null;
   type: string;
   simulationLevel: string | null;
+  countryId?: string | null;
+  leagueId?: string | null;
+  hasDefaultRules?: boolean;
   editionCount: number;
   currentEdition: {
     id: string;
     displayName: string;
     status: string;
     worldSeason?: { id: string; label: string };
+    rulesHash?: string;
   } | null;
+}
+
+export interface CompetitionEditionSummary {
+  id: string;
+  displayName: string;
+  status: string;
+  rulesHash?: string | null;
+  participantCount?: number;
+  stageCount?: number;
+  worldSeason?: { id: string; label: string; startYear?: number; endYear?: number };
+  updatedAt?: string;
 }
 
 export interface CompetitionDetail {
@@ -566,14 +581,84 @@ export interface CompetitionDetail {
   shortName: string | null;
   type: string;
   simulationLevel: string | null;
+  countryId?: string | null;
+  leagueId?: string | null;
+  country?: { id: string; name: string; code: string } | null;
+  league?: { id: string; name: string; shortName: string | null } | null;
+  hasDefaultRules?: boolean;
+  defaultRules?: unknown;
   externalId: string | null;
   sourceDataset: string | null;
   sourceUpdatedAt: string | null;
-  editions: Array<{
+  updatedAt?: string;
+  editions: CompetitionEditionSummary[];
+}
+
+export interface CompetitionEditionDetail {
+  id: string;
+  competitionId: string;
+  worldSeasonId: string;
+  displayName: string;
+  status: string;
+  editionNumber: number | null;
+  rules: unknown;
+  rulesHash: string;
+  preparedAt: string | null;
+  activatedAt: string | null;
+  completedAt: string | null;
+  archivedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  participantCount: number;
+  stageCount: number;
+  matchCount: number;
+  competition?: {
     id: string;
-    displayName: string;
+    name: string;
+    type: string;
+    shortName?: string | null;
+    simulationLevel?: string | null;
+  };
+  worldSeason?: { id: string; label: string; startYear?: number; endYear?: number };
+  readiness: {
     status: string;
-    worldSeason?: { id: string; label: string };
+    checks: Array<{ code: string; severity: string; message: string }>;
+    confirmedParticipantCount: number;
+    withdrawnParticipantCount: number;
+    stageCount: number;
+    blockers: string[];
+    warnings: string[];
+    allowedNextStatuses: string[];
+  };
+  participants: Array<{
+    id: string;
+    teamId: string;
+    seed: number | null;
+    groupKey: string | null;
+    participantOrder: number;
+    status: string;
+    source: string;
+    teamNameSnapshot: string;
+    teamShortNameSnapshot: string | null;
+    currentTeam: {
+      id: string;
+      name: string;
+      shortName: string | null;
+      teamType: string;
+    };
+  }>;
+  stages: Array<{
+    id: string;
+    name: string;
+    stageType: string;
+    stageOrder: number;
+    status: string;
+    participantSource: string;
+    sourceStageId: string | null;
+    expectedQualifierCount: number | null;
+    config: unknown;
+    configHash: string;
+    participantCount: number;
   }>;
 }
 
@@ -654,6 +739,113 @@ export async function getCompetition(
   signal?: AbortSignal,
 ): Promise<{ item: CompetitionDetail }> {
   return getJson(`/api/competitions/${id}`, signal);
+}
+
+export async function getCompetitionEdition(
+  id: string,
+  signal?: AbortSignal,
+): Promise<{ item: CompetitionEditionDetail }> {
+  return getJson(`/api/competition-editions/${id}`, signal);
+}
+
+export async function getCompetitionEditionReadiness(
+  id: string,
+  signal?: AbortSignal,
+): Promise<{ item: { readiness: CompetitionEditionDetail['readiness']; notice: string } }> {
+  return getJson(`/api/competition-editions/${id}/readiness`, signal);
+}
+
+export async function createCompetitionEdition(
+  competitionId: string,
+  payload: {
+    worldSeasonId: string;
+    displayName: string;
+    templateKey?: string;
+    reason: string;
+  },
+) {
+  return commissionerWrite<{ item: { id: string; status: string; rulesHash: string } }>(
+    `/api/commissioner/competitions/${competitionId}/editions`,
+    'POST',
+    payload,
+  );
+}
+
+export async function transitionCompetitionEdition(
+  editionId: string,
+  payload: { expectedUpdatedAt: string; targetStatus: string; reason: string },
+) {
+  return commissionerWrite<{ item: { id: string; status: string; updatedAt: string } }>(
+    `/api/commissioner/competition-editions/${editionId}/transition`,
+    'POST',
+    payload,
+  );
+}
+
+export async function addCompetitionParticipantsFromLeague(
+  editionId: string,
+  payload: {
+    expectedUpdatedAt: string;
+    leagueId: string;
+    status?: string;
+    reason: string;
+  },
+) {
+  return commissionerWrite<{ item: { addedCount: number; skippedCount: number } }>(
+    `/api/commissioner/competition-editions/${editionId}/participants/from-league`,
+    'POST',
+    payload,
+  );
+}
+
+export async function createCompetitionStage(
+  editionId: string,
+  payload: {
+    expectedUpdatedAt: string;
+    reason: string;
+    name: string;
+    stageType: string;
+    stageOrder: number;
+    participantSource: string;
+    sourceStageId?: string | null;
+    expectedQualifierCount?: number | null;
+    config: Record<string, unknown>;
+  },
+) {
+  return commissionerWrite<{ item: { id: string } }>(
+    `/api/commissioner/competition-editions/${editionId}/stages`,
+    'POST',
+    payload,
+  );
+}
+
+export async function updateCompetitionEditionRules(
+  editionId: string,
+  payload: { expectedUpdatedAt: string; reason: string; rules: unknown },
+) {
+  return commissionerWrite<{ item: { id: string; rulesHash: string; updatedAt: string } }>(
+    `/api/commissioner/competition-editions/${editionId}`,
+    'PATCH',
+    payload,
+  );
+}
+
+export async function getCompetitionEditionAudit(
+  editionId: string,
+  params: Record<string, string | number | undefined | null> = {},
+  signal?: AbortSignal,
+) {
+  return commissionerGetJson<{
+    items: Array<{
+      id: string;
+      action: string;
+      reason: string;
+      entityType: string;
+      createdAt: string;
+      changedFields: string[];
+    }>;
+    total: number;
+  }>(`/api/commissioner/competition-editions/${editionId}/audit${qs(params)}`, signal);
 }
 
 export async function getCountries(signal?: AbortSignal): Promise<{ items: CountryItem[] }> {

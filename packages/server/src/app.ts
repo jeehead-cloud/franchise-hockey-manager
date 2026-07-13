@@ -10,6 +10,7 @@ import { registerSimulationDebugRoutes } from './routes/simulation-debug.js';
 import { registerSimulationLabRoutes } from './routes/simulation-lab.js';
 import { registerMatchRoutes } from './routes/matches.js';
 import { registerCommissionerMatchRoutes } from './routes/commissioner-matches.js';
+import { registerCommissionerCompetitionRoutes } from './routes/commissioner-competitions.js';
 
 export async function buildApp(options?: { logger?: boolean }) {
   const app = Fastify({ logger: options?.logger ?? true });
@@ -36,6 +37,7 @@ export async function buildApp(options?: { logger?: boolean }) {
   await registerSimulationLabRoutes(app);
   await registerMatchRoutes(app);
   await registerCommissionerMatchRoutes(app);
+  await registerCommissionerCompetitionRoutes(app);
   await registerCommissionerRoutes(app);
 
   return app;

@@ -4,6 +4,8 @@
     "name": "FHL Regular Season",
     "shortName": "FHL RS",
     "type": "LEAGUE",
-    "simulationLevel": "DETAILED"
+    "simulationLevel": "DETAILED",
+    "leagueExternalId": "league-fhl",
+    "countryExternalId": "NAV"
   }
 ]

@@ -248,11 +248,16 @@ export function mapCompetition(row: {
   shortName: string | null;
   type: string;
   simulationLevel: string | null;
+  countryId?: string | null;
+  leagueId?: string | null;
+  defaultRulesJson?: string | null;
   externalId?: string | null;
   sourceDataset?: string | null;
   sourceUpdatedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
+  country?: { id: string; name: string; code: string | null } | null;
+  league?: { id: string; name: string; shortName: string | null } | null;
 }) {
   return {
     id: row.id,
@@ -260,6 +265,11 @@ export function mapCompetition(row: {
     shortName: row.shortName,
     type: row.type,
     simulationLevel: row.simulationLevel,
+    countryId: row.countryId ?? null,
+    leagueId: row.leagueId ?? null,
+    country: row.country ?? null,
+    league: row.league ?? null,
+    hasDefaultRules: Boolean(row.defaultRulesJson),
     ...sourceMeta(row),
     createdAt: iso(row.createdAt),
     updatedAt: iso(row.updatedAt),
@@ -272,10 +282,22 @@ export function mapCompetitionEdition(row: {
   worldSeasonId: string;
   displayName: string;
   status: string;
+  editionNumber?: number | null;
+  rulesHash?: string;
+  preparedAt?: Date | null;
+  activatedAt?: Date | null;
+  completedAt?: Date | null;
+  archivedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
-  competition?: { id: string; name: string; type: string };
-  worldSeason?: { id: string; label: string };
+  competition?: {
+    id: string;
+    name: string;
+    type: string;
+    shortName?: string | null;
+    simulationLevel?: string | null;
+  };
+  worldSeason?: { id: string; label: string; startYear?: number; endYear?: number };
 }) {
   return {
     id: row.id,
@@ -283,6 +305,12 @@ export function mapCompetitionEdition(row: {
     worldSeasonId: row.worldSeasonId,
     displayName: row.displayName,
     status: row.status,
+    editionNumber: row.editionNumber ?? null,
+    rulesHash: row.rulesHash ?? null,
+    preparedAt: row.preparedAt ? iso(row.preparedAt) : null,
+    activatedAt: row.activatedAt ? iso(row.activatedAt) : null,
+    completedAt: row.completedAt ? iso(row.completedAt) : null,
+    archivedAt: row.archivedAt ? iso(row.archivedAt) : null,
     createdAt: iso(row.createdAt),
     updatedAt: iso(row.updatedAt),
     competition: row.competition
@@ -290,10 +318,17 @@ export function mapCompetitionEdition(row: {
           id: row.competition.id,
           name: row.competition.name,
           type: row.competition.type,
+          shortName: row.competition.shortName ?? null,
+          simulationLevel: row.competition.simulationLevel ?? null,
         }
       : undefined,
     worldSeason: row.worldSeason
-      ? { id: row.worldSeason.id, label: row.worldSeason.label }
+      ? {
+          id: row.worldSeason.id,
+          label: row.worldSeason.label,
+          startYear: row.worldSeason.startYear,
+          endYear: row.worldSeason.endYear,
+        }
       : undefined,
   };
 }

@@ -91,6 +91,15 @@ F16 Simulation Lab invariants:
 - Anomaly thresholds are development guardrails, not NHL realism claims.
 - Same Lab input (teams, seed, count, side mode, balance versions, runtime overrides) must reproduce the same batch hash and aggregates.
 
+F17 Competition Framework invariants:
+
+- Competition is the reusable definition; CompetitionEdition is one WorldSeason instance.
+- Edition rules snapshots become immutable once READY or ACTIVE (edit requires reverting to PREPARING).
+- Stage behavior is determined by stage type + validated config — not hardcoded NHL UI rules.
+- Stage participants must belong to the same edition's participants.
+- ACTIVE structure is locked in F17; activation does not create schedules, standings, or matches.
+- Historical completed editions must not be rewritten silently; participant team name snapshots are stable.
+
 Invariants in force:
 
 - **Line/pairing synergy**: role compatibility is config-driven. Complementary roles can beat redundant higher-rated groups after bounded modifiers. Unknown role pairs use an explicit documented fallback.

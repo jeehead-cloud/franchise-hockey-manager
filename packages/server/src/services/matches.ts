@@ -122,11 +122,42 @@ export async function createPreparedMatch(opts: {
   homeTeamId: string;
   awayTeamId: string;
   competitionEditionId?: string | null;
+  competitionStageId?: string | null;
   scheduledAt?: Date | null;
   rules?: Partial<StoredMatchRules>;
   source?: MatchSource;
   createdBySource?: string | null;
 }) {
+  if (opts.competitionEditionId) {
+    const edition = await prisma.competitionEdition.findUnique({ where: { id: opts.competitionEditionId } });
+    if (!edition) {
+      throw new MatchHttpError(404, 'CompetitionEditionNotFound', 'Competition edition not found');
+    }
+  }
+
+  if (opts.competitionStageId) {
+    const stage = await prisma.competitionStage.findUnique({
+      where: { id: opts.competitionStageId },
+    });
+    if (!stage) {
+      throw new MatchHttpError(404, 'CompetitionStageNotFound', 'Competition stage not found');
+    }
+    if (opts.competitionEditionId && stage.competitionEditionId !== opts.competitionEditionId) {
+      throw new MatchHttpError(
+        422,
+        'StageEditionMismatch',
+        'competitionStageId must belong to the given competitionEditionId',
+      );
+    }
+    if (!opts.competitionEditionId) {
+      throw new MatchHttpError(
+        422,
+        'StageRequiresEdition',
+        'competitionStageId requires competitionEditionId',
+      );
+    }
+  }
+
   await validateTeamsReadyForMatch(opts.homeTeamId, opts.awayTeamId);
 
   const [homeTeam, awayTeam] = await Promise.all([
@@ -135,13 +166,6 @@ export async function createPreparedMatch(opts: {
   ]);
   if (!homeTeam || !awayTeam) {
     throw new MatchHttpError(404, 'TeamNotFound', 'Home or away team not found');
-  }
-
-  if (opts.competitionEditionId) {
-    const edition = await prisma.competitionEdition.findUnique({ where: { id: opts.competitionEditionId } });
-    if (!edition) {
-      throw new MatchHttpError(404, 'CompetitionEditionNotFound', 'Competition edition not found');
-    }
   }
 
   const rules: StoredMatchRules = {
@@ -158,6 +182,7 @@ export async function createPreparedMatch(opts: {
       homeTeamId: opts.homeTeamId,
       awayTeamId: opts.awayTeamId,
       competitionEditionId: opts.competitionEditionId ?? null,
+      competitionStageId: opts.competitionStageId ?? null,
       scheduledAt: opts.scheduledAt ?? null,
       status: 'PREPARED',
       source: opts.source ?? 'MANUAL',

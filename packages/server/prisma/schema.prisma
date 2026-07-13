@@ -109,9 +109,52 @@ enum CompetitionType {
 enum CompetitionStatus {
   PLANNED
   PREPARING
+  READY
   ACTIVE
   COMPLETED
   ARCHIVED
+  CANCELLED
+}
+
+enum CompetitionStageType {
+  REGULAR_SEASON
+  ROUND_ROBIN
+  GROUP_STAGE
+  KNOCKOUT
+  BEST_OF_SERIES
+  FINAL_RANKING
+}
+
+enum CompetitionStageStatus {
+  PLANNED
+  READY
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum StageParticipantSource {
+  EDITION_PARTICIPANTS
+  PREVIOUS_STAGE_QUALIFIERS
+  MANUAL
+  FIXED_CONFIG
+}
+
+enum CompetitionParticipantStatus {
+  INVITED
+  CONFIRMED
+  WITHDRAWN
+  ELIMINATED
+  CHAMPION
+}
+
+enum CompetitionParticipantSource {
+  MANUAL
+  LEAGUE_MEMBERSHIP
+  QUALIFICATION
+  HOST
+  DEFENDING_CHAMPION
+  IMPORTED
 }
 
 enum Personality {
@@ -166,6 +209,10 @@ enum CommissionerAuditEntityType {
   ACTIVE_BALANCE_CONFIGURATION
   MATCH
   MATCH_RESULT
+  COMPETITION
+  COMPETITION_EDITION
+  COMPETITION_STAGE
+  COMPETITION_PARTICIPANT
 }
 
 enum CommissionerAuditAction {
@@ -191,6 +238,20 @@ enum CommissionerAuditAction {
   PRESET_IMPORTED
   MATCH_RESIMULATED
   MATCH_RESULT_SUPERSEDED
+  COMPETITION_UPDATED
+  EDITION_CREATED
+  EDITION_UPDATED
+  EDITION_STATUS_CHANGED
+  EDITION_RULES_UPDATED
+  PARTICIPANT_ADDED
+  PARTICIPANT_REMOVED
+  PARTICIPANT_UPDATED
+  LEAGUE_PARTICIPANTS_ADDED
+  STAGE_CREATED
+  STAGE_UPDATED
+  STAGE_REMOVED
+  STAGE_REORDERED
+  STAGE_PARTICIPANTS_UPDATED
 }
 
 enum LineupSlot {
@@ -250,10 +311,11 @@ model Country {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
-  leagues League[]
-  teams   Team[]
-  players Player[] @relation("PlayerNationality")
-  coaches Coach[]  @relation("CoachNationality")
+  leagues      League[]
+  teams        Team[]
+  players      Player[]      @relation("PlayerNationality")
+  coaches      Coach[]       @relation("CoachNationality")
+  competitions Competition[]
 
   @@unique([sourceDataset, externalId])
 }
@@ -270,8 +332,9 @@ model League {
   createdAt       DateTime              @default(now())
   updatedAt       DateTime              @updatedAt
 
-  country Country? @relation(fields: [countryId], references: [id], onDelete: Restrict)
-  teams   Team[]
+  country      Country?      @relation(fields: [countryId], references: [id], onDelete: Restrict)
+  teams        Team[]
+  competitions Competition[]
 
   @@unique([countryId, name])
   @@unique([sourceDataset, externalId])
@@ -297,12 +360,13 @@ model Team {
   country Country @relation(fields: [countryId], references: [id], onDelete: Restrict)
   league  League? @relation(fields: [leagueId], references: [id], onDelete: Restrict)
 
-  players     Player[]
+  players                 Player[]
   /// At most one current head coach (unique on Coach.currentTeamId).
-  coach       Coach?
-  lineup      TeamLineup?
-  homeMatches Match[]     @relation("MatchHomeTeam")
-  awayMatches Match[]     @relation("MatchAwayTeam")
+  coach                   Coach?
+  lineup                  TeamLineup?
+  homeMatches             Match[]                  @relation("MatchHomeTeam")
+  awayMatches             Match[]                  @relation("MatchAwayTeam")
+  competitionParticipants CompetitionParticipant[]
 
   @@unique([leagueId, name])
   @@unique([sourceDataset, externalId])
@@ -460,38 +524,126 @@ model Coach {
 }
 
 model Competition {
-  id              String                      @id @default(cuid())
-  name            String
-  shortName       String?
-  type            CompetitionType
-  simulationLevel CompetitionSimulationLevel?
-  externalId      String?
-  sourceDataset   String?
-  sourceUpdatedAt DateTime?
-  createdAt       DateTime                    @default(now())
-  updatedAt       DateTime                    @updatedAt
+  id               String                      @id @default(cuid())
+  name             String
+  shortName        String?
+  type             CompetitionType
+  simulationLevel  CompetitionSimulationLevel?
+  countryId        String?
+  leagueId         String?
+  /// Default rules template JSON (copied into edition snapshots on create).
+  defaultRulesJson String?
+  externalId       String?
+  sourceDataset    String?
+  sourceUpdatedAt  DateTime?
+  createdAt        DateTime                    @default(now())
+  updatedAt        DateTime                    @updatedAt
 
+  country  Country?             @relation(fields: [countryId], references: [id], onDelete: Restrict)
+  league   League?              @relation(fields: [leagueId], references: [id], onDelete: Restrict)
   editions CompetitionEdition[]
 
   @@unique([name, type])
   @@unique([sourceDataset, externalId])
+  @@index([countryId])
+  @@index([leagueId])
 }
 
 model CompetitionEdition {
-  id            String            @id @default(cuid())
-  competitionId String
-  worldSeasonId String
-  displayName   String
-  status        CompetitionStatus
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
+  id                String            @id @default(cuid())
+  competitionId     String
+  worldSeasonId     String
+  displayName       String
+  status            CompetitionStatus
+  editionNumber     Int?
+  rulesSnapshotText String            @default("{}")
+  rulesHash         String            @default("")
+  preparedAt        DateTime?
+  activatedAt       DateTime?
+  completedAt       DateTime?
+  archivedAt        DateTime?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
 
-  competition Competition @relation(fields: [competitionId], references: [id], onDelete: Restrict)
-  worldSeason WorldSeason @relation(fields: [worldSeasonId], references: [id], onDelete: Restrict)
-  matches     Match[]
+  competition  Competition              @relation(fields: [competitionId], references: [id], onDelete: Restrict)
+  worldSeason  WorldSeason              @relation(fields: [worldSeasonId], references: [id], onDelete: Restrict)
+  participants CompetitionParticipant[]
+  stages       CompetitionStage[]
+  matches      Match[]
 
   @@unique([competitionId, worldSeasonId])
   @@index([worldSeasonId])
+  @@index([status])
+}
+
+model CompetitionParticipant {
+  id                    String                       @id @default(cuid())
+  competitionEditionId  String
+  teamId                String
+  seed                  Int?
+  groupKey              String?
+  participantOrder      Int
+  status                CompetitionParticipantStatus @default(INVITED)
+  source                CompetitionParticipantSource @default(MANUAL)
+  teamNameSnapshot      String
+  teamShortNameSnapshot String?
+  createdAt             DateTime                     @default(now())
+  updatedAt             DateTime                     @updatedAt
+
+  edition           CompetitionEdition @relation(fields: [competitionEditionId], references: [id], onDelete: Restrict)
+  team              Team               @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  stageParticipants StageParticipant[]
+
+  @@unique([competitionEditionId, teamId])
+  @@unique([competitionEditionId, participantOrder])
+  @@index([teamId])
+  @@index([status])
+}
+
+model CompetitionStage {
+  id                     String                 @id @default(cuid())
+  competitionEditionId   String
+  name                   String
+  stageType              CompetitionStageType
+  stageOrder             Int
+  status                 CompetitionStageStatus @default(PLANNED)
+  configText             String                 @default("{}")
+  configHash             String                 @default("")
+  participantSource      StageParticipantSource @default(EDITION_PARTICIPANTS)
+  sourceStageId          String?
+  expectedQualifierCount Int?
+  createdAt              DateTime               @default(now())
+  updatedAt              DateTime               @updatedAt
+
+  edition      CompetitionEdition @relation(fields: [competitionEditionId], references: [id], onDelete: Restrict)
+  sourceStage  CompetitionStage?  @relation("StageDependency", fields: [sourceStageId], references: [id], onDelete: Restrict)
+  dependents   CompetitionStage[] @relation("StageDependency")
+  participants StageParticipant[]
+  matches      Match[]
+
+  @@unique([competitionEditionId, stageOrder])
+  @@index([competitionEditionId])
+  @@index([stageType])
+  @@index([sourceStageId])
+}
+
+model StageParticipant {
+  id                       String                       @id @default(cuid())
+  competitionStageId       String
+  competitionParticipantId String
+  seed                     Int?
+  groupKey                 String?
+  stageOrder               Int
+  status                   CompetitionParticipantStatus @default(CONFIRMED)
+  createdAt                DateTime                     @default(now())
+  updatedAt                DateTime                     @updatedAt
+
+  stage       CompetitionStage       @relation(fields: [competitionStageId], references: [id], onDelete: Restrict)
+  participant CompetitionParticipant @relation(fields: [competitionParticipantId], references: [id], onDelete: Restrict)
+
+  @@unique([competitionStageId, competitionParticipantId])
+  @@unique([competitionStageId, stageOrder])
+  @@index([competitionParticipantId])
 }
 
 /// Append-only Commissioner edit history (F6). Exposed only via Commissioner-gated APIs.
@@ -548,6 +700,7 @@ model Match {
   homeTeamId                    String
   awayTeamId                    String
   competitionEditionId          String?
+  competitionStageId            String?
   status                        MatchStatus @default(PREPARED)
   scheduledAt                   DateTime?
   /// Application-level pointer to current MatchResult (no FK constraint).
@@ -563,11 +716,13 @@ model Match {
   homeTeam           Team                @relation("MatchHomeTeam", fields: [homeTeamId], references: [id], onDelete: Restrict)
   awayTeam           Team                @relation("MatchAwayTeam", fields: [awayTeamId], references: [id], onDelete: Restrict)
   competitionEdition CompetitionEdition? @relation(fields: [competitionEditionId], references: [id], onDelete: Restrict)
+  competitionStage   CompetitionStage?   @relation(fields: [competitionStageId], references: [id], onDelete: Restrict)
   results            MatchResult[]
 
   @@index([homeTeamId])
   @@index([awayTeamId])
   @@index([competitionEditionId])
+  @@index([competitionStageId])
   @@index([status])
   @@index([scheduledAt])
 }

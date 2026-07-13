@@ -7,12 +7,12 @@ Version-controlled **input snapshots** for world initialization (F3+). Mutable r
 | Path | Role |
 |---|---|
 | `data/world/` | Intended location for the owner-prepared real initial-world snapshot |
-| `data/fixtures/f3-minimal-world/` | Fictional development/test fixture (**schemaVersion 4**, F8 secondary positions; Frostbite has full main-lineup depth) |
+| `data/fixtures/f3-minimal-world/` | Fictional development/test fixture (**schemaVersion 5**, F17 competition rules + F8 secondary positions; Frostbite has full main-lineup depth) |
 | `data/names/`, `data/nhl-teams.json` | Legacy leftover name/team lists — **not** F3 import format |
 
-## Manifest schema (schemaVersion 4)
+## Manifest schema (schemaVersion 5)
 
-F8 requires **`schemaVersion: 4`**. Earlier versions are rejected rather than silently reinterpreted.
+F17 requires **`schemaVersion: 5`**. Earlier versions are rejected rather than silently reinterpreted. Competitions may include optional `defaultRules` and country/league external IDs; editions may include optional `rules` snapshots.
 
 Required manifest keys include `datasetId`, `datasetName`, `schemaVersion`, `sourceName`, `sourceUpdatedAt`, `worldSeasonLabel`, `worldSeasonStartYear`, `worldSeasonEndYear`, and `files`.
 

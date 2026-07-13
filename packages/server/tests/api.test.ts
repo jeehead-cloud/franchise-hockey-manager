@@ -117,6 +117,20 @@ describe('F2 read APIs', () => {
         worldSeasonId: season.id,
         displayName: 'Stanley Cup 2027',
         status: 'PLANNED',
+        rulesSnapshotText: JSON.stringify({
+          schemaVersion: 1,
+          format: 'KNOCKOUT_ONLY',
+          matchRules: {
+            overtimeEnabled: true,
+            overtimeDurationSeconds: 300,
+            overtimeSkaterCount: 3,
+            shootoutEnabled: true,
+            shootoutRounds: 3,
+            tiesAllowed: false,
+          },
+          series: { winsRequired: 4, homePattern: '2-2-1-1-1', reseeding: false },
+        }),
+        rulesHash: 'test-hash',
       },
     });
     ids.edition = edition.id;

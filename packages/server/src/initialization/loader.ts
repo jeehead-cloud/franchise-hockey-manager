@@ -86,7 +86,7 @@ export function loadManifest(dir: string): Manifest {
       if (version === 1) {
         throw new SetupError(
           'DatasetParseError',
-          'Unsupported schemaVersion: 1 — F8 requires schemaVersion 4 (secondary positions). Migrate the dataset or use the current fixture.',
+          'Unsupported schemaVersion: 1 — F17 requires schemaVersion 5 (competition rules). Migrate the dataset or use the current fixture.',
           422,
           { file: 'manifest.json', schemaVersion: version },
         );
@@ -94,7 +94,7 @@ export function loadManifest(dir: string): Manifest {
       if (version === 2) {
         throw new SetupError(
           'DatasetParseError',
-          'Unsupported schemaVersion: 2 — F8 requires schemaVersion 4 (secondary positions). Migrate the dataset or use the current fixture.',
+          'Unsupported schemaVersion: 2 — F17 requires schemaVersion 5 (competition rules). Migrate the dataset or use the current fixture.',
           422,
           { file: 'manifest.json', schemaVersion: version },
         );
@@ -102,14 +102,22 @@ export function loadManifest(dir: string): Manifest {
       if (version === 3) {
         throw new SetupError(
           'DatasetParseError',
-          'Unsupported schemaVersion: 3 — F8 requires schemaVersion 4 (player secondaryPositions). Migrate the dataset or use the current fixture.',
+          'Unsupported schemaVersion: 3 — F17 requires schemaVersion 5 (competition rules). Migrate the dataset or use the current fixture.',
+          422,
+          { file: 'manifest.json', schemaVersion: version },
+        );
+      }
+      if (version === 4) {
+        throw new SetupError(
+          'DatasetParseError',
+          'Unsupported schemaVersion: 4 — F17 requires schemaVersion 5 (competition defaultRules / edition rules snapshots). Migrate the dataset or use the current fixture.',
           422,
           { file: 'manifest.json', schemaVersion: version },
         );
       }
       throw new SetupError(
         'DatasetParseError',
-        `Unsupported schemaVersion: ${String(version)} (expected 4)`,
+        `Unsupported schemaVersion: ${String(version)} (expected 5)`,
         422,
         { file: 'manifest.json', schemaVersion: version },
       );

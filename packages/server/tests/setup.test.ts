@@ -32,7 +32,7 @@ describe('F3 loader', () => {
   it('loads the development fixture manifest and files', () => {
     const dataset = loadDataset(fixtureDir);
     expect(dataset.manifest.datasetId).toBe('fhm-f3-minimal-fixture-v1');
-    expect(dataset.manifest.schemaVersion).toBe(4);
+    expect(dataset.manifest.schemaVersion).toBe(5);
     expect(dataset.countries.length).toBeGreaterThan(0);
     expect(dataset.players.length).toBeGreaterThan(0);
   });
@@ -79,7 +79,7 @@ describe('F3 loader', () => {
       const manifest = JSON.parse(readFileSync(path, 'utf8'));
       manifest.schemaVersion = 3;
       writeFileSync(path, JSON.stringify(manifest, null, 2));
-      expect(() => loadDataset(dir)).toThrow(/schemaVersion 4|schemaVersion: 3/i);
+      expect(() => loadDataset(dir)).toThrow(/schemaVersion 5|schemaVersion: 3/i);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -92,7 +92,7 @@ describe('F3 loader', () => {
       const manifest = JSON.parse(readFileSync(path, 'utf8'));
       manifest.schemaVersion = 2;
       writeFileSync(path, JSON.stringify(manifest, null, 2));
-      expect(() => loadDataset(dir)).toThrow(/schemaVersion 4|schemaVersion: 2/i);
+      expect(() => loadDataset(dir)).toThrow(/schemaVersion 5|schemaVersion: 2/i);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -107,7 +107,20 @@ describe('F3 loader', () => {
       >;
       manifest.schemaVersion = 1;
       writeFileSync(join(dir, 'manifest.json'), JSON.stringify(manifest), 'utf8');
-      expect(() => loadDataset(dir)).toThrow(/schemaVersion 4|schemaVersion: 1/i);
+      expect(() => loadDataset(dir)).toThrow(/schemaVersion 5|schemaVersion: 1/i);
+    } finally {
+      cleanupTempDir(dir);
+    }
+  });
+
+  it('rejects schemaVersion 4 with a clear migration message', () => {
+    const dir = copyFixtureToTemp();
+    try {
+      const path = join(dir, 'manifest.json');
+      const manifest = JSON.parse(readFileSync(path, 'utf8'));
+      manifest.schemaVersion = 4;
+      writeFileSync(path, JSON.stringify(manifest, null, 2));
+      expect(() => loadDataset(dir)).toThrow(/schemaVersion 5|schemaVersion: 4/i);
     } finally {
       cleanupTempDir(dir);
     }
@@ -355,7 +368,7 @@ describe('F3 preview / initialize / idempotency', () => {
     const meta = await prisma.appMeta.findUnique({ where: { id: 'default' } });
     expect(meta?.worldInitialized).toBe(true);
     expect(meta?.worldDatasetId).toBe('fhm-f3-minimal-fixture-v1');
-    expect(meta?.worldSchemaVersion).toBe(4);
+    expect(meta?.worldSchemaVersion).toBe(5);
   });
 
   it('rolls back partial data after injected failure', async () => {

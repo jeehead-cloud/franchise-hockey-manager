@@ -109,10 +109,65 @@ export async function registerDomainRoutes(app: FastifyInstance) {
     return reply.send(detailResponse(item));
   });
 
-  registerListDetailRoutes(app, {
-    basePath: '/api/competition-editions',
-    entityName: 'CompetitionEdition',
-    list: competitionEditions.listCompetitionEditions,
-    getById: competitionEditions.getCompetitionEditionById,
+  app.get('/api/competition-editions', async (request, reply) => {
+    const result = await competitionEditions.listCompetitionEditions(asQuery(request.query));
+    if ('error' in result) {
+      return reply.status(400).send({ error: 'BadRequest', message: result.error });
+    }
+    return reply.send(paginatedResponse(result));
   });
+
+  app.get<{ Params: { id: string } }>('/api/competition-editions/:id', async (request, reply) => {
+    const item = await competitionEditions.getCompetitionEditionById(request.params.id);
+    if (!item) return reply.status(404).send(notFound('CompetitionEdition'));
+    return reply.send(detailResponse(item));
+  });
+
+  app.get<{ Params: { id: string } }>(
+    '/api/competition-editions/:id/participants',
+    async (request, reply) => {
+      const result = await competitionEditions.listEditionParticipants(
+        request.params.id,
+        asQuery(request.query),
+      );
+      if (result === null) return reply.status(404).send(notFound('CompetitionEdition'));
+      if ('error' in result) {
+        return reply.status(400).send({ error: 'BadRequest', message: result.error });
+      }
+      return reply.send(paginatedResponse(result));
+    },
+  );
+
+  app.get<{ Params: { id: string } }>(
+    '/api/competition-editions/:id/stages',
+    async (request, reply) => {
+      const result = await competitionEditions.listEditionStages(request.params.id);
+      if (!result) return reply.status(404).send(notFound('CompetitionEdition'));
+      return reply.send(result);
+    },
+  );
+
+  app.get<{ Params: { id: string } }>(
+    '/api/competition-editions/:id/readiness',
+    async (request, reply) => {
+      const item = await competitionEditions.getEditionReadiness(request.params.id);
+      if (!item) return reply.status(404).send(notFound('CompetitionEdition'));
+      return reply.send(detailResponse(item));
+    },
+  );
+
+  app.get<{ Params: { id: string } }>('/api/competition-stages/:id', async (request, reply) => {
+    const item = await competitionEditions.getCompetitionStageById(request.params.id);
+    if (!item) return reply.status(404).send(notFound('CompetitionStage'));
+    return reply.send(detailResponse(item));
+  });
+
+  app.get<{ Params: { id: string } }>(
+    '/api/competition-stages/:id/participants',
+    async (request, reply) => {
+      const item = await competitionEditions.getCompetitionStageById(request.params.id);
+      if (!item) return reply.status(404).send(notFound('CompetitionStage'));
+      return reply.send({ items: item.participants });
+    },
+  );
 }

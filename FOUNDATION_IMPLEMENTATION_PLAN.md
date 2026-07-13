@@ -1134,6 +1134,8 @@ Outputs:
 
 # 22. F17 — Competition Framework
 
+**Status: implemented locally (2026-07-13).** Engine competition rules/lifecycle/readiness; Prisma participants/stages; Commissioner APIs; edition UI; dataset schemaVersion 5. Schedules/standings/progression remain F18+.
+
 ## Goal
 
 Create the universal competition structure.

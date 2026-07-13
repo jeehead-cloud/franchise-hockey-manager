@@ -1,4 +1,3 @@
-import type { Prisma } from '@prisma/client';
 import { prisma } from '../db/client.js';
 import { mapCompetition, mapCompetitionEdition } from '../mappers.js';
 import {
@@ -8,11 +7,20 @@ import {
   parseOptionalString,
   parsePagination,
 } from './query.js';
+import { parseCompetitionRulesJson } from '@fhm/engine';
 
 const COMPETITION_SORTS = ['name', 'type', 'createdAt'] as const;
 const TYPES = ['LEAGUE', 'PLAYOFF', 'INTERNATIONAL_TOURNAMENT', 'OTHER'] as const;
 const SIM_LEVELS = ['DETAILED', 'AGGREGATED'] as const;
-const EDITION_STATUSES = ['PLANNED', 'PREPARING', 'ACTIVE', 'COMPLETED', 'ARCHIVED'] as const;
+const EDITION_STATUSES = [
+  'PLANNED',
+  'PREPARING',
+  'READY',
+  'ACTIVE',
+  'COMPLETED',
+  'ARCHIVED',
+  'CANCELLED',
+] as const;
 
 export async function listCompetitions(query: Record<string, unknown> = {}) {
   const pagination = parsePagination(query);
@@ -26,6 +34,8 @@ export async function listCompetitions(query: Record<string, unknown> = {}) {
   const editionStatus = parseEnum(query.editionStatus, EDITION_STATUSES, 'editionStatus');
   if (isErrorResult(editionStatus)) return { error: editionStatus.error };
   const worldSeasonId = parseOptionalString(query.worldSeasonId);
+  const countryId = parseOptionalString(query.countryId);
+  const leagueId = parseOptionalString(query.leagueId);
 
   const sortRaw = parseOptionalString(query.sort) ?? 'name';
   if (!(COMPETITION_SORTS as readonly string[]).includes(sortRaw)) {
@@ -33,9 +43,11 @@ export async function listCompetitions(query: Record<string, unknown> = {}) {
   }
   const direction = parseDirection(query.direction);
 
-  const where: Prisma.CompetitionWhereInput = {};
+  const where: import('@prisma/client').Prisma.CompetitionWhereInput = {};
   if (type) where.type = type;
   if (simulationLevel) where.simulationLevel = simulationLevel;
+  if (countryId) where.countryId = countryId;
+  if (leagueId) where.leagueId = leagueId;
   if (search) {
     where.OR = [{ name: { contains: search } }, { shortName: { contains: search } }];
   }
@@ -56,6 +68,8 @@ export async function listCompetitions(query: Record<string, unknown> = {}) {
       skip: pagination.skip,
       take: pagination.pageSize,
       include: {
+        country: { select: { id: true, name: true, code: true } },
+        league: { select: { id: true, name: true, shortName: true } },
         editions: {
           orderBy: { displayName: 'asc' },
           include: {
@@ -78,6 +92,7 @@ export async function listCompetitions(query: Record<string, unknown> = {}) {
               displayName: current.displayName,
               status: current.status,
               worldSeason: current.worldSeason,
+              rulesHash: current.rulesHash,
             }
           : null,
       };
@@ -92,23 +107,44 @@ export async function getCompetitionById(id: string) {
   const row = await prisma.competition.findUnique({
     where: { id },
     include: {
+      country: { select: { id: true, name: true, code: true } },
+      league: { select: { id: true, name: true, shortName: true } },
       editions: {
         orderBy: { displayName: 'asc' },
         include: {
           worldSeason: { select: { id: true, label: true, startYear: true, endYear: true } },
+          _count: { select: { participants: true, stages: true } },
         },
       },
     },
   });
   if (!row) return null;
 
+  let defaultRules = null as unknown;
+  if (row.defaultRulesJson) {
+    try {
+      defaultRules = parseCompetitionRulesJson(row.defaultRulesJson);
+    } catch {
+      defaultRules = null;
+    }
+  }
+
   return {
     ...mapCompetition(row),
-    editions: row.editions.map((e) =>
-      mapCompetitionEdition({
+    defaultRules,
+    editions: row.editions.map((e) => ({
+      ...mapCompetitionEdition({
         ...e,
-        competition: { id: row.id, name: row.name, type: row.type },
+        competition: {
+          id: row.id,
+          name: row.name,
+          type: row.type,
+          shortName: row.shortName,
+          simulationLevel: row.simulationLevel,
+        },
       }),
-    ),
+      participantCount: e._count.participants,
+      stageCount: e._count.stages,
+    })),
   };
 }

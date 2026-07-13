@@ -1,4 +1,9 @@
 import type { Prisma, PrismaClient } from '@prisma/client';
+import {
+  getCompetitionRulesTemplate,
+  hashCompetitionRules,
+  validateCompetitionRules,
+} from '@fhm/engine';
 import { SetupError } from './errors.js';
 import type { LoadedDataset, EntityCounts, InitializeResult } from './types.js';
 
@@ -203,19 +208,32 @@ export async function persistWorld(
       maybeFail(options?.failAfter, 'coaches');
 
       const competitionMap = new Map<string, string>();
+      const competitionDefaultRules = new Map<string, string>();
       for (const row of dataset.competitions) {
+        const rules = validateCompetitionRules(
+          row.defaultRules ?? getCompetitionRulesTemplate('SIMPLE_LEAGUE'),
+        );
+        const defaultRulesJson = JSON.stringify(rules);
         const createdCompetition = await tx.competition.create({
           data: {
             name: row.name,
             shortName: row.shortName ?? null,
             type: row.type,
             simulationLevel: row.simulationLevel ?? null,
+            countryId: row.countryExternalId
+              ? countryMap.get(row.countryExternalId) ?? null
+              : null,
+            leagueId: row.leagueExternalId
+              ? leagueMap.get(row.leagueExternalId) ?? null
+              : null,
+            defaultRulesJson,
             externalId: row.externalId,
             sourceDataset: datasetId,
             sourceUpdatedAt,
           },
         });
         competitionMap.set(row.externalId, createdCompetition.id);
+        competitionDefaultRules.set(row.externalId, defaultRulesJson);
         counts.competitions += 1;
       }
       maybeFail(options?.failAfter, 'competitions');
@@ -229,12 +247,22 @@ export async function persistWorld(
             500,
           );
         }
+        const rules = validateCompetitionRules(
+          row.rules ??
+            JSON.parse(
+              competitionDefaultRules.get(row.competitionExternalId) ??
+                JSON.stringify(getCompetitionRulesTemplate('SIMPLE_LEAGUE')),
+            ),
+        );
         await tx.competitionEdition.create({
           data: {
             competitionId,
             worldSeasonId: season.id,
             displayName: row.displayName,
             status: row.status,
+            editionNumber: row.editionNumber ?? null,
+            rulesSnapshotText: JSON.stringify(rules),
+            rulesHash: hashCompetitionRules(rules),
           },
         });
         counts.competitionEditions += 1;

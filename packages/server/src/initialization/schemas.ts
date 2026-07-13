@@ -3,7 +3,7 @@ import { z } from 'zod';
 const nonEmpty = z.string().trim().min(1);
 const attr = z.number().int().min(1).max(20);
 
-export const CURRENT_DATASET_SCHEMA_VERSION = 4 as const;
+export const CURRENT_DATASET_SCHEMA_VERSION = 5 as const;
 
 export const manifestSchema = z.object({
   datasetId: nonEmpty,
@@ -204,12 +204,27 @@ export const competitionRowSchema = z.object({
   shortName: z.string().nullable().optional(),
   type: z.enum(['LEAGUE', 'PLAYOFF', 'INTERNATIONAL_TOURNAMENT', 'OTHER']),
   simulationLevel: z.enum(['DETAILED', 'AGGREGATED']).nullable().optional(),
+  countryExternalId: z.string().nullable().optional(),
+  leagueExternalId: z.string().nullable().optional(),
+  /** Optional default rules object; validated at import time. */
+  defaultRules: z.record(z.string(), z.unknown()).optional(),
 });
 
 export const competitionEditionRowSchema = z.object({
   competitionExternalId: nonEmpty,
   displayName: nonEmpty,
-  status: z.enum(['PLANNED', 'PREPARING', 'ACTIVE', 'COMPLETED', 'ARCHIVED']),
+  status: z.enum([
+    'PLANNED',
+    'PREPARING',
+    'READY',
+    'ACTIVE',
+    'COMPLETED',
+    'ARCHIVED',
+    'CANCELLED',
+  ]),
+  editionNumber: z.number().int().positive().nullable().optional(),
+  /** Optional rules snapshot; defaults to competition defaultRules or SIMPLE_LEAGUE template. */
+  rules: z.record(z.string(), z.unknown()).optional(),
 });
 
 export type Manifest = z.infer<typeof manifestSchema>;
