@@ -128,9 +128,21 @@ enum CompetitionStageType {
 enum CompetitionStageStatus {
   PLANNED
   READY
+  /// F18: schedule persisted; matches not yet simulated.
+  SCHEDULED
+  /// F18: at least one scheduled match simulation has started.
+  IN_PROGRESS
+  /// Legacy F17 alias retained for existing rows; treat as IN_PROGRESS in F18 logic.
   ACTIVE
   COMPLETED
   CANCELLED
+}
+
+/// F18 regular-season schedule generation state (orthogonal to stage status).
+enum CompetitionScheduleStatus {
+  NONE
+  GENERATED
+  LOCKED
 }
 
 enum StageParticipantSource {
@@ -252,6 +264,10 @@ enum CommissionerAuditAction {
   STAGE_REMOVED
   STAGE_REORDERED
   STAGE_PARTICIPANTS_UPDATED
+  SCHEDULE_GENERATED
+  SCHEDULE_REGENERATED
+  REGULAR_SEASON_SIMULATION_STARTED
+  REGULAR_SEASON_SIMULATION_COMPLETED
 }
 
 enum LineupSlot {
@@ -601,30 +617,42 @@ model CompetitionParticipant {
 }
 
 model CompetitionStage {
-  id                     String                 @id @default(cuid())
+  id                     String                    @id @default(cuid())
   competitionEditionId   String
   name                   String
   stageType              CompetitionStageType
   stageOrder             Int
-  status                 CompetitionStageStatus @default(PLANNED)
-  configText             String                 @default("{}")
-  configHash             String                 @default("")
-  participantSource      StageParticipantSource @default(EDITION_PARTICIPANTS)
+  status                 CompetitionStageStatus    @default(PLANNED)
+  configText             String                    @default("{}")
+  configHash             String                    @default("")
+  participantSource      StageParticipantSource    @default(EDITION_PARTICIPANTS)
   sourceStageId          String?
   expectedQualifierCount Int?
-  createdAt              DateTime               @default(now())
-  updatedAt              DateTime               @updatedAt
+  /// F18 schedule metadata
+  scheduleStatus         CompetitionScheduleStatus @default(NONE)
+  scheduleSeed           String?
+  scheduleHash           String?
+  scheduleVersion        Int                       @default(0)
+  scheduleGeneratedAt    DateTime?
+  simulationStartedAt    DateTime?
+  completedAt            DateTime?
+  createdAt              DateTime                  @default(now())
+  updatedAt              DateTime                  @updatedAt
 
-  edition      CompetitionEdition @relation(fields: [competitionEditionId], references: [id], onDelete: Restrict)
-  sourceStage  CompetitionStage?  @relation("StageDependency", fields: [sourceStageId], references: [id], onDelete: Restrict)
-  dependents   CompetitionStage[] @relation("StageDependency")
+  edition      CompetitionEdition          @relation(fields: [competitionEditionId], references: [id], onDelete: Restrict)
+  sourceStage  CompetitionStage?           @relation("StageDependency", fields: [sourceStageId], references: [id], onDelete: Restrict)
+  dependents   CompetitionStage[]          @relation("StageDependency")
   participants StageParticipant[]
   matches      Match[]
+  standings    CompetitionStageStanding[]
+  teamStats    CompetitionStageTeamStat[]
+  playerStats  CompetitionStagePlayerStat[]
 
   @@unique([competitionEditionId, stageOrder])
   @@index([competitionEditionId])
   @@index([stageType])
   @@index([sourceStageId])
+  @@index([status])
 }
 
 model StageParticipant {
@@ -694,7 +722,7 @@ model BalancePresetVersion {
   @@index([presetId, createdAt])
 }
 
-/// Prepared or completed playable match (F14).
+/// Prepared or completed playable match (F14). Competition schedule fields added in F18.
 model Match {
   id                            String      @id @default(cuid())
   homeTeamId                    String
@@ -710,6 +738,12 @@ model Match {
   createdBySource               String?
   /// Canonical match rules JSON (regulation + completion).
   rulesJson                     String?
+  /// F18 competition schedule placement (nullable for ad hoc matches).
+  competitionRoundNumber        Int?
+  competitionSlotNumber         Int?
+  scheduleKey                   String?
+  scheduleOrder                 Int?
+  competitionRulesHash          String?
   createdAt                     DateTime    @default(now())
   updatedAt                     DateTime    @updatedAt
 
@@ -719,12 +753,123 @@ model Match {
   competitionStage   CompetitionStage?   @relation(fields: [competitionStageId], references: [id], onDelete: Restrict)
   results            MatchResult[]
 
+  @@unique([competitionStageId, scheduleKey])
   @@index([homeTeamId])
   @@index([awayTeamId])
   @@index([competitionEditionId])
   @@index([competitionStageId])
+  @@index([competitionStageId, scheduleOrder])
+  @@index([competitionStageId, status])
   @@index([status])
   @@index([scheduledAt])
+}
+
+/// Immutable final standings row persisted when a regular-season stage completes (F18).
+model CompetitionStageStanding {
+  id                         String   @id @default(cuid())
+  competitionStageId         String
+  competitionParticipantId   String
+  rank                       Int
+  teamId                     String
+  teamNameSnapshot           String
+  gamesPlayed                Int
+  regulationWins             Int
+  overtimeWins               Int
+  shootoutWins               Int
+  regulationLosses           Int
+  overtimeLosses             Int
+  shootoutLosses             Int
+  ties                       Int
+  wins                       Int
+  losses                     Int
+  goalsFor                   Int
+  goalsAgainst               Int
+  goalDifference             Int
+  points                     Int
+  pointsPercentage           Float
+  qualified                  Boolean  @default(false)
+  tiebreakerSummaryText      String   @default("")
+  statisticsJson             String   @default("{}")
+  snapshotHash               String
+  createdAt                  DateTime @default(now())
+
+  stage CompetitionStage @relation(fields: [competitionStageId], references: [id], onDelete: Restrict)
+
+  @@unique([competitionStageId, competitionParticipantId])
+  @@unique([competitionStageId, rank])
+  @@index([competitionStageId, qualified])
+}
+
+/// Immutable team season-stat snapshot at stage completion (F18).
+model CompetitionStageTeamStat {
+  id                       String   @id @default(cuid())
+  competitionStageId       String
+  competitionParticipantId String
+  teamId                   String
+  teamNameSnapshot         String
+  gamesPlayed              Int
+  goals                    Int
+  goalsAgainst             Int
+  shotsOnGoal              Int
+  shotAttempts             Int      @default(0)
+  penalties                Int
+  penaltyMinutes           Int
+  powerPlayGoals           Int
+  powerPlayOpportunities   Int      @default(0)
+  shortHandedGoals         Int
+  shootoutAttempts         Int      @default(0)
+  shootoutGoals            Int      @default(0)
+  shootingPercentage       Float?
+  powerPlayPercentage      Float?
+  penaltyKillPercentage    Float?
+  statsJson                String   @default("{}")
+  snapshotHash             String
+  createdAt                DateTime @default(now())
+
+  stage CompetitionStage @relation(fields: [competitionStageId], references: [id], onDelete: Restrict)
+
+  @@unique([competitionStageId, teamId])
+  @@index([competitionStageId])
+}
+
+/// Immutable player/goalie season-stat snapshot at stage completion (F18).
+model CompetitionStagePlayerStat {
+  id                 String   @id @default(cuid())
+  competitionStageId String
+  playerId           String
+  teamId             String
+  teamNameSnapshot   String
+  firstNameSnapshot  String
+  lastNameSnapshot   String
+  position           String
+  isGoalie           Boolean  @default(false)
+  gamesPlayed        Int
+  goals              Int
+  assists            Int
+  points             Int
+  shotsOnGoal        Int
+  penaltyMinutes     Int
+  powerPlayGoals     Int
+  shortHandedGoals   Int
+  shootoutAttempts   Int      @default(0)
+  shootoutGoals      Int      @default(0)
+  wins               Int      @default(0)
+  losses             Int      @default(0)
+  shotsAgainst       Int      @default(0)
+  saves              Int      @default(0)
+  goalsAgainst       Int      @default(0)
+  shutouts           Int      @default(0)
+  savePercentage     Float?
+  shootingPercentage Float?
+  statsJson          String   @default("{}")
+  snapshotHash       String
+  createdAt          DateTime @default(now())
+
+  stage CompetitionStage @relation(fields: [competitionStageId], references: [id], onDelete: Restrict)
+
+  @@unique([competitionStageId, playerId])
+  @@index([competitionStageId, isGoalie])
+  @@index([competitionStageId, points])
 }
 
 /// Immutable simulation attempt for a match (F14).

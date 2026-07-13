@@ -659,6 +659,7 @@ export interface CompetitionEditionDetail {
     config: unknown;
     configHash: string;
     participantCount: number;
+    updatedAt?: string;
   }>;
 }
 
@@ -846,6 +847,170 @@ export async function getCompetitionEditionAudit(
     }>;
     total: number;
   }>(`/api/commissioner/competition-editions/${editionId}/audit${qs(params)}`, signal);
+}
+
+/** F18 regular-season APIs */
+export async function getStageSchedule(
+  stageId: string,
+  params: Record<string, string | number | undefined | null> = {},
+  signal?: AbortSignal,
+) {
+  return getJson<{ item: unknown }>(`/api/competition-stages/${stageId}/schedule${qs(params)}`, signal);
+}
+
+export async function getStageProgress(stageId: string, signal?: AbortSignal) {
+  return getJson<{ item: StageProgressDto }>(`/api/competition-stages/${stageId}/progress`, signal);
+}
+
+export async function getStageStandings(stageId: string, signal?: AbortSignal) {
+  return getJson<{ item: StageStandingsDto }>(`/api/competition-stages/${stageId}/standings`, signal);
+}
+
+export async function getStageTeamStats(stageId: string, signal?: AbortSignal) {
+  return getJson<{ item: { source: string; items: unknown[] } }>(
+    `/api/competition-stages/${stageId}/team-stats`,
+    signal,
+  );
+}
+
+export async function getStagePlayerStats(
+  stageId: string,
+  params: Record<string, string | number | undefined | null> = {},
+  signal?: AbortSignal,
+) {
+  return getJson<{ source: string; total: number; page: number; pageSize: number; items: unknown[] }>(
+    `/api/competition-stages/${stageId}/player-stats${qs(params)}`,
+    signal,
+  );
+}
+
+export async function getStageGoalieStats(
+  stageId: string,
+  params: Record<string, string | number | undefined | null> = {},
+  signal?: AbortSignal,
+) {
+  return getJson<{ source: string; total: number; page: number; pageSize: number; items: unknown[] }>(
+    `/api/competition-stages/${stageId}/goalie-stats${qs(params)}`,
+    signal,
+  );
+}
+
+export async function getStageQualification(stageId: string, signal?: AbortSignal) {
+  return getJson<{ item: unknown }>(`/api/competition-stages/${stageId}/qualification`, signal);
+}
+
+export async function simulateRegularSeasonStage(
+  stageId: string,
+  body: { baseSeed: string; mode?: 'ALL_REMAINING'; confirmBackup?: boolean },
+) {
+  return postJson<{ item: StageSimulationRunDto }>(`/api/competition-stages/${stageId}/simulate`, body);
+}
+
+export async function getRegularSeasonSimulationRun(stageId: string, runId: string, signal?: AbortSignal) {
+  return getJson<{ item: StageSimulationRunDto }>(
+    `/api/competition-stages/${stageId}/simulation-run/${runId}`,
+    signal,
+  );
+}
+
+export async function cancelRegularSeasonSimulation(stageId: string, runId: string) {
+  return postJson<{ item: StageSimulationRunDto }>(
+    `/api/competition-stages/${stageId}/simulation-run/${runId}/cancel`,
+    {},
+  );
+}
+
+export async function previewRegularSeasonSchedule(stageId: string, body: { seed: string }) {
+  return commissionerWrite<{ item: unknown }>(
+    `/api/commissioner/competition-stages/${stageId}/schedule-preview`,
+    'POST',
+    body,
+  );
+}
+
+export async function generateRegularSeasonSchedule(
+  stageId: string,
+  body: { expectedUpdatedAt: string; seed: string; reason: string },
+) {
+  return commissionerWrite<{ item: unknown }>(
+    `/api/commissioner/competition-stages/${stageId}/generate-schedule`,
+    'POST',
+    body,
+  );
+}
+
+export async function regenerateRegularSeasonSchedule(
+  stageId: string,
+  body: { expectedUpdatedAt: string; seed: string; reason: string },
+) {
+  return commissionerWrite<{ item: unknown }>(
+    `/api/commissioner/competition-stages/${stageId}/regenerate-schedule`,
+    'POST',
+    body,
+  );
+}
+
+export interface StageProgressDto {
+  stageId: string;
+  status: string;
+  scheduleStatus: string;
+  scheduleHash: string | null;
+  totalScheduledMatches: number;
+  completedMatches: number;
+  remainingMatches: number;
+  percentComplete: number;
+  simulationStartedAt: string | null;
+  completedAt: string | null;
+}
+
+export interface StageStandingsDto {
+  source: 'PROVISIONAL' | 'FINAL';
+  standings: {
+    provisional: boolean;
+    rows: Array<{
+      rank: number;
+      participantId: string;
+      teamId: string;
+      teamNameSnapshot: string;
+      gamesPlayed: number;
+      regulationWins: number;
+      overtimeWins: number;
+      shootoutWins: number;
+      regulationLosses: number;
+      overtimeLosses: number;
+      shootoutLosses: number;
+      ties: number;
+      wins: number;
+      losses: number;
+      goalsFor: number;
+      goalsAgainst: number;
+      goalDifference: number;
+      points: number;
+      qualified: boolean;
+      tiebreakerSummary: string;
+    }>;
+    standingsHash: string;
+    qualificationParticipantIds: string[];
+  };
+  qualification: {
+    qualifiedParticipantIds: string[];
+    seedingOrder: Array<{ seed: number; participantId: string; teamId: string; rank: number }>;
+  };
+}
+
+export interface StageSimulationRunDto {
+  id: string;
+  stageId: string;
+  status: string;
+  progress: {
+    completed: number;
+    total: number;
+    currentMatchId: string | null;
+  };
+  backup: { relativeDisplayPath: string; createdAt: string; bytes: number } | null;
+  error: { code: string; message: string } | null;
+  note?: string;
+  cancelRequested?: boolean;
 }
 
 export async function getCountries(signal?: AbortSignal): Promise<{ items: CountryItem[] }> {

@@ -20,7 +20,8 @@
     "verify:scoring-engine": "tsx src/simulation/match/verify-scoring-engine.ts",
     "verify:special-teams-engine": "tsx src/simulation/match/verify-special-teams-engine.ts",
     "verify:playable-match-engine": "tsx src/simulation/match/verify-playable-match-engine.ts",
-    "verify:simulation-lab": "tsx src/simulation/batch/verify-simulation-lab.ts"
+    "verify:simulation-lab": "tsx src/simulation/batch/verify-simulation-lab.ts",
+    "verify:regular-season": "tsx src/competitions/regular-season/verify-regular-season.ts"
   },
   "devDependencies": {
     "typescript": "^5.8.2",

@@ -20,6 +20,7 @@ import {
   type CompetitionEditionDetail,
   type LeagueItem,
 } from '../lib/api';
+import { RegularSeasonStagePanel } from '../components/competitions/RegularSeasonStagePanel';
 
 type Tab =
   | 'overview'
@@ -38,9 +39,9 @@ const TABS: Array<{ value: Tab; label: string; disabled?: boolean }> = [
   { value: 'stages', label: 'Stages' },
   { value: 'rules', label: 'Rules' },
   { value: 'readiness', label: 'Readiness' },
-  { value: 'matches', label: 'Matches', disabled: true },
-  { value: 'standings', label: 'Standings', disabled: true },
-  { value: 'statistics', label: 'Statistics', disabled: true },
+  { value: 'matches', label: 'Schedule & Results' },
+  { value: 'standings', label: 'Standings' },
+  { value: 'statistics', label: 'Statistics' },
   { value: 'history', label: 'History' },
 ];
 
@@ -52,7 +53,7 @@ function lifecycleBanner(status: string): string {
     case 'READY':
       return 'Validated and locked pending activation.';
     case 'ACTIVE':
-      return 'Active structure; F18/F19 will operate on it. No schedules are generated in F17.';
+      return 'Active edition. Regular-season schedule and simulation are available on REGULAR_SEASON stages (F18).';
     case 'COMPLETED':
     case 'ARCHIVED':
       return 'Historical and read-only.';
@@ -439,7 +440,7 @@ export function CompetitionEditionPage() {
       {tab === 'readiness' && (
         <Panel title="Structural readiness">
           <p style={{ font: 'var(--text-body-sm)', color: 'var(--text-secondary)' }}>
-            READY means structure can activate. It does not mean schedules, lineups, or standings exist.
+            READY means structure can activate. Regular-season schedules are generated after activation (F18).
           </p>
           <Row label="Overall" value={item.readiness.status} />
           <Row label="Confirmed" value={String(item.readiness.confirmedParticipantCount)} />
@@ -477,7 +478,7 @@ export function CompetitionEditionPage() {
                   onClick={() => {
                     if (
                       !window.confirm(
-                        'Activate this edition? Structure becomes read-only. No matches are generated.',
+                        'Activate this edition? Structure becomes read-only. Regular-season schedules can then be generated.',
                       )
                     )
                       return;
@@ -513,6 +514,68 @@ export function CompetitionEditionPage() {
             </div>
           )}
         </Panel>
+      )}
+
+      {(tab === 'matches' || tab === 'standings' || tab === 'statistics') && (
+        <>
+          {(() => {
+            const rs = item.stages.find((s) => s.stageType === 'REGULAR_SEASON');
+            if (!rs) {
+              return (
+                <EmptyState
+                  title="No regular-season stage"
+                  description="Add a DETAILED REGULAR_SEASON stage while the edition is editable."
+                />
+              );
+            }
+            if (tab === 'matches') {
+              return (
+                <>
+                  <RegularSeasonStagePanel
+                    stageId={rs.id}
+                    stageUpdatedAt={rs.updatedAt ?? item.updatedAt}
+                    section="overview"
+                    onStageChanged={() => void reload()}
+                  />
+                  <div style={{ height: 12 }} />
+                  <RegularSeasonStagePanel
+                    stageId={rs.id}
+                    stageUpdatedAt={rs.updatedAt ?? item.updatedAt}
+                    section="schedule"
+                    onStageChanged={() => void reload()}
+                  />
+                </>
+              );
+            }
+            if (tab === 'standings') {
+              return (
+                <RegularSeasonStagePanel
+                  stageId={rs.id}
+                  stageUpdatedAt={rs.updatedAt ?? item.updatedAt}
+                  section="standings"
+                  onStageChanged={() => void reload()}
+                />
+              );
+            }
+            return (
+              <>
+                <RegularSeasonStagePanel
+                  stageId={rs.id}
+                  stageUpdatedAt={rs.updatedAt ?? item.updatedAt}
+                  section="players"
+                  onStageChanged={() => void reload()}
+                />
+                <div style={{ height: 12 }} />
+                <RegularSeasonStagePanel
+                  stageId={rs.id}
+                  stageUpdatedAt={rs.updatedAt ?? item.updatedAt}
+                  section="teams"
+                  onStageChanged={() => void reload()}
+                />
+              </>
+            );
+          })()}
+        </>
       )}
 
       {tab === 'history' && (

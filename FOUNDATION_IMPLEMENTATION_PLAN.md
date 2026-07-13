@@ -1134,7 +1134,7 @@ Outputs:
 
 # 22. F17 — Competition Framework
 
-**Status: implemented locally (2026-07-13).** Engine competition rules/lifecycle/readiness; Prisma participants/stages; Commissioner APIs; edition UI; dataset schemaVersion 5. Schedules/standings/progression remain F18+.
+**Status: complete on main (2026-07-13, `9c91d4e`).** Engine competition rules/lifecycle/readiness; Prisma participants/stages; Commissioner APIs; edition UI; dataset schemaVersion 5. Regular-season execution is F18.
 
 ## Goal
 
@@ -1190,7 +1190,9 @@ Competition rules:
 
 ## Goal
 
-Run a detailed NHL regular season.
+Run a detailed NHL-style regular season stage.
+
+**Status: implemented locally (2026-07-13).** Engine schedule/standings/aggregation; Prisma schedule fields + final snapshots; Commissioner schedule APIs; full-stage simulation with interim SQLite backup; Competition UI schedule/standings/stats. Playoffs remain F19.
 
 ## Scope
 
@@ -1216,12 +1218,14 @@ Simulate Next Day
 Simulate Next Week
 ```
 
+**Status: implemented locally (2026-07-13).** Engine schedule/standings/aggregation; Prisma schedule fields + final snapshots; Commissioner schedule APIs; full-stage simulation with interim SQLite backup; Competition UI schedule/standings/stats. Playoffs remain F19.
+
 ## Acceptance Criteria
 
 - all scheduled matches complete once;
 - standings reconcile with results;
 - player stats equal match-stat sums;
-- competition can transition to playoffs;
+- qualification output ready for playoffs (F19 consumes; F18 does not generate playoffs);
 - backup is created before full-season simulation;
 - tests pass.
 

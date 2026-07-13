@@ -2076,7 +2076,7 @@ The Simulation Lab is a first-class product area.
 
 **F16 partial implementation (2026-07-13):** `/simulation-lab` hosts **Batch Lab** (default) for unpersisted 1/10/100/1000-game balance analysis plus **Single Match Debug** (preserved F13 technical tool). Official Matches are never created by Lab runs.
 
-**F17 partial implementation (2026-07-13):** Competitions host structural **Competition Editions** with participants, stages, rules snapshots, readiness, and lifecycle. Matches/Standings/Statistics remain deferred to F18+.
+**F17–F18 (2026-07-13):** Competitions host structural **Competition Editions** with participants, stages, rules snapshots, readiness, and lifecycle. F18 enables DETAILED **REGULAR_SEASON** schedule generation, match simulation, standings, and season statistics. Playoffs remain F19.
 
 Inputs:
 

@@ -90,6 +90,8 @@ export type CompetitionEditionStatus =
 export type CompetitionStageStatus =
   | 'PLANNED'
   | 'READY'
+  | 'SCHEDULED'
+  | 'IN_PROGRESS'
   | 'ACTIVE'
   | 'COMPLETED'
   | 'CANCELLED';
@@ -113,6 +115,11 @@ export interface RegularSeasonStageConfig {
   gamesPerTeam?: number;
   schedulePreset?: string;
   qualifiersCount?: number;
+  /** F18 schedule format. */
+  scheduleFormat?: 'ROUND_ROBIN' | 'DOUBLE_ROUND_ROBIN' | 'BALANCED_CUSTOM';
+  homeAwayMode?: 'BALANCED';
+  allowBackToBack?: boolean;
+  minimumRestSlots?: number;
 }
 
 export interface RoundRobinStageConfig {

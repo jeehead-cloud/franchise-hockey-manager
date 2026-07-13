@@ -343,7 +343,19 @@ export function validateStageConfig(
 
   switch (stageType) {
     case 'REGULAR_SEASON': {
-      assertNoUnknownKeys(raw, ['gamesPerTeam', 'schedulePreset', 'qualifiersCount'], 'config');
+      assertNoUnknownKeys(
+        raw,
+        [
+          'gamesPerTeam',
+          'schedulePreset',
+          'qualifiersCount',
+          'scheduleFormat',
+          'homeAwayMode',
+          'allowBackToBack',
+          'minimumRestSlots',
+        ],
+        'config',
+      );
       const config: RegularSeasonStageConfig = {};
       if (raw.gamesPerTeam !== undefined) {
         config.gamesPerTeam = requireNumber(raw, 'gamesPerTeam', 'config', { integer: true, min: 1 });
@@ -353,6 +365,21 @@ export function validateStageConfig(
       }
       if (raw.qualifiersCount !== undefined) {
         config.qualifiersCount = requireNumber(raw, 'qualifiersCount', 'config', {
+          integer: true,
+          min: 0,
+        });
+      }
+      if (raw.scheduleFormat !== undefined) {
+        config.scheduleFormat = requireString(raw, 'scheduleFormat', 'config') as RegularSeasonStageConfig['scheduleFormat'];
+      }
+      if (raw.homeAwayMode !== undefined) {
+        config.homeAwayMode = requireString(raw, 'homeAwayMode', 'config') as 'BALANCED';
+      }
+      if (raw.allowBackToBack !== undefined) {
+        config.allowBackToBack = requireBoolean(raw, 'allowBackToBack', 'config');
+      }
+      if (raw.minimumRestSlots !== undefined) {
+        config.minimumRestSlots = requireNumber(raw, 'minimumRestSlots', 'config', {
           integer: true,
           min: 0,
         });

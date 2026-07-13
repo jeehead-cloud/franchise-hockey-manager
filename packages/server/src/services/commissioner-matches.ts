@@ -109,6 +109,22 @@ export async function resimulateMatch(
   if (match.status !== 'COMPLETED') {
     throw new MatchHttpError(409, 'MatchNotCompleted', 'Only completed matches can be resimulated');
   }
+
+  if (match.competitionStageId) {
+    const stage = await prisma.competitionStage.findUnique({
+      where: { id: match.competitionStageId },
+      select: { id: true, status: true, stageType: true },
+    });
+    if (stage?.stageType === 'REGULAR_SEASON' && stage.status === 'COMPLETED') {
+      throw new MatchHttpError(
+        409,
+        'ScheduleLockedByResults',
+        'Resimulation is blocked for matches in a COMPLETED regular-season stage (F18)',
+        { competitionStageId: stage.id },
+      );
+    }
+  }
+
   if (!match.currentResultId || match.currentResultId !== opts.expectedCurrentResultId) {
     throw new MatchHttpError(409, 'MatchResultStale', 'Current match result changed; refresh and retry', {
       expectedCurrentResultId: opts.expectedCurrentResultId,

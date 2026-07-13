@@ -65,6 +65,13 @@ npm run setup:status
 - Unpersisted analytical batches — no Match/Result/Event/stat rows
 - Verify: `npm run verify:simulation-lab`
 
+**F18 regular season (local):**
+
+- `FHM_BACKUP_DIR` — optional override for interim pre-run SQLite safety snapshots (default `.fhm-backups/` at repo root; gitignored)
+- Backups use SQLite `VACUUM INTO` before the first match of a full-stage simulation; failure blocks the run
+- Not F32 recovery UI — no restore endpoint
+- Verify: `npm run verify:regular-season`
+
 There is no staging environment, no production environment, and no CI/CD pipeline yet.
 
 ---

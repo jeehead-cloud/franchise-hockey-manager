@@ -38,6 +38,9 @@ describe('Migrations', () => {
       expect(names).toContain('CompetitionParticipant');
       expect(names).toContain('CompetitionStage');
       expect(names).toContain('StageParticipant');
+      expect(names).toContain('CompetitionStageStanding');
+      expect(names).toContain('CompetitionStageTeamStat');
+      expect(names).toContain('CompetitionStagePlayerStat');
       const cols = await prisma.$queryRaw<Array<{ name: string }>>`
         PRAGMA table_info('AppMeta')
       `;
@@ -53,7 +56,7 @@ describe('Migrations', () => {
     }
   });
 
-  it('records F1–F17 migrations in history', async () => {
+  it('records F1–F18 migrations in history', async () => {
     const { url, dir } = createTempDatabaseUrl();
     try {
       migrateTempDatabase(url);
@@ -66,7 +69,8 @@ describe('Migrations', () => {
       expect(names.some((n) => n.includes('f10_balance_presets'))).toBe(true);
       expect(names.some((n) => n.includes('f14_playable_match'))).toBe(true);
       expect(names.some((n) => n.includes('f17_competition_framework'))).toBe(true);
-      expect(names).toHaveLength(11);
+      expect(names.some((n) => n.includes('f18_regular_season'))).toBe(true);
+      expect(names).toHaveLength(12);
       expect(names.some((n) => n.includes('f1_bootstrap'))).toBe(true);
       expect(names.some((n) => n.includes('f2_core_domain'))).toBe(true);
       expect(names.some((n) => n.includes('f3_source_metadata_and_init'))).toBe(true);

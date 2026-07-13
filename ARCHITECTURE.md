@@ -21,7 +21,9 @@ F10 adds versioned balance presets (`BalancePreset` / immutable `BalancePresetVe
 
 **F16** adds Simulation Lab batch analysis in `packages/engine/src/simulation/batch/` (seeds, aggregates, anomalies, comparison, batch hash) and an in-memory server run registry under `/api/simulation-lab/*`. Batches of 1/10/100/1000 unpersisted F14 games; ALTERNATE/FIXED side modes; optional paired balance-version comparison; no official Match persistence. Client `/simulation-lab` is tabbed: Batch Lab + Single Match Debug.
 
-**F17** adds the universal competition framework: engine rules/lifecycle/readiness in `packages/engine/src/competitions/`, Prisma participants/stages/rules snapshots, Commissioner preparation APIs, and `/competitions/:id/editions/:editionId`. Edition activation is structural only — schedules and standings remain F18+.
+**F17** adds the universal competition framework: engine rules/lifecycle/readiness in `packages/engine/src/competitions/`, Prisma participants/stages/rules snapshots, Commissioner preparation APIs, and `/competitions/:id/editions/:editionId`. Edition activation is structural only.
+
+**F18** adds DETAILED regular-season execution: pure schedule/standings modules under `packages/engine/src/competitions/regular-season/`, persisted COMPETITION Match schedules, full-stage simulation via F14, provisional/final standings and season-stat snapshots, qualification preview for F19, and interim SQLite pre-run backups. Playoffs remain F19.
 
 F9 chemistry remains derived on read and now consumes the active preset chemistry section (with preset/version/hash metadata). Familiarity is still stubbed at 0.
 
@@ -272,7 +274,9 @@ Vite proxies `/health` and `/api` to `127.0.0.1:3000`. No client Prisma. F5 Play
 
 F16: `/simulation-lab` — Batch Lab (default) for unpersisted aggregate analysis; Single Match Debug tab preserves F13 technical simulation. Lab runs are in-memory only (lost on server restart).
 
-F17: `/competitions/:competitionId/editions/:editionId` — structural competition preparation (participants, stages, rules, readiness, lifecycle). Matches/Standings tabs remain disabled.
+F17: `/competitions/:competitionId/editions/:editionId` — structural competition preparation (participants, stages, rules, readiness, lifecycle).
+
+F18: same edition page enables Schedule & Results, Standings, and Statistics for `REGULAR_SEASON` stages (progress, provisional/final tables, player/team season stats). Playoffs remain disabled.
 
 ---
 
@@ -318,7 +322,35 @@ Server:
 Client:
 
 - Competition detail + nested edition page tabs (Overview, Participants, Stages, Rules, Readiness, History)
-- Matches / Standings / Statistics tabs disabled until later milestones
+- F18 enables Schedule & Results, Standings, and Statistics for REGULAR_SEASON stages
+
+---
+
+## 7d. Regular Season (F18)
+
+Pure engine (`packages/engine/src/competitions/regular-season/`):
+
+- Deterministic schedule generation (ROUND_ROBIN / DOUBLE_ROUND_ROBIN / BALANCED_CUSTOM)
+- Schedule hash from participants + config + seed + normalized matches (no wall-clock)
+- Standings from match decisions + edition points/tiebreakers; qualification top-N
+- Team/player season aggregation from current game-stat summaries
+
+Server:
+
+- Stage schedule metadata (`scheduleSeed` / `scheduleHash` / `scheduleVersion` / …)
+- COMPETITION Match rows carry `scheduleKey`, round/slot/order, `competitionRulesHash`
+- Final snapshots: CompetitionStageStanding / TeamStat / PlayerStat
+- APIs: schedule preview/generate/regenerate (Commissioner); schedule/progress/standings/stats/qualification/simulate (public)
+- Full-stage runs: in-memory progress (F16-like); cancel keeps official completed results
+- Pre-run SQLite `VACUUM INTO` backup to `.fhm-backups/` (`FHM_BACKUP_DIR`); blocks simulation if backup fails
+- Completed REGULAR_SEASON stage: schedule locked; match resimulation blocked
+
+Client:
+
+- Competition Edition Schedule & Results / Standings / Statistics panels
+- Backup confirmation + cancel-continues messaging; playoffs CTA remains F19-disabled
+
+Verifier: `npm run verify:regular-season`
 
 ---
 

@@ -71,7 +71,7 @@ F14 playable-match invariants:
 - Persisted statistics must reconcile with event-derived reducers before commit.
 - A match has at most one current result; normal completed results are immutable (no duplicate simulation).
 - Commissioner resimulation creates a new attempt, supersedes the prior result, and preserves full history + audit.
-- F14 ad hoc matches do not update standings or competition progression (F17 connects schedules later).
+- F14 ad hoc matches do not update standings or competition progression (F17 connects schedules later; F18 competition matches update standings from current results).
 - Overtime: even 3v3, sudden death, no penalties generated during OT in F14; regulation-ending penalties resolved per F13 stats rules.
 - Engine remains Prisma-free; server owns immutable input construction and atomic persistence.
 
@@ -97,8 +97,19 @@ F17 Competition Framework invariants:
 - Edition rules snapshots become immutable once READY or ACTIVE (edit requires reverting to PREPARING).
 - Stage behavior is determined by stage type + validated config — not hardcoded NHL UI rules.
 - Stage participants must belong to the same edition's participants.
-- ACTIVE structure is locked in F17; activation does not create schedules, standings, or matches.
+- ACTIVE structure is locked in F17; activation does not create schedules, standings, or matches (F18 schedule generation is a separate Commissioner action).
 - Historical completed editions must not be rewritten silently; participant team name snapshots are stable.
+
+F18 Regular Season invariants:
+
+- Every regular-season match belongs to exactly one CompetitionEdition and one CompetitionStage.
+- Standings and season statistics derive only from current completed MatchResults (superseded attempts excluded).
+- Schedule generation is deterministic for the same participants, rules/config, and seed; regeneration is blocked after any current result exists.
+- Full-stage simulation never simulates one match twice; cancellation preserves official completed results and continuation runs only remaining matches.
+- Stage COMPLETED requires all scheduled matches completed plus aggregate reconciliation; final standings/stat snapshots are immutable in normal mode.
+- Completed-stage match resimulation is blocked in F18.
+- Qualification output is structural input for F19 only — F18 does not generate playoffs.
+- Pre-run SQLite safety backup is required before the first full-stage match simulation (interim; not F32 restore UI).
 
 Invariants in force:
 
