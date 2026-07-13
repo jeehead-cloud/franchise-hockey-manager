@@ -111,6 +111,15 @@ F18 Regular Season invariants:
 - Qualification output is structural input for F19 only — F18 does not generate playoffs.
 - Pre-run SQLite safety backup is required before the first full-stage match simulation (interim; not F32 restore UI).
 
+F19 Playoff invariants:
+
+- Playoff participants come from completed-source final qualification snapshots (not provisional standings).
+- Bracket generation is deterministic; regeneration is blocked after the first playoff result.
+- Series end when one participant reaches winsRequired; no post-clinch games count.
+- Winners advance exactly once; champion is persisted on the playoff stage and immutable after completion.
+- Playoff-linked match resimulation is blocked once a later game, completed series, or completed stage exists.
+- CompetitionEdition is not archived automatically; COMPLETED requires readiness (all required stages done + champion).
+
 Invariants in force:
 
 - **Line/pairing synergy**: role compatibility is config-driven. Complementary roles can beat redundant higher-rated groups after bounded modifiers. Unknown role pairs use an explicit documented fallback.

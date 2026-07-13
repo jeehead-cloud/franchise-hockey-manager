@@ -333,6 +333,15 @@ export {
   aggregatePlayerSeasonStats,
   buildQualificationPreview,
   RegularSeasonError,
+  parsePlayoffConfig,
+  generatePlayoffBracket,
+  derivePlayoffGameSeed,
+  normalizeSeededParticipants,
+  recomputeSeriesProgression,
+  resolveGameHomeAway,
+  nextRoundFixedPairings,
+  nextRoundReseedPairings,
+  PlayoffError,
 } from './competitions/index.js';
 
 export type {
@@ -380,4 +389,12 @@ export type {
   PlayerSeasonStatRow,
   MatchTeamStatSummary,
   MatchPlayerStatSummary,
+  BracketMode,
+  SeedingMode,
+  HomeHost,
+  PlayoffConfig,
+  SeededParticipant,
+  GeneratedBracket,
+  SeriesProgressionResult,
+  NextRoundPairing,
 } from './competitions/index.js';

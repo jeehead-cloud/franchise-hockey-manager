@@ -9,7 +9,7 @@ export interface HealthResponse {
 
 export type ConnectionState = 'loading' | 'connected' | 'unavailable';
 
-function apiBase(): string {
+export function apiBase(): string {
   return (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '') ?? '';
 }
 

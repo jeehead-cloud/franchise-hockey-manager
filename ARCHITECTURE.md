@@ -23,7 +23,9 @@ F10 adds versioned balance presets (`BalancePreset` / immutable `BalancePresetVe
 
 **F17** adds the universal competition framework: engine rules/lifecycle/readiness in `packages/engine/src/competitions/`, Prisma participants/stages/rules snapshots, Commissioner preparation APIs, and `/competitions/:id/editions/:editionId`. Edition activation is structural only.
 
-**F18** adds DETAILED regular-season execution: pure schedule/standings modules under `packages/engine/src/competitions/regular-season/`, persisted COMPETITION Match schedules, full-stage simulation via F14, provisional/final standings and season-stat snapshots, qualification preview for F19, and interim SQLite pre-run backups. Playoffs remain F19.
+**F18** adds DETAILED regular-season execution: pure schedule/standings modules under `packages/engine/src/competitions/regular-season/`, persisted COMPETITION Match schedules, full-stage simulation via F14, provisional/final standings and season-stat snapshots, qualification preview for F19, and interim SQLite pre-run backups.
+
+**F19** adds BEST_OF_SERIES playoffs: qualifier import from final F18 snapshots, deterministic brackets (FIXED / RESEED), PlayoffSeries + lazy F14 games, series progression to champion, and CompetitionEdition completion readiness (no auto-archive).
 
 F9 chemistry remains derived on read and now consumes the active preset chemistry section (with preset/version/hash metadata). Familiarity is still stubbed at 0.
 
@@ -276,7 +278,9 @@ F16: `/simulation-lab` — Batch Lab (default) for unpersisted aggregate analysi
 
 F17: `/competitions/:competitionId/editions/:editionId` — structural competition preparation (participants, stages, rules, readiness, lifecycle).
 
-F18: same edition page enables Schedule & Results, Standings, and Statistics for `REGULAR_SEASON` stages (progress, provisional/final tables, player/team season stats). Playoffs remain disabled.
+F18: same edition page enables Schedule & Results, Standings, and Statistics for `REGULAR_SEASON` stages.
+
+F19: Playoffs tab for `BEST_OF_SERIES` — qualifier import, bracket, series simulation, champion display. Awards/archive remain future.
 
 ---
 
@@ -351,6 +355,30 @@ Client:
 - Backup confirmation + cancel-continues messaging; playoffs CTA remains F19-disabled
 
 Verifier: `npm run verify:regular-season`
+
+---
+
+## 7e. Playoffs (F19)
+
+Pure engine (`packages/engine/src/competitions/playoffs/`):
+
+- Playoff config (winsRequired, homePattern → normalized hosts, FIXED / RESEED_EACH_ROUND)
+- Power-of-two seeding and deterministic bracket hash
+- Series progression from current game results; clinch at winsRequired
+
+Server:
+
+- `PlayoffSeries` model; Match `playoffSeriesId` / `playoffGameNumber`
+- Stage bracket + champion fields
+- Import qualifiers from final F18 standings; preview/generate/regenerate bracket
+- Lazy next-game creation; full-playoffs runner with F18-style backup
+- Edition completion readiness; Commissioner ACTIVE → COMPLETED gated on champion + completed stages
+
+Client:
+
+- Competition Edition Playoffs tab (bracket columns / stacked cards)
+
+Verifier: `npm run verify:playoffs`
 
 ---
 

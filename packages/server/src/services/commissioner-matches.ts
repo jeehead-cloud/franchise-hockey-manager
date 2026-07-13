@@ -115,13 +115,36 @@ export async function resimulateMatch(
       where: { id: match.competitionStageId },
       select: { id: true, status: true, stageType: true },
     });
-    if (stage?.stageType === 'REGULAR_SEASON' && stage.status === 'COMPLETED') {
+    if (stage?.status === 'COMPLETED') {
       throw new MatchHttpError(
         409,
-        'ScheduleLockedByResults',
-        'Resimulation is blocked for matches in a COMPLETED regular-season stage (F18)',
+        'PlayoffMatchResimulationLocked',
+        'Resimulation is blocked for matches in a COMPLETED competition stage',
         { competitionStageId: stage.id },
       );
+    }
+    if (match.playoffSeriesId) {
+      const series = await prisma.playoffSeries.findUnique({ where: { id: match.playoffSeriesId } });
+      if (series?.status === 'COMPLETED') {
+        throw new MatchHttpError(
+          409,
+          'PlayoffMatchResimulationLocked',
+          'Resimulation is blocked for completed playoff series',
+        );
+      }
+      const laterGame = await prisma.match.count({
+        where: {
+          playoffSeriesId: match.playoffSeriesId,
+          playoffGameNumber: { gt: match.playoffGameNumber ?? 0 },
+        },
+      });
+      if (laterGame > 0) {
+        throw new MatchHttpError(
+          409,
+          'PlayoffMatchResimulationLocked',
+          'Resimulation is blocked once a later game exists in the series',
+        );
+      }
     }
   }
 

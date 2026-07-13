@@ -146,6 +146,19 @@ export interface BestOfSeriesStageConfig {
   winsRequired: number;
   reseeding: boolean;
   homePattern: string;
+  /** F19 optional fields */
+  sourceStageId?: string;
+  qualificationCount?: number;
+  bracketMode?: 'FIXED' | 'RESEED_EACH_ROUND';
+  seedingMode?: 'QUALIFICATION_ORDER' | 'MANUAL';
+  roundNames?: string[];
+  allowByes?: boolean;
+  bracketSeed?: string;
+  matchRules?: {
+    tiesAllowed?: boolean;
+    overtimeEnabled?: boolean;
+    shootoutEnabled?: boolean;
+  };
 }
 
 export interface FinalRankingStageConfig {

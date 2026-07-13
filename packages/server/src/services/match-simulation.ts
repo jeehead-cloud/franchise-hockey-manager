@@ -124,6 +124,9 @@ export async function simulateMatch(matchId: string, seed?: string | number): Pr
     const balanceSnapshot = await getActiveBalanceSnapshot();
     const resultId = await persistMatchResultAtomic(matchId, engineOutput, input, balanceSnapshot);
 
+    const { progressPlayoffAfterMatch } = await import('./playoffs-progression.js');
+    await progressPlayoffAfterMatch(matchId);
+
     return { matchId, resultId, engineOutput };
   } catch (err) {
     if (claimed) {

@@ -306,7 +306,19 @@ export async function transitionEdition(
     const data: Prisma.CompetitionEditionUpdateInput = { status: to };
     if (to === 'PREPARING' && !row.preparedAt) data.preparedAt = new Date();
     if (to === 'ACTIVE') data.activatedAt = new Date();
-    if (to === 'COMPLETED') data.completedAt = new Date();
+    if (to === 'COMPLETED') {
+      const { getEditionCompletionReadiness } = await import('./playoffs-reads.js');
+      const readiness = await getEditionCompletionReadiness(editionId);
+      if (!readiness?.canCompleteEdition) {
+        throw new CommissionerHttpError(
+          409,
+          'EditionNotReady',
+          'Edition cannot be completed yet',
+          { blockers: readiness?.blockers ?? ['Unknown blockers'] },
+        );
+      }
+      data.completedAt = new Date();
+    }
     if (to === 'ARCHIVED') data.archivedAt = new Date();
 
     const updated = await tx.competitionEdition.update({ where: { id: editionId }, data });

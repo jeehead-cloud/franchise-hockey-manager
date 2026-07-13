@@ -1218,14 +1218,14 @@ Simulate Next Day
 Simulate Next Week
 ```
 
-**Status: implemented locally (2026-07-13).** Engine schedule/standings/aggregation; Prisma schedule fields + final snapshots; Commissioner schedule APIs; full-stage simulation with interim SQLite backup; Competition UI schedule/standings/stats. Playoffs remain F19.
+**Status: implemented locally (2026-07-13).** Engine schedule/standings/aggregation; Prisma schedule fields + final snapshots; Commissioner schedule APIs; full-stage simulation with interim SQLite backup; Competition UI schedule/standings/stats. Playoffs are F19.
 
 ## Acceptance Criteria
 
 - all scheduled matches complete once;
 - standings reconcile with results;
 - player stats equal match-stat sums;
-- qualification output ready for playoffs (F19 consumes; F18 does not generate playoffs);
+- qualification output ready for playoffs (F19 consumes);
 - backup is created before full-season simulation;
 - tests pass.
 
@@ -1235,7 +1235,30 @@ Simulate Next Week
 
 ## Goal
 
-Run NHL playoffs one match at a time.
+Run NHL-style playoffs one series / match at a time.
+
+**Status: implemented locally (2026-07-13).** Engine bracket/progression; PlayoffSeries + lazy F14 games; qualifier import from F18 finals; champion persistence; edition completion readiness; Playoffs UI. Awards/archive remain F20+.
+
+## Scope
+
+- bracket from regular-season qualification;
+- best-of-N series;
+- home pattern;
+- progression to champion;
+- edition completion readiness (no auto-archive).
+
+## Acceptance Criteria
+
+- qualifiers import from final snapshots;
+- deterministic bracket;
+- series stop at winsRequired;
+- champion persisted;
+- edition can be completed by Commissioner when ready;
+- tests pass.
+
+---
+
+# 25. F20 — Awards / Archive (placeholder in plan numbering may vary)
 
 ## Scope
 

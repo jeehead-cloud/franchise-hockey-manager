@@ -21,6 +21,7 @@ import {
   type LeagueItem,
 } from '../lib/api';
 import { RegularSeasonStagePanel } from '../components/competitions/RegularSeasonStagePanel';
+import { PlayoffStagePanel } from '../components/competitions/PlayoffStagePanel';
 
 type Tab =
   | 'overview'
@@ -31,6 +32,7 @@ type Tab =
   | 'matches'
   | 'standings'
   | 'statistics'
+  | 'playoffs'
   | 'history';
 
 const TABS: Array<{ value: Tab; label: string; disabled?: boolean }> = [
@@ -42,6 +44,7 @@ const TABS: Array<{ value: Tab; label: string; disabled?: boolean }> = [
   { value: 'matches', label: 'Schedule & Results' },
   { value: 'standings', label: 'Standings' },
   { value: 'statistics', label: 'Statistics' },
+  { value: 'playoffs', label: 'Playoffs' },
   { value: 'history', label: 'History' },
 ];
 
@@ -53,7 +56,7 @@ function lifecycleBanner(status: string): string {
     case 'READY':
       return 'Validated and locked pending activation.';
     case 'ACTIVE':
-      return 'Active edition. Regular-season schedule and simulation are available on REGULAR_SEASON stages (F18).';
+      return 'Active edition. Regular season (F18) and playoffs (F19) operate on detailed stages.';
     case 'COMPLETED':
     case 'ARCHIVED':
       return 'Historical and read-only.';
@@ -317,25 +320,62 @@ export function CompetitionEditionPage() {
           title="Stages"
           actions={
             commissioner.enabled && editable ? (
-              <Button
-                size="sm"
-                disabled={busy}
-                onClick={() =>
-                  run(() =>
-                    createCompetitionStage(item.id, {
-                      expectedUpdatedAt: item.updatedAt,
-                      reason,
-                      name: `Stage ${item.stageCount + 1}`,
-                      stageType: 'REGULAR_SEASON',
-                      stageOrder: item.stageCount + 1,
-                      participantSource: 'EDITION_PARTICIPANTS',
-                      config: { gamesPerTeam: 4, qualifiersCount: 2 },
-                    }),
-                  )
-                }
-              >
-                Add regular-season stage
-              </Button>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <Button
+                  size="sm"
+                  disabled={busy}
+                  onClick={() =>
+                    run(() =>
+                      createCompetitionStage(item.id, {
+                        expectedUpdatedAt: item.updatedAt,
+                        reason,
+                        name: `Stage ${item.stageCount + 1}`,
+                        stageType: 'REGULAR_SEASON',
+                        stageOrder: item.stageCount + 1,
+                        participantSource: 'EDITION_PARTICIPANTS',
+                        config: { gamesPerTeam: 4, qualifiersCount: 2 },
+                      }),
+                    )
+                  }
+                >
+                  Add regular-season stage
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  disabled={busy}
+                  onClick={() => {
+                    const rs = item.stages.find((s) => s.stageType === 'REGULAR_SEASON');
+                    void run(() =>
+                      createCompetitionStage(item.id, {
+                        expectedUpdatedAt: item.updatedAt,
+                        reason,
+                        name: 'Playoffs',
+                        stageType: 'BEST_OF_SERIES',
+                        stageOrder: item.stageCount + 1,
+                        participantSource: 'PREVIOUS_STAGE_QUALIFIERS',
+                        sourceStageId: rs?.id ?? null,
+                        expectedQualifierCount: 2,
+                        config: {
+                          winsRequired: 4,
+                          reseeding: false,
+                          homePattern: '2-2-1-1-1',
+                          qualificationCount: 2,
+                          bracketMode: 'FIXED',
+                          sourceStageId: rs?.id,
+                          matchRules: {
+                            tiesAllowed: false,
+                            overtimeEnabled: true,
+                            shootoutEnabled: false,
+                          },
+                        },
+                      }),
+                    );
+                  }}
+                >
+                  Add playoff stage
+                </Button>
+              </div>
             ) : null
           }
         >
@@ -573,6 +613,33 @@ export function CompetitionEditionPage() {
                   onStageChanged={() => void reload()}
                 />
               </>
+            );
+          })()}
+        </>
+      )}
+
+      {tab === 'playoffs' && (
+        <>
+          {(() => {
+            const po = item.stages.find(
+              (s) => s.stageType === 'BEST_OF_SERIES' || s.stageType === 'KNOCKOUT',
+            );
+            const rs = item.stages.find((s) => s.stageType === 'REGULAR_SEASON');
+            if (!po) {
+              return (
+                <EmptyState
+                  title="No playoff stage"
+                  description="Add a BEST_OF_SERIES stage while the edition is editable."
+                />
+              );
+            }
+            return (
+              <PlayoffStagePanel
+                stageId={po.id}
+                stageUpdatedAt={po.updatedAt ?? item.updatedAt}
+                sourceStageId={po.sourceStageId ?? rs?.id ?? null}
+                onChanged={() => void reload()}
+              />
             );
           })()}
         </>

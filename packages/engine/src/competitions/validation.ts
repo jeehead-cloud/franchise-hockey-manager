@@ -442,14 +442,85 @@ export function validateStageConfig(
       return config;
     }
     case 'BEST_OF_SERIES': {
-      assertNoUnknownKeys(raw, ['winsRequired', 'reseeding', 'homePattern'], 'config');
+      assertNoUnknownKeys(
+        raw,
+        [
+          'winsRequired',
+          'reseeding',
+          'homePattern',
+          'sourceStageId',
+          'qualificationCount',
+          'bracketMode',
+          'seedingMode',
+          'roundNames',
+          'allowByes',
+          'bracketSeed',
+          'matchRules',
+        ],
+        'config',
+      );
       const homePattern = requireString(raw, 'homePattern', 'config');
       validateHomePattern(homePattern);
-      return {
+      const config: BestOfSeriesStageConfig = {
         winsRequired: requireNumber(raw, 'winsRequired', 'config', { integer: true, min: 1 }),
         reseeding: requireBoolean(raw, 'reseeding', 'config'),
         homePattern,
-      } satisfies BestOfSeriesStageConfig;
+      };
+      if (raw.sourceStageId !== undefined) {
+        config.sourceStageId = requireString(raw, 'sourceStageId', 'config');
+      }
+      if (raw.qualificationCount !== undefined) {
+        config.qualificationCount = requireNumber(raw, 'qualificationCount', 'config', {
+          integer: true,
+          min: 2,
+        });
+      }
+      if (raw.bracketMode !== undefined) {
+        const mode = requireString(raw, 'bracketMode', 'config');
+        if (mode !== 'FIXED' && mode !== 'RESEED_EACH_ROUND') {
+          throw new CompetitionValidationError('INVALID_STAGE_CONFIG', `Unknown bracketMode ${mode}`, 'config');
+        }
+        config.bracketMode = mode;
+      }
+      if (raw.seedingMode !== undefined) {
+        const mode = requireString(raw, 'seedingMode', 'config');
+        if (mode !== 'QUALIFICATION_ORDER' && mode !== 'MANUAL') {
+          throw new CompetitionValidationError('INVALID_STAGE_CONFIG', `Unknown seedingMode ${mode}`, 'config');
+        }
+        config.seedingMode = mode;
+      }
+      if (raw.roundNames !== undefined) {
+        if (!Array.isArray(raw.roundNames) || !raw.roundNames.every((n) => typeof n === 'string')) {
+          throw new CompetitionValidationError('INVALID_STAGE_CONFIG', 'roundNames must be string[]', 'config');
+        }
+        config.roundNames = raw.roundNames as string[];
+      }
+      if (raw.allowByes !== undefined) {
+        config.allowByes = requireBoolean(raw, 'allowByes', 'config');
+      }
+      if (raw.bracketSeed !== undefined) {
+        config.bracketSeed = requireString(raw, 'bracketSeed', 'config');
+      }
+      if (raw.matchRules !== undefined) {
+        if (!isPlainObject(raw.matchRules)) {
+          throw new CompetitionValidationError('INVALID_STAGE_CONFIG', 'matchRules must be an object', 'config');
+        }
+        config.matchRules = {
+          tiesAllowed:
+            raw.matchRules.tiesAllowed === undefined
+              ? undefined
+              : requireBoolean(raw.matchRules, 'tiesAllowed', 'config.matchRules'),
+          overtimeEnabled:
+            raw.matchRules.overtimeEnabled === undefined
+              ? undefined
+              : requireBoolean(raw.matchRules, 'overtimeEnabled', 'config.matchRules'),
+          shootoutEnabled:
+            raw.matchRules.shootoutEnabled === undefined
+              ? undefined
+              : requireBoolean(raw.matchRules, 'shootoutEnabled', 'config.matchRules'),
+        };
+      }
+      return config;
     }
     case 'FINAL_RANKING': {
       assertNoUnknownKeys(raw, ['rankingSize', 'sourceStageId'], 'config');

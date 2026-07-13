@@ -268,6 +268,20 @@ enum CommissionerAuditAction {
   SCHEDULE_REGENERATED
   REGULAR_SEASON_SIMULATION_STARTED
   REGULAR_SEASON_SIMULATION_COMPLETED
+  QUALIFIERS_IMPORTED
+  BRACKET_GENERATED
+  BRACKET_REGENERATED
+  PLAYOFF_SERIES_COMPLETED
+  PLAYOFF_STAGE_COMPLETED
+  PLAYOFF_SEEDS_UPDATED
+}
+
+enum PlayoffSeriesStatus {
+  PENDING
+  READY
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
 }
 
 enum LineupSlot {
@@ -636,6 +650,15 @@ model CompetitionStage {
   scheduleGeneratedAt    DateTime?
   simulationStartedAt    DateTime?
   completedAt            DateTime?
+  /// F19 playoff bracket metadata
+  bracketSeed            String?
+  bracketHash            String?
+  bracketVersion         Int                       @default(0)
+  bracketGeneratedAt     DateTime?
+  championParticipantId  String?
+  championTeamNameSnapshot String?
+  championSeed           Int?
+  championshipSeriesId   String?
   createdAt              DateTime                  @default(now())
   updatedAt              DateTime                  @updatedAt
 
@@ -647,12 +670,14 @@ model CompetitionStage {
   standings    CompetitionStageStanding[]
   teamStats    CompetitionStageTeamStat[]
   playerStats  CompetitionStagePlayerStat[]
+  playoffSeries PlayoffSeries[]
 
   @@unique([competitionEditionId, stageOrder])
   @@index([competitionEditionId])
   @@index([stageType])
   @@index([sourceStageId])
   @@index([status])
+  @@index([championParticipantId])
 }
 
 model StageParticipant {
@@ -672,6 +697,43 @@ model StageParticipant {
   @@unique([competitionStageId, competitionParticipantId])
   @@unique([competitionStageId, stageOrder])
   @@index([competitionParticipantId])
+}
+
+/// F19 best-of-series playoff matchup.
+model PlayoffSeries {
+  id                         String             @id @default(cuid())
+  competitionStageId         String
+  roundNumber                Int
+  roundName                  String
+  seriesOrder                Int
+  bracketSlot                String
+  status                     PlayoffSeriesStatus @default(PENDING)
+  participant1Id             String
+  participant2Id             String
+  participant1Seed           Int
+  participant2Seed           Int
+  participant1NameSnapshot   String
+  participant2NameSnapshot   String
+  participant1Wins           Int                @default(0)
+  participant2Wins           Int                @default(0)
+  winsRequired               Int
+  homeAdvantageParticipantId String
+  homePatternText            String
+  winnerParticipantId        String?
+  nextSeriesId               String?
+  createdAt                  DateTime           @default(now())
+  startedAt                  DateTime?
+  completedAt                DateTime?
+  updatedAt                  DateTime           @updatedAt
+
+  stage   CompetitionStage @relation(fields: [competitionStageId], references: [id], onDelete: Restrict)
+  matches Match[]
+
+  @@unique([competitionStageId, bracketSlot])
+  @@unique([competitionStageId, roundNumber, seriesOrder])
+  @@index([competitionStageId, roundNumber])
+  @@index([winnerParticipantId])
+  @@index([status])
 }
 
 /// Append-only Commissioner edit history (F6). Exposed only via Commissioner-gated APIs.
@@ -744,6 +806,9 @@ model Match {
   scheduleKey                   String?
   scheduleOrder                 Int?
   competitionRulesHash          String?
+  /// F19 playoff placement
+  playoffSeriesId               String?
+  playoffGameNumber             Int?
   createdAt                     DateTime    @default(now())
   updatedAt                     DateTime    @updatedAt
 
@@ -751,15 +816,18 @@ model Match {
   awayTeam           Team                @relation("MatchAwayTeam", fields: [awayTeamId], references: [id], onDelete: Restrict)
   competitionEdition CompetitionEdition? @relation(fields: [competitionEditionId], references: [id], onDelete: Restrict)
   competitionStage   CompetitionStage?   @relation(fields: [competitionStageId], references: [id], onDelete: Restrict)
+  playoffSeries      PlayoffSeries?      @relation(fields: [playoffSeriesId], references: [id], onDelete: Restrict)
   results            MatchResult[]
 
   @@unique([competitionStageId, scheduleKey])
+  @@unique([playoffSeriesId, playoffGameNumber])
   @@index([homeTeamId])
   @@index([awayTeamId])
   @@index([competitionEditionId])
   @@index([competitionStageId])
   @@index([competitionStageId, scheduleOrder])
   @@index([competitionStageId, status])
+  @@index([playoffSeriesId])
   @@index([status])
   @@index([scheduledAt])
 }
