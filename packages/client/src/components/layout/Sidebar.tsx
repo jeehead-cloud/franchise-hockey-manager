@@ -2,6 +2,7 @@ import {
   BookOpen,
   Flag,
   FlaskConical,
+  Globe,
   Hexagon,
   LayoutDashboard,
   Settings,
@@ -26,6 +27,7 @@ export interface NavItem {
 export const MAIN_NAV: NavItem[] = [
   { to: '/world', label: 'World', icon: LayoutDashboard },
   { to: '/competitions', label: 'Competitions', icon: Trophy },
+  { to: '/international-tournaments', label: 'International', icon: Globe },
   { to: '/history', label: 'History', icon: BookOpen },
   { to: '/teams', label: 'Teams', icon: Shield },
   { to: '/national-teams', label: 'National Teams', icon: Flag },

@@ -154,6 +154,16 @@ F22 National Team invariants:
 - F22 does not create or simulate tournament matches.
 - Normal mode is read-only; every structural write is audited.
 
+F23 International Tournament invariants:
+
+- International matches use locked F22 national-team snapshots.
+- WJC eligibility uses stored cutoff rules (no wall-clock re-evaluation).
+- Group qualification derives from current MatchResults only.
+- Tournament schedule/bracket lock after results begin.
+- Gold/silver/bronze derive from completed knockout games and must be distinct.
+- Club ownership and club lineups remain unchanged.
+- Completed tournaments are immutable; F23 does not create future tournaments or alter development.
+
 Invariants in force:
 
 - **Line/pairing synergy**: role compatibility is config-driven. Complementary roles can beat redundant higher-rated groups after bounded modifiers. Unknown role pairs use an explicit documented fallback.

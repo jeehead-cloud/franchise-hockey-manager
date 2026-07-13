@@ -76,14 +76,26 @@ export async function getArchiveReadiness(
     pass('stages', `All ${requiredStages.length} required stages are COMPLETED`);
   }
 
-  const rsStages = requiredStages.filter((s) => s.stageType === 'REGULAR_SEASON');
+  const rsStages = requiredStages.filter(
+    (s) => s.stageType === 'REGULAR_SEASON' || s.stageType === 'GROUP_STAGE',
+  );
   for (const stage of rsStages) {
     if (stage.standings.length === 0) {
-      fail('standings', `Regular-season stage ${stage.name} has no final standings`);
+      fail(
+        'standings',
+        `${stage.stageType === 'GROUP_STAGE' ? 'Group' : 'Regular-season'} stage ${stage.name} has no final standings`,
+      );
     } else {
       pass('standings', `Standings present for ${stage.name}`);
     }
-    if (stage.teamStats.length === 0 || stage.playerStats.length === 0) {
+    // GROUP_STAGE international editions may omit detailed team/player snapshots in F23
+    if (stage.stageType === 'GROUP_STAGE') {
+      if (stage.teamStats.length === 0 || stage.playerStats.length === 0) {
+        warn('stats', `Stage-stat snapshots missing for ${stage.name} (optional for international group stage)`);
+      } else {
+        pass('stats', `Team/player stats present for ${stage.name}`);
+      }
+    } else if (stage.teamStats.length === 0 || stage.playerStats.length === 0) {
       fail('stats', `Final stage-stat snapshots missing for ${stage.name}`);
     } else {
       pass('stats', `Team/player stats present for ${stage.name}`);

@@ -466,9 +466,29 @@ Import:
 
 Verifier: `npm run verify:national-teams`
 
-Limitations:
-- Simplified eligibility (no citizenship history / dual-nationality commitment)
-- No tournament schedule or matches until F23
+## 7i. International Tournaments (F23)
+
+Templates (engine, simplified — not exact IIHF/IOC):
+- `WORLD_JUNIORS` (JUNIOR_U20)
+- `WORLD_CHAMPIONSHIP` / `OLYMPIC_GAMES` (SENIOR_MEN)
+
+Flow:
+- Locked F22 NationalTeamEditions required
+- Group assignment (SEEDED_SNAKE default) + F18 round-robin per group
+- Group standings/qualification → BO1 PlayoffSeries knockout (QF/SF/bronze/final as configured)
+- F14 simulation via national-team lineup/tactics/staff snapshots
+- `TournamentMedalResult` (GOLD/SILVER/BRONZE); edition COMPLETED → F20 archive-ready
+
+Persistence:
+- CompetitionEdition tournament metadata + hashes
+- Match.`tournamentGroupKey`
+- GROUP_STAGE standings reuse CompetitionStageStanding
+
+APIs: `/api/competition-editions/:id/international/*`, commissioner preview/prepare/generate-schedule
+
+Client: `/international-tournaments`; edition Tournament tab
+
+Verifier: `npm run verify:international-tournaments`
 
 ---
 

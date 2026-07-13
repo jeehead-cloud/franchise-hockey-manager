@@ -1423,6 +1423,8 @@ Use:
 - champions and statistics are archived;
 - tests pass.
 
+**Status: implemented locally (2026-07-13).** Configurable templates (simplified formats); locked F22 roster match inputs; group schedule/standings/qualification; BO1 knockout + medals; F14 simulation; archive GROUP_STAGE readiness; verifier `verify:international-tournaments`. Qualification systems and world rankings remain later.
+
 ---
 
 # 29. F24 — Player Development

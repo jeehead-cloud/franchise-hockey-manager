@@ -3084,3 +3084,106 @@ export async function lockNationalTeamEdition(
     payload,
   );
 }
+
+/** F23 International Tournaments */
+export async function getInternationalTournamentStatus(editionId: string, signal?: AbortSignal) {
+  return getJson<{ item: Record<string, unknown> }>(
+    `/api/competition-editions/${editionId}/international/status`,
+    signal,
+  );
+}
+
+export async function getInternationalTournamentOverview(editionId: string, signal?: AbortSignal) {
+  return getJson<{ item: Record<string, unknown> }>(
+    `/api/competition-editions/${editionId}/international/overview`,
+    signal,
+  );
+}
+
+export async function getInternationalTournamentGroups(editionId: string, signal?: AbortSignal) {
+  return getJson<{ item: Record<string, unknown> }>(
+    `/api/competition-editions/${editionId}/international/groups`,
+    signal,
+  );
+}
+
+export async function getInternationalTournamentMedals(editionId: string, signal?: AbortSignal) {
+  return getJson<{ item: Record<string, unknown> }>(
+    `/api/competition-editions/${editionId}/international/medals`,
+    signal,
+  );
+}
+
+export async function getInternationalTournamentProgress(editionId: string, signal?: AbortSignal) {
+  return getJson<{ item: Record<string, unknown> }>(
+    `/api/competition-editions/${editionId}/international/progress`,
+    signal,
+  );
+}
+
+export async function previewInternationalTournament(
+  editionId: string,
+  payload: { templateKey?: string; useTestTemplate?: boolean },
+) {
+  return commissionerWrite<{ item: Record<string, unknown> }>(
+    `/api/commissioner/competition-editions/${editionId}/international/preview`,
+    'POST',
+    payload,
+  );
+}
+
+export async function prepareInternationalTournament(
+  editionId: string,
+  payload: {
+    expectedUpdatedAt: string;
+    reason: string;
+    templateKey?: string;
+    useTestTemplate?: boolean;
+    baseSeed?: string;
+  },
+) {
+  return commissionerWrite<{ item: Record<string, unknown> }>(
+    `/api/commissioner/competition-editions/${editionId}/prepare-international-tournament`,
+    'POST',
+    payload,
+  );
+}
+
+export async function generateInternationalSchedule(
+  editionId: string,
+  payload: { expectedUpdatedAt: string; reason: string; seed?: string },
+) {
+  return commissionerWrite<{ item: Record<string, unknown> }>(
+    `/api/commissioner/competition-editions/${editionId}/generate-international-schedule`,
+    'POST',
+    payload,
+  );
+}
+
+export async function simulateInternationalTournament(
+  editionId: string,
+  payload: { baseSeed: string; confirmBackup?: boolean },
+) {
+  return postJson<{ item: Record<string, unknown> }>(
+    `/api/competition-editions/${editionId}/simulate-international-tournament`,
+    payload,
+  );
+}
+
+export async function getInternationalSimulationRun(
+  editionId: string,
+  runId: string,
+  signal?: AbortSignal,
+) {
+  return getJson<{ item: Record<string, unknown> }>(
+    `/api/competition-editions/${editionId}/international/simulation-runs/${runId}`,
+    signal,
+  );
+}
+
+export async function cancelInternationalSimulation(editionId: string, runId: string) {
+  return postJson<{ item: Record<string, unknown> }>(
+    `/api/competition-editions/${editionId}/international/simulation-runs/${runId}/cancel`,
+    {},
+  );
+}

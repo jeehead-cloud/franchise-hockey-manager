@@ -49,6 +49,7 @@ describe('Migrations', () => {
       expect(names).toContain('AggregatedMatchSummary');
       expect(names).toContain('NationalTeamProfile');
       expect(names).toContain('NationalTeamEdition');
+      expect(names).toContain('TournamentMedalResult');
       const cols = await prisma.$queryRaw<Array<{ name: string }>>`
         PRAGMA table_info('AppMeta')
       `;
@@ -58,13 +59,22 @@ describe('Migrations', () => {
       `;
       expect(playerCols.map((c) => c.name)).toContain('potentialFloor');
       expect(playerCols.map((c) => c.name)).toContain('publicPotentialEstimate');
+      const matchCols = await prisma.$queryRaw<Array<{ name: string }>>`
+        PRAGMA table_info('Match')
+      `;
+      expect(matchCols.map((c) => c.name)).toContain('tournamentGroupKey');
+      const editionCols = await prisma.$queryRaw<Array<{ name: string }>>`
+        PRAGMA table_info('CompetitionEdition')
+      `;
+      expect(editionCols.map((c) => c.name)).toContain('tournamentTemplateKey');
+      expect(editionCols.map((c) => c.name)).toContain('tournamentResultHash');
       await prisma.$disconnect();
     } finally {
       cleanupTempDir(dir);
     }
   });
 
-  it('records F1–F22 migrations in history', async () => {
+  it('records F1–F23 migrations in history', async () => {
     const { url, dir } = createTempDatabaseUrl();
     try {
       migrateTempDatabase(url);
@@ -82,7 +92,8 @@ describe('Migrations', () => {
       expect(names.some((n) => n.includes('f20_competition_archive'))).toBe(true);
       expect(names.some((n) => n.includes('f21_aggregated_league'))).toBe(true);
       expect(names.some((n) => n.includes('f22_national_teams'))).toBe(true);
-      expect(names).toHaveLength(16);
+      expect(names.some((n) => n.includes('f23_international_tournaments'))).toBe(true);
+      expect(names).toHaveLength(17);
       expect(names.some((n) => n.includes('f1_bootstrap'))).toBe(true);
       expect(names.some((n) => n.includes('f2_core_domain'))).toBe(true);
       expect(names.some((n) => n.includes('f3_source_metadata_and_init'))).toBe(true);

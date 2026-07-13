@@ -396,6 +396,19 @@ export async function progressPlayoffAfterMatch(matchId: string) {
   const match = await prisma.match.findUnique({ where: { id: matchId } });
   if (!match?.playoffSeriesId || !match.competitionStageId) return null;
 
+  if (match.competitionEditionId) {
+    const edition = await prisma.competitionEdition.findUnique({
+      where: { id: match.competitionEditionId },
+      include: { competition: { select: { type: true } } },
+    });
+    if (edition?.competition.type === 'INTERNATIONAL_TOURNAMENT') {
+      const { progressInternationalKnockoutAfterMatch } = await import(
+        './international-tournaments.js'
+      );
+      return progressInternationalKnockoutAfterMatch(matchId);
+    }
+  }
+
   const seriesId = match.playoffSeriesId;
   const stageId = match.competitionStageId;
   const games = await loadSeriesGames(seriesId);

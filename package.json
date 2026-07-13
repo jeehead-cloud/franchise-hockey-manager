@@ -35,7 +35,8 @@
     "verify:playoffs": "npm run verify:playoffs --workspace=@fhm/engine",
     "verify:archive-history": "npm run verify:archive-history --workspace=@fhm/engine",
     "verify:aggregated-league": "npm run verify:aggregated-league --workspace=@fhm/engine",
-    "verify:national-teams": "npm run verify:national-teams --workspace=@fhm/engine"
+    "verify:national-teams": "npm run verify:national-teams --workspace=@fhm/engine",
+    "verify:international-tournaments": "npm run verify:international-tournaments --workspace=@fhm/engine"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

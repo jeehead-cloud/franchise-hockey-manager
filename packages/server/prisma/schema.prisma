@@ -294,6 +294,9 @@ enum CommissionerAuditAction {
   NATIONAL_TEAM_LINEUP_GENERATED
   NATIONAL_TEAM_LINEUP_UPDATED
   NATIONAL_TEAM_LOCKED
+  INTERNATIONAL_TOURNAMENT_PREPARED
+  INTERNATIONAL_SCHEDULE_GENERATED
+  INTERNATIONAL_TOURNAMENT_COMPLETED
 }
 
 /// F20 competition archive status.
@@ -648,6 +651,15 @@ model CompetitionEdition {
   activatedAt       DateTime?
   completedAt       DateTime?
   archivedAt        DateTime?
+  /// F23 international tournament metadata (nullable for non-international editions)
+  tournamentTemplateKey   String?
+  tournamentTemplateText  String?
+  tournamentTemplateHash  String?
+  tournamentBaseSeed      String?
+  tournamentScheduleHash  String?
+  tournamentBracketHash   String?
+  tournamentResultHash    String?
+  tournamentPreparedAt    DateTime?
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
 
@@ -659,10 +671,12 @@ model CompetitionEdition {
   archives             CompetitionArchive[]
   aggregatedRuns       AggregatedSeasonRun[]
   nationalTeamEditions NationalTeamEdition[]
+  tournamentMedals     TournamentMedalResult[]
 
   @@unique([competitionId, worldSeasonId])
   @@index([worldSeasonId])
   @@index([status])
+  @@index([tournamentTemplateKey])
 }
 
 model CompetitionParticipant {
@@ -736,6 +750,7 @@ model CompetitionStage {
   playoffSeries     PlayoffSeries[]
   aggregatedRuns    AggregatedSeasonRun[]
   aggregatedMatches AggregatedMatchSummary[]
+  tournamentMedals  TournamentMedalResult[]
 
   @@unique([competitionEditionId, stageOrder])
   @@index([competitionEditionId])
@@ -874,6 +889,8 @@ model Match {
   /// F19 playoff placement
   playoffSeriesId               String?
   playoffGameNumber             Int?
+  /// F23 international group key (group-stage matches only)
+  tournamentGroupKey            String?
   createdAt                     DateTime    @default(now())
   updatedAt                     DateTime    @updatedAt
 
@@ -883,6 +900,7 @@ model Match {
   competitionStage   CompetitionStage?   @relation(fields: [competitionStageId], references: [id], onDelete: Restrict)
   playoffSeries      PlayoffSeries?      @relation(fields: [playoffSeriesId], references: [id], onDelete: Restrict)
   results            MatchResult[]
+  tournamentMedals   TournamentMedalResult[]
 
   @@unique([competitionStageId, scheduleKey])
   @@unique([playoffSeriesId, playoffGameNumber])
@@ -892,6 +910,7 @@ model Match {
   @@index([competitionStageId])
   @@index([competitionStageId, scheduleOrder])
   @@index([competitionStageId, status])
+  @@index([competitionStageId, tournamentGroupKey])
   @@index([playoffSeriesId])
   @@index([status])
   @@index([scheduledAt])
@@ -1746,6 +1765,7 @@ model NationalTeamEdition {
   staff       NationalTeamStaffAssignment[]
   tactics     NationalTeamTactics?
   lineup      NationalTeamLineup?
+  medalResults TournamentMedalResult[]
 
   @@unique([nationalTeamProfileId, competitionEditionId])
   @@index([competitionEditionId, status])
@@ -1863,4 +1883,43 @@ model NationalTeamLineupSlot {
   @@unique([nationalTeamLineupId, unitType, unitNumber, slotType])
   @@index([nationalTeamLineupId, slotOrder])
   @@index([sourcePlayerId])
+}
+
+// ---------------------------------------------------------------------------
+// F23 — International tournament medals
+// ---------------------------------------------------------------------------
+
+enum TournamentMedalType {
+  GOLD
+  SILVER
+  BRONZE
+}
+
+model TournamentMedalResult {
+  id                       String              @id @default(cuid())
+  competitionEditionId     String
+  competitionStageId       String?
+  medalType                TournamentMedalType
+  competitionParticipantId String
+  nationalTeamEditionId    String?
+  teamNameSnapshot         String
+  countryNameSnapshot      String
+  sourceMatchId            String?
+  finalPlacement           Int
+  resultHash               String
+  createdAt                DateTime            @default(now())
+
+  edition             CompetitionEdition     @relation(fields: [competitionEditionId], references: [id], onDelete: Restrict)
+  stage               CompetitionStage?      @relation(fields: [competitionStageId], references: [id], onDelete: Restrict)
+  nationalTeamEdition NationalTeamEdition?   @relation(fields: [nationalTeamEditionId], references: [id], onDelete: Restrict)
+  sourceMatch         Match?                 @relation(fields: [sourceMatchId], references: [id], onDelete: Restrict)
+
+  @@unique([competitionEditionId, medalType])
+  @@unique([competitionEditionId, competitionParticipantId])
+  @@index([competitionEditionId])
+  @@index([competitionStageId])
+  @@index([competitionParticipantId])
+  @@index([nationalTeamEditionId])
+  @@index([sourceMatchId])
+  @@index([medalType])
 }

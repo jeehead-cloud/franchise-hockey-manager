@@ -27,11 +27,13 @@ import { RegularSeasonStagePanel } from '../components/competitions/RegularSeaso
 import { AggregatedLeaguePanel } from '../components/competitions/AggregatedLeaguePanel';
 import { PlayoffStagePanel } from '../components/competitions/PlayoffStagePanel';
 import { ArchiveEditionPanel } from '../components/competitions/ArchiveEditionPanel';
+import { InternationalTournamentPanel } from '../components/competitions/InternationalTournamentPanel';
 
 type Tab =
   | 'overview'
   | 'participants'
   | 'national-teams'
+  | 'tournament'
   | 'stages'
   | 'rules'
   | 'readiness'
@@ -45,6 +47,7 @@ const TABS: Array<{ value: Tab; label: string; disabled?: boolean }> = [
   { value: 'overview', label: 'Overview' },
   { value: 'participants', label: 'Participants' },
   { value: 'national-teams', label: 'National Teams' },
+  { value: 'tournament', label: 'Tournament' },
   { value: 'stages', label: 'Stages' },
   { value: 'rules', label: 'Rules' },
   { value: 'readiness', label: 'Readiness' },
@@ -467,6 +470,14 @@ export function CompetitionEditionPage() {
             </div>
           )}
         </Panel>
+      )}
+
+      {tab === 'tournament' && (
+        <InternationalTournamentPanel
+          editionId={item.id}
+          editionUpdatedAt={item.updatedAt}
+          onChanged={() => void reload()}
+        />
       )}
 
       {tab === 'stages' && (

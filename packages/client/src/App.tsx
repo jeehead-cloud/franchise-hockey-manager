@@ -27,6 +27,7 @@ import { PlayerHistoryPage } from './pages/PlayerHistoryPage';
 import { TeamHistoryPage } from './pages/TeamHistoryPage';
 import { NationalTeamsPage } from './pages/NationalTeamsPage';
 import { NationalTeamDetailPage } from './pages/NationalTeamDetailPage';
+import { InternationalTournamentsPage } from './pages/InternationalTournamentsPage';
 import { CommissionerProvider } from './lib/commissioner';
 
 export function App() {
@@ -50,6 +51,7 @@ export function App() {
               path="/competitions/:competitionId/editions/:editionId"
               element={<CompetitionEditionPage />}
             />
+            <Route path="/international-tournaments" element={<InternationalTournamentsPage />} />
             <Route path="/teams" element={<TeamsPage />} />
             <Route path="/teams/:teamId" element={<TeamDetailPage />} />
             <Route path="/teams/:teamId/history" element={<TeamHistoryPage />} />

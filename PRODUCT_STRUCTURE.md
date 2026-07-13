@@ -1473,6 +1473,8 @@ Participants are initially configured manually or from a fixed list.
 
 Qualification systems are deferred.
 
+**F23 implementation note:** Templates `WORLD_JUNIORS`, `WORLD_CHAMPIONSHIP`, and `OLYMPIC_GAMES` are simplified config-driven formats (not exact IIHF/IOC replicas). Execution requires locked F22 national-team editions and uses the F14 match engine.
+
 ---
 
 ## 56. World Junior Championship
@@ -2078,7 +2080,7 @@ The Simulation Lab is a first-class product area.
 
 **F16 partial implementation (2026-07-13):** `/simulation-lab` hosts **Batch Lab** (default) for unpersisted 1/10/100/1000-game balance analysis plus **Single Match Debug** (preserved F13 technical tool). Official Matches are never created by Lab runs.
 
-**F17–F22 (2026-07-13):** Competitions host structural editions with participants/stages/rules. F18 enables DETAILED regular-season schedules and standings. F19 enables BEST_OF_SERIES playoffs through champion determination and edition completion readiness. F20 archives COMPLETED editions into immutable historical records with awards, records, and History UI. F21 enables AGGREGATED domestic leagues via fast deterministic season simulation without MatchEvent persistence. F22 adds persistent national teams and CompetitionEdition-scoped roster preparation (candidates, roster, staff, tactics, lines, lock) without changing club ownership; international tournament play is F23.
+**F17–F23 (2026-07-13):** Competitions host structural editions with participants/stages/rules. F18 enables DETAILED regular-season schedules and standings. F19 enables BEST_OF_SERIES playoffs through champion determination and edition completion readiness. F20 archives COMPLETED editions into immutable historical records with awards, records, and History UI. F21 enables AGGREGATED domestic leagues via fast deterministic season simulation without MatchEvent persistence. F22 adds persistent national teams and CompetitionEdition-scoped roster preparation. F23 runs international tournaments from locked national-team snapshots through groups, knockout, medals, and archive readiness (simplified templates).
 
 Inputs:
 

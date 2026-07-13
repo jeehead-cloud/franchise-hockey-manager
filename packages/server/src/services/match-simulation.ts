@@ -15,6 +15,7 @@ import {
 } from '@fhm/engine';
 import { prisma } from '../db/client.js';
 import { buildSimulationInput, SimulationHttpError } from './simulation-input.js';
+import { buildInternationalMatchSimulationInput } from './international-match-input.js';
 import { MatchHttpError, mapMatchServiceError } from './matches.js';
 import { parseStoredMatchRules } from './match-rules.js';
 import {
@@ -93,6 +94,28 @@ export async function buildMatchSimulationInput(matchId: string, seed: string | 
   }
 
   const rules = parseStoredMatchRules(match.rulesJson);
+
+  if (match.competitionEditionId) {
+    const edition = await prisma.competitionEdition.findUnique({
+      where: { id: match.competitionEditionId },
+      include: { competition: { select: { type: true } } },
+    });
+    if (edition?.competition.type === 'INTERNATIONAL_TOURNAMENT') {
+      return buildInternationalMatchSimulationInput({
+        competitionEditionId: match.competitionEditionId,
+        homeTeamId: match.homeTeamId,
+        awayTeamId: match.awayTeamId,
+        seed,
+        matchId,
+        completionRules: rules.completion,
+        rules: {
+          regulationPeriods: rules.regulationPeriods,
+          periodDurationSeconds: rules.periodDurationSeconds,
+        },
+      });
+    }
+  }
+
   return buildSimulationInput({
     homeTeamId: match.homeTeamId,
     awayTeamId: match.awayTeamId,
