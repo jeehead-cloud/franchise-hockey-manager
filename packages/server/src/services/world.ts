@@ -175,6 +175,48 @@ export async function getWorldSummary() {
     });
   }
 
+  const internationalEditions = await prisma.competitionEdition.findMany({
+    where: {
+      status: { in: ['PLANNED', 'PREPARING', 'READY'] },
+      competition: { type: 'INTERNATIONAL_TOURNAMENT' },
+    },
+    take: 5,
+    orderBy: { displayName: 'asc' },
+    include: {
+      competition: { select: { id: true, name: true } },
+      nationalTeamEditions: { select: { status: true } },
+    },
+  });
+  const nationalTeamPreparation = internationalEditions.map((ed) => {
+    const total = ed.nationalTeamEditions.length;
+    const locked = ed.nationalTeamEditions.filter((n) => n.status === 'LOCKED').length;
+    const ready = ed.nationalTeamEditions.filter(
+      (n) => n.status === 'READY' || n.status === 'LOCKED',
+    ).length;
+    return {
+      competitionEditionId: ed.id,
+      displayName: ed.displayName,
+      competitionId: ed.competition.id,
+      competitionName: ed.competition.name,
+      total,
+      ready,
+      locked,
+      blockers:
+        total === 0
+          ? ['No national-team editions prepared']
+          : locked < total
+            ? [`${total - locked} national team(s) not locked`]
+            : [],
+    };
+  });
+  if (nationalTeamPreparation.some((n) => n.blockers.length > 0 || n.total === 0)) {
+    warnings.push({
+      code: 'NATIONAL_TEAM_PREPARATION',
+      severity: 'info',
+      message: 'International tournament national-team preparation is incomplete.',
+    });
+  }
+
   let recommendedNextAction: {
     code: string;
     label: string;
@@ -249,6 +291,7 @@ export async function getWorldSummary() {
       ...lineupCounts,
     },
     competitionEditions: editions.map(mapCompetitionEdition),
+    nationalTeamPreparation,
     warnings,
     recommendedNextAction,
     ageReference: anySeason

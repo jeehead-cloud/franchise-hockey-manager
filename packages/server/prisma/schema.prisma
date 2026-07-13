@@ -225,6 +225,11 @@ enum CommissionerAuditEntityType {
   COMPETITION_EDITION
   COMPETITION_STAGE
   COMPETITION_PARTICIPANT
+  NATIONAL_TEAM
+  NATIONAL_TEAM_EDITION
+  NATIONAL_TEAM_ROSTER
+  NATIONAL_TEAM_LINEUP
+  NATIONAL_TEAM_STAFF
 }
 
 enum CommissionerAuditAction {
@@ -276,6 +281,19 @@ enum CommissionerAuditAction {
   PLAYOFF_SEEDS_UPDATED
   EDITION_ARCHIVED
   ARCHIVE_SUPERSEDED
+  NATIONAL_TEAM_CREATED
+  NATIONAL_TEAM_UPDATED
+  NATIONAL_TEAM_EDITION_PREPARED
+  CANDIDATE_POOL_GENERATED
+  ROSTER_SUGGESTED
+  ROSTER_UPDATED
+  ROSTER_CONFIRMED
+  ROSTER_REOPENED
+  STAFF_UPDATED
+  NATIONAL_TEAM_TACTICS_UPDATED
+  NATIONAL_TEAM_LINEUP_GENERATED
+  NATIONAL_TEAM_LINEUP_UPDATED
+  NATIONAL_TEAM_LOCKED
 }
 
 /// F20 competition archive status.
@@ -376,11 +394,12 @@ model Country {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
-  leagues      League[]
-  teams        Team[]
-  players      Player[]      @relation("PlayerNationality")
-  coaches      Coach[]       @relation("CoachNationality")
-  competitions Competition[]
+  leagues              League[]
+  teams                Team[]
+  players              Player[]              @relation("PlayerNationality")
+  coaches              Coach[]               @relation("CoachNationality")
+  competitions         Competition[]
+  nationalTeamProfiles NationalTeamProfile[]
 
   @@unique([sourceDataset, externalId])
 }
@@ -432,6 +451,7 @@ model Team {
   homeMatches             Match[]                  @relation("MatchHomeTeam")
   awayMatches             Match[]                  @relation("MatchAwayTeam")
   competitionParticipants CompetitionParticipant[]
+  nationalTeamProfile     NationalTeamProfile?
 
   @@unique([leagueId, name])
   @@unique([sourceDataset, externalId])
@@ -631,13 +651,14 @@ model CompetitionEdition {
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
 
-  competition    Competition              @relation(fields: [competitionId], references: [id], onDelete: Restrict)
-  worldSeason    WorldSeason              @relation(fields: [worldSeasonId], references: [id], onDelete: Restrict)
-  participants   CompetitionParticipant[]
-  stages         CompetitionStage[]
-  matches        Match[]
-  archives       CompetitionArchive[]
-  aggregatedRuns AggregatedSeasonRun[]
+  competition          Competition              @relation(fields: [competitionId], references: [id], onDelete: Restrict)
+  worldSeason          WorldSeason              @relation(fields: [worldSeasonId], references: [id], onDelete: Restrict)
+  participants         CompetitionParticipant[]
+  stages               CompetitionStage[]
+  matches              Match[]
+  archives             CompetitionArchive[]
+  aggregatedRuns       AggregatedSeasonRun[]
+  nationalTeamEditions NationalTeamEdition[]
 
   @@unique([competitionId, worldSeasonId])
   @@index([worldSeasonId])
@@ -658,9 +679,10 @@ model CompetitionParticipant {
   createdAt             DateTime                     @default(now())
   updatedAt             DateTime                     @updatedAt
 
-  edition           CompetitionEdition @relation(fields: [competitionEditionId], references: [id], onDelete: Restrict)
-  team              Team               @relation(fields: [teamId], references: [id], onDelete: Restrict)
-  stageParticipants StageParticipant[]
+  edition             CompetitionEdition   @relation(fields: [competitionEditionId], references: [id], onDelete: Restrict)
+  team                Team                 @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  stageParticipants   StageParticipant[]
+  nationalTeamEdition NationalTeamEdition?
 
   @@unique([competitionEditionId, teamId])
   @@unique([competitionEditionId, participantOrder])
@@ -1588,4 +1610,257 @@ model AggregatedMatchSummary {
   @@index([competitionStageId, scheduleOrder])
   @@index([runId, scheduleOrder])
   @@index([resultHash])
+}
+
+// ---------------------------------------------------------------------------
+// F22 — National teams
+// ---------------------------------------------------------------------------
+
+enum NationalTeamCategory {
+  SENIOR_MEN
+  JUNIOR_U20
+}
+
+enum NationalTeamProfileStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum NationalTeamEditionStatus {
+  PLANNED
+  PREPARING
+  READY
+  LOCKED
+  CANCELLED
+}
+
+enum NationalTeamEligibilityStatus {
+  ELIGIBLE
+  INELIGIBLE
+  MANUALLY_EXCLUDED
+}
+
+enum NationalTeamRosterRole {
+  FORWARD
+  DEFENSE
+  GOALIE
+  RESERVE
+}
+
+enum NationalTeamCaptainRole {
+  NONE
+  CAPTAIN
+  ALTERNATE
+}
+
+enum NationalTeamSelectionSource {
+  SUGGESTED
+  MANUAL
+  IMPORTED
+}
+
+enum NationalTeamStaffRole {
+  HEAD_COACH
+  ASSISTANT_COACH
+  GOALIE_COACH
+}
+
+enum NationalTeamLineUnitType {
+  FORWARD_LINE
+  DEFENSE_PAIR
+  GOALIE
+  PP
+  PK
+  OT
+}
+
+enum NationalTeamLineSlotType {
+  LW
+  C
+  RW
+  LD
+  RD
+  STARTER
+  BACKUP
+  THIRD
+  F1
+  F2
+  F3
+  D1
+  D2
+}
+
+model NationalTeamProfile {
+  id                     String                    @id @default(cuid())
+  teamId                 String                    @unique
+  countryId              String
+  category               NationalTeamCategory
+  displayName            String
+  shortName              String?
+  status                 NationalTeamProfileStatus @default(ACTIVE)
+  defaultRosterRulesText String                    @default("{}")
+  defaultTacticsText     String?
+  externalId             String?
+  sourceDataset          String?
+  createdAt              DateTime                  @default(now())
+  updatedAt              DateTime                  @updatedAt
+
+  team     Team                  @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  country  Country               @relation(fields: [countryId], references: [id], onDelete: Restrict)
+  editions NationalTeamEdition[]
+
+  @@unique([countryId, category])
+  @@unique([sourceDataset, externalId])
+  @@index([category])
+  @@index([status])
+}
+
+model NationalTeamEdition {
+  id                       String                    @id @default(cuid())
+  nationalTeamProfileId    String
+  competitionEditionId     String
+  competitionParticipantId String                    @unique
+  status                   NationalTeamEditionStatus @default(PLANNED)
+  teamNameSnapshot         String
+  shortNameSnapshot        String?
+  countryNameSnapshot      String
+  rosterRulesSnapshotText  String                    @default("{}")
+  rosterRulesHash          String                    @default("")
+  eligibilitySnapshotText  String                    @default("{}")
+  eligibilityHash          String                    @default("")
+  tacticsSnapshotText      String?
+  tacticsHash              String?
+  rosterHash               String?
+  lineupHash               String?
+  preparedAt               DateTime?
+  confirmedAt              DateTime?
+  lockedAt                 DateTime?
+  createdAt                DateTime                  @default(now())
+  updatedAt                DateTime                  @updatedAt
+
+  profile     NationalTeamProfile           @relation(fields: [nationalTeamProfileId], references: [id], onDelete: Restrict)
+  edition     CompetitionEdition            @relation(fields: [competitionEditionId], references: [id], onDelete: Restrict)
+  participant CompetitionParticipant        @relation(fields: [competitionParticipantId], references: [id], onDelete: Restrict)
+  candidates  NationalTeamCandidate[]
+  roster      NationalTeamRosterPlayer[]
+  staff       NationalTeamStaffAssignment[]
+  tactics     NationalTeamTactics?
+  lineup      NationalTeamLineup?
+
+  @@unique([nationalTeamProfileId, competitionEditionId])
+  @@index([competitionEditionId, status])
+  @@index([status])
+}
+
+model NationalTeamCandidate {
+  id                    String                        @id @default(cuid())
+  nationalTeamEditionId String
+  sourcePlayerId        String
+  playerNameSnapshot    String
+  birthDateSnapshot     DateTime?
+  positionSnapshot      String
+  clubTeamIdSnapshot    String?
+  clubNameSnapshot      String?
+  eligibilityStatus     NationalTeamEligibilityStatus
+  eligibilityReasonText String                        @default("")
+  rankingScore          Float?
+  rankingOrder          Int?
+  selected              Boolean                       @default(false)
+  generatedAt           DateTime                      @default(now())
+  inputHash             String
+  createdAt             DateTime                      @default(now())
+
+  edition NationalTeamEdition @relation(fields: [nationalTeamEditionId], references: [id], onDelete: Restrict)
+
+  @@unique([nationalTeamEditionId, sourcePlayerId])
+  @@index([nationalTeamEditionId, eligibilityStatus])
+  @@index([sourcePlayerId])
+  @@index([rankingOrder])
+}
+
+model NationalTeamRosterPlayer {
+  id                    String                      @id @default(cuid())
+  nationalTeamEditionId String
+  sourcePlayerId        String
+  playerNameSnapshot    String
+  clubTeamIdSnapshot    String?
+  clubNameSnapshot      String?
+  positionSnapshot      String
+  rosterRole            NationalTeamRosterRole
+  rosterOrder           Int
+  jerseyNumber          Int?
+  captainRole           NationalTeamCaptainRole     @default(NONE)
+  selectionSource       NationalTeamSelectionSource @default(MANUAL)
+  eligibilityHash       String                      @default("")
+  createdAt             DateTime                    @default(now())
+  updatedAt             DateTime                    @updatedAt
+
+  edition NationalTeamEdition @relation(fields: [nationalTeamEditionId], references: [id], onDelete: Restrict)
+
+  @@unique([nationalTeamEditionId, sourcePlayerId])
+  @@unique([nationalTeamEditionId, rosterRole, rosterOrder])
+  @@index([nationalTeamEditionId, rosterRole])
+  @@index([sourcePlayerId])
+}
+
+model NationalTeamStaffAssignment {
+  id                    String                @id @default(cuid())
+  nationalTeamEditionId String
+  sourceCoachId         String
+  coachNameSnapshot     String
+  role                  NationalTeamStaffRole
+  assignmentOrder       Int                   @default(1)
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+
+  edition NationalTeamEdition @relation(fields: [nationalTeamEditionId], references: [id], onDelete: Restrict)
+
+  @@unique([nationalTeamEditionId, role, assignmentOrder])
+  @@index([nationalTeamEditionId])
+  @@index([sourceCoachId])
+}
+
+model NationalTeamTactics {
+  id                    String        @id @default(cuid())
+  nationalTeamEditionId String        @unique
+  tacticalStyle         TacticalStyle
+  tacticsText           String        @default("{}")
+  tacticsHash           String
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  edition NationalTeamEdition @relation(fields: [nationalTeamEditionId], references: [id], onDelete: Restrict)
+}
+
+model NationalTeamLineup {
+  id                    String   @id @default(cuid())
+  nationalTeamEditionId String   @unique
+  status                String   @default("DRAFT")
+  generatedBy           String   @default("MANUAL")
+  rosterHash            String
+  lineupHash            String
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  edition NationalTeamEdition      @relation(fields: [nationalTeamEditionId], references: [id], onDelete: Restrict)
+  slots   NationalTeamLineupSlot[]
+}
+
+model NationalTeamLineupSlot {
+  id                   String                   @id @default(cuid())
+  nationalTeamLineupId String
+  unitType             NationalTeamLineUnitType
+  unitNumber           Int
+  slotType             NationalTeamLineSlotType
+  sourcePlayerId       String
+  playerNameSnapshot   String
+  positionSnapshot     String
+  slotOrder            Int
+  createdAt            DateTime                 @default(now())
+
+  lineup NationalTeamLineup @relation(fields: [nationalTeamLineupId], references: [id], onDelete: Restrict)
+
+  @@unique([nationalTeamLineupId, unitType, unitNumber, slotType])
+  @@index([nationalTeamLineupId, slotOrder])
+  @@index([sourcePlayerId])
 }

@@ -15,6 +15,7 @@ import { registerRegularSeasonRoutes } from './routes/regular-season.js';
 import { registerPlayoffRoutes } from './routes/playoffs.js';
 import { registerHistoryRoutes } from './routes/history.js';
 import { registerAggregatedLeagueRoutes } from './routes/aggregated-league.js';
+import { registerNationalTeamRoutes } from './routes/national-teams.js';
 
 export async function buildApp(options?: { logger?: boolean }) {
   const app = Fastify({ logger: options?.logger ?? true });
@@ -46,6 +47,7 @@ export async function buildApp(options?: { logger?: boolean }) {
   await registerPlayoffRoutes(app);
   await registerHistoryRoutes(app);
   await registerAggregatedLeagueRoutes(app);
+  await registerNationalTeamRoutes(app);
   await registerCommissionerRoutes(app);
 
   return app;

@@ -15,6 +15,9 @@ import {
   getCompetitionEdition,
   getCompetitionEditionAudit,
   getLeagues,
+  getNationalTeamEditions,
+  getNationalTeams,
+  prepareNationalTeamEdition,
   transitionCompetitionEdition,
   updateCompetitionEditionRules,
   type CompetitionEditionDetail,
@@ -28,6 +31,7 @@ import { ArchiveEditionPanel } from '../components/competitions/ArchiveEditionPa
 type Tab =
   | 'overview'
   | 'participants'
+  | 'national-teams'
   | 'stages'
   | 'rules'
   | 'readiness'
@@ -40,6 +44,7 @@ type Tab =
 const TABS: Array<{ value: Tab; label: string; disabled?: boolean }> = [
   { value: 'overview', label: 'Overview' },
   { value: 'participants', label: 'Participants' },
+  { value: 'national-teams', label: 'National Teams' },
   { value: 'stages', label: 'Stages' },
   { value: 'rules', label: 'Rules' },
   { value: 'readiness', label: 'Readiness' },
@@ -87,6 +92,9 @@ export function CompetitionEditionPage() {
     Array<{ id: string; action: string; reason: string; createdAt: string; changedFields: string[] }>
   >([]);
   const [rulesText, setRulesText] = useState('');
+  const [ntEditions, setNtEditions] = useState<unknown[]>([]);
+  const [ntProfiles, setNtProfiles] = useState<unknown[]>([]);
+  const [prepareNtId, setPrepareNtId] = useState('');
 
   const reload = useCallback(
     (signal?: AbortSignal) => {
@@ -132,6 +140,23 @@ export function CompetitionEditionPage() {
       .then((res) => setAudit(res.items))
       .catch(() => setAudit([]));
   }, [commissioner.enabled, tab, editionId, item?.updatedAt]);
+
+  useEffect(() => {
+    if (tab !== 'national-teams') return;
+    const c = new AbortController();
+    getNationalTeamEditions({ competitionEditionId: editionId }, c.signal)
+      .then((res) => setNtEditions(res.items))
+      .catch(() => setNtEditions([]));
+    getNationalTeams({}, c.signal)
+      .then((res) => {
+        setNtProfiles(res.items);
+        if (res.items[0] && !prepareNtId) {
+          setPrepareNtId(String((res.items[0] as { id: string }).id));
+        }
+      })
+      .catch(() => undefined);
+    return () => c.abort();
+  }, [tab, editionId, item?.updatedAt, prepareNtId]);
 
   const setTab = (value: string) => {
     const next = new URLSearchParams(searchParams);
@@ -341,6 +366,104 @@ export function CompetitionEditionPage() {
                   <Badge tone="neutral">{p.status}</Badge>
                 </div>
               ))}
+            </div>
+          )}
+        </Panel>
+      )}
+
+      {tab === 'national-teams' && (
+        <Panel
+          title="National team preparation"
+          actions={
+            commissioner.enabled &&
+            editable &&
+            item.competition?.type === 'INTERNATIONAL_TOURNAMENT' ? (
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'end' }}>
+                <Field label="National team">
+                  <SelectInput value={prepareNtId} onChange={(e) => setPrepareNtId(e.target.value)}>
+                    {ntProfiles.map((raw) => {
+                      const p = raw as { id: string; displayName: string; category: string };
+                      return (
+                        <option key={p.id} value={p.id}>
+                          {p.displayName} ({p.category})
+                        </option>
+                      );
+                    })}
+                  </SelectInput>
+                </Field>
+                <Button
+                  size="sm"
+                  disabled={busy || !prepareNtId}
+                  onClick={() =>
+                    run(async () => {
+                      await prepareNationalTeamEdition(item.id, prepareNtId, {
+                        expectedUpdatedAt: item.updatedAt,
+                        reason,
+                      });
+                      const res = await getNationalTeamEditions({
+                        competitionEditionId: item.id,
+                      });
+                      setNtEditions(res.items);
+                    })
+                  }
+                >
+                  Prepare national team
+                </Button>
+              </div>
+            ) : null
+          }
+        >
+          {item.competition?.type !== 'INTERNATIONAL_TOURNAMENT' ? (
+            <EmptyState
+              title="Domestic edition"
+              description="National-team preparation applies only to INTERNATIONAL_TOURNAMENT competitions."
+            />
+          ) : ntEditions.length === 0 ? (
+            <EmptyState
+              title="No national-team editions"
+              description="Prepare participating national teams for this tournament edition (F22). Schedules arrive in F23."
+            />
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {ntEditions.map((raw) => {
+                const e = raw as {
+                  id: string;
+                  status: string;
+                  teamNameSnapshot?: string;
+                  profile?: { id: string; displayName: string; category: string };
+                };
+                return (
+                  <div
+                    key={e.id}
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      gap: 8,
+                      font: 'var(--text-body-sm)',
+                      borderBottom: '1px solid var(--border-subtle)',
+                      paddingBottom: 8,
+                    }}
+                  >
+                    <div>
+                      <Link
+                        to={`/national-teams/${e.profile?.id ?? ''}`}
+                        style={{ color: 'var(--accent-primary)' }}
+                      >
+                        {e.teamNameSnapshot ?? e.profile?.displayName ?? e.id}
+                      </Link>
+                      <div style={{ color: 'var(--text-tertiary)' }}>
+                        {e.profile?.category ?? '—'} · {e.status}
+                      </div>
+                    </div>
+                    <Badge tone={e.status === 'LOCKED' ? 'success' : 'neutral'}>{e.status}</Badge>
+                  </div>
+                );
+              })}
+              <p style={{ margin: 0, font: 'var(--text-body-sm)', color: 'var(--text-secondary)' }}>
+                Locked:{' '}
+                {ntEditions.filter((x) => (x as { status: string }).status === 'LOCKED').length} /{' '}
+                {ntEditions.length}. F23 activation requires all LOCKED.
+              </p>
             </div>
           )}
         </Panel>

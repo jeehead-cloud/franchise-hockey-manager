@@ -434,6 +434,42 @@ Client: Aggregated badge + `AggregatedLeaguePanel` on edition Schedule/Standings
 
 Verifier: `npm run verify:aggregated-league`
 
+## 7h. National Teams (F22)
+
+Identity:
+- Reuse `Team` with `teamType = NATIONAL`
+- `NationalTeamProfile` — unique `(countryId, category)`; categories `SENIOR_MEN`, `JUNIOR_U20`
+
+Edition preparation (`NationalTeamEdition`):
+- One per national team per `CompetitionEdition` (international only)
+- Status: PLANNED → PREPARING → READY → LOCKED (CANCELLED)
+- Snapshots: eligibility/roster rules, team/country names, roster, staff, tactics, lineup hashes
+
+Pure engine (`packages/engine/src/national-teams/`):
+- Versioned eligibility schema (primary nationality; U20 explicit cutoff date)
+- Candidate ranking, suggested roster, roster validation, readiness, deterministic hashes
+- No Prisma; no hidden potential in candidate DTOs
+
+Persistence:
+- Candidates, roster players, staff assignments, tactics, lineup + slots (edition-scoped)
+- Never mutates `Player.currentTeamId`, club `TeamLineup`, or club tactics
+
+APIs:
+- Public GETs for teams/editions/candidates/roster/staff/tactics/lineup/readiness
+- Commissioner create/prepare/generate-candidates/suggest/confirm/reopen/staff/tactics/lineup/lock
+
+Client:
+- Sidebar National Teams; list/detail tabs; competition-edition National Teams tab; World Dashboard prep notice
+
+Import:
+- schemaVersion remains 5; national teams are Commissioner-created (optional future `national-teams.json`)
+
+Verifier: `npm run verify:national-teams`
+
+Limitations:
+- Simplified eligibility (no citizenship history / dual-nationality commitment)
+- No tournament schedule or matches until F23
+
 ---
 
 ## 8. Why Client-Server From Day One

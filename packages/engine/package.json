@@ -24,7 +24,8 @@
     "verify:regular-season": "tsx src/competitions/regular-season/verify-regular-season.ts",
     "verify:playoffs": "tsx src/competitions/playoffs/verify-playoffs.ts",
     "verify:archive-history": "tsx src/competitions/history/verify-archive-history.ts",
-    "verify:aggregated-league": "tsx src/competitions/aggregated/verify-aggregated-league.ts"
+    "verify:aggregated-league": "tsx src/competitions/aggregated/verify-aggregated-league.ts",
+    "verify:national-teams": "tsx src/national-teams/verify-national-teams.ts"
   },
   "devDependencies": {
     "typescript": "^5.8.2",

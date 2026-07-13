@@ -112,9 +112,9 @@ Import requires **schemaVersion 2** with complete player-model fields. schemaVer
 | Field | Prototype source | Notes |
 |---|---|---|
 | Name / Surname | Random pick from a per-nationality name pool (the prototype used `IMPORTRANGE` into a separate Google Sheet with per-nation name/surname lists) | Engine equivalent: `data/names/<nationality>.json` with first-name and surname lists; pick uniformly at random |
-| Nationality | Set at generation time (prototype grouped rows by nation: Russia, Canada, USA, etc.) | Drives which name pool is used, and later, national-team eligibility |
+| Nationality | Set at generation time (prototype grouped rows by nation: Russia, Canada, USA, etc.) | Stored as `nationalityCountryId`. F22 national-team eligibility uses this primary nationality (citizenship history is not modeled). |
 | Position | `LW` \| `RW` \| `C` \| `LD` \| `RD` \| `G` | Defenseman side (L/R) matters for role derivation (§5) |
-| Age | Set at generation (prototype's example rows are all age-15 prospects) | Drives the aging lookup (§6) |
+| Age | Set at generation (prototype's example rows are all age-15 prospects) | Derived from `dateOfBirth`. Junior (U20) eligibility uses an explicit tournament cutoff date — never the wall clock. Aging lookup (§6) uses current age. |
 
 ---
 

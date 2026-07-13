@@ -300,6 +300,7 @@ export async function getEditionReadiness(editionId: string) {
   });
   if (!edition) return null;
   const { readiness } = await loadEditionStructure(prisma, editionId);
+
   return {
     competition: edition.competition,
     edition: {
@@ -312,7 +313,9 @@ export async function getEditionReadiness(editionId: string) {
     },
     readiness,
     notice:
-      'READY/ACTIVE means structural readiness only. Schedules, standings, and match generation arrive in later milestones.',
+      edition.competition.type === 'INTERNATIONAL_TOURNAMENT'
+        ? 'International editions require LOCKED national-team rosters before F23 activation. Schedules arrive in F23.'
+        : 'READY/ACTIVE means structural readiness only. Schedules, standings, and match generation arrive in later milestones.',
   };
 }
 

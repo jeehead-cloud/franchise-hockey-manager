@@ -14,6 +14,8 @@ Version-controlled **input snapshots** for world initialization (F3+). Mutable r
 
 F17 requires **`schemaVersion: 5`**. Earlier versions are rejected rather than silently reinterpreted. Competitions may include optional `defaultRules` and country/league external IDs; editions may include optional `rules` snapshots.
 
+F22 does **not** require a `national-teams.json` import file; national-team definitions are created via Commissioner APIs. schemaVersion remains **5**.
+
 Required manifest keys include `datasetId`, `datasetName`, `schemaVersion`, `sourceName`, `sourceUpdatedAt`, `worldSeasonLabel`, `worldSeasonStartYear`, `worldSeasonEndYear`, and `files`.
 
 Entity JSON files reference each other by **externalId**, never by database IDs.

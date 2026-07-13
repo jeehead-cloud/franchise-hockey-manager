@@ -146,6 +146,7 @@ export async function loadEditionStructure(
     include: {
       participants: true,
       stages: { orderBy: { stageOrder: 'asc' }, include: { participants: true } },
+      competition: { select: { type: true } },
     },
   });
   if (!edition) {
@@ -172,7 +173,7 @@ export async function loadEditionStructure(
     stageParticipantCounts[s.id] = s.participants.length;
   }
 
-  const readiness = evaluateEditionReadiness({
+  let readiness = evaluateEditionReadiness({
     editionId: edition.id,
     status: edition.status as CompetitionEditionStatus,
     worldSeasonId: edition.worldSeasonId,
@@ -188,6 +189,54 @@ export async function loadEditionStructure(
     stages,
     stageParticipantCounts,
   });
+
+  if (edition.competition.type === 'INTERNATIONAL_TOURNAMENT') {
+    const ntEditions = await prisma.nationalTeamEdition.findMany({
+      where: { competitionEditionId: editionId, status: { not: 'CANCELLED' } },
+      select: { status: true },
+    });
+    const nationalParticipants = edition.participants.filter((p) => p.status === 'CONFIRMED');
+    const nationalTeamIds = nationalParticipants.map((p) => p.teamId);
+    const nationalTeams =
+      nationalTeamIds.length === 0
+        ? []
+        : await prisma.team.findMany({
+            where: { id: { in: nationalTeamIds }, teamType: 'NATIONAL' },
+            select: { id: true },
+          });
+    const nationalCount = nationalTeams.length;
+
+    if (nationalCount > 0 && ntEditions.length === 0) {
+      readiness.checks.push({
+        code: 'NATIONAL_TEAM_PREP_MISSING',
+        severity: 'BLOCKER',
+        message: 'Confirmed national-team participants lack NationalTeamEdition preparation',
+      });
+      readiness.blockers.push(
+        'Confirmed national-team participants lack NationalTeamEdition preparation',
+      );
+      readiness.status = 'NOT_READY';
+    } else if (ntEditions.length > 0) {
+      const locked = ntEditions.filter((e) => e.status === 'LOCKED').length;
+      const notLocked = ntEditions.length - locked;
+      if (notLocked === 0) {
+        readiness.checks.push({
+          code: 'NATIONAL_TEAMS_LOCKED',
+          severity: 'OK',
+          message: `All ${locked} national-team edition(s) are LOCKED`,
+        });
+      } else {
+        const msg = `${notLocked}/${ntEditions.length} national-team edition(s) not LOCKED (F23 requires lock)`;
+        readiness.checks.push({
+          code: 'NATIONAL_TEAMS_NOT_LOCKED',
+          severity: 'BLOCKER',
+          message: msg,
+        });
+        readiness.blockers.push(msg);
+        readiness.status = 'NOT_READY';
+      }
+    }
+  }
 
   return {
     edition: {

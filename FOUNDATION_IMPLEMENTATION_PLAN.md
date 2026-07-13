@@ -1392,6 +1392,8 @@ Create persistent national teams and tournament-specific rosters.
 - player club ownership is unchanged;
 - builds pass.
 
+**Status: implemented locally (2026-07-13).** `NationalTeamProfile` + edition-scoped preparation; engine eligibility/suggestion/readiness; Commissioner workflow; public UI; competition readiness requires LOCKED NT editions for international; schemaVersion 5 unchanged. International schedules/matches remain F23.
+
 ---
 
 # 28. F23 — International Tournaments

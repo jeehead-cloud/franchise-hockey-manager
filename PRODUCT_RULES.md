@@ -142,6 +142,18 @@ F21 Aggregated League invariants:
 - Completed aggregate stages are locked; completed editions archive through F20 with AGGREGATED labeling.
 - No promotion/relegation or cross-league movement in F21.
 
+F22 National Team invariants:
+
+- National-team selection never changes club ownership.
+- Roster membership is CompetitionEdition-specific.
+- Only eligible players may be selected; suggested rosters contain only eligible players.
+- One player may represent one national team per CompetitionEdition.
+- Confirmed/locked rosters use snapshots; later renames/transfers do not rewrite them.
+- National tactics and lineups are independent from clubs.
+- Locked tournament rosters are immutable.
+- F22 does not create or simulate tournament matches.
+- Normal mode is read-only; every structural write is audited.
+
 Invariants in force:
 
 - **Line/pairing synergy**: role compatibility is config-driven. Complementary roles can beat redundant higher-rated groups after bounded modifiers. Unknown role pairs use an explicit documented fallback.

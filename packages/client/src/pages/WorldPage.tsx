@@ -224,6 +224,36 @@ export function WorldPage() {
           )}
         </Panel>
 
+        {(data.nationalTeamPreparation?.length ?? 0) > 0 ? (
+          <Panel title="National team preparation">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {data.nationalTeamPreparation!.map((nt) => (
+                <Link
+                  key={nt.competitionEditionId}
+                  to={`/competitions/${nt.competitionId}/editions/${nt.competitionEditionId}?tab=national-teams`}
+                  style={{
+                    display: 'block',
+                    textDecoration: 'none',
+                    color: 'var(--text-secondary)',
+                    font: 'var(--text-body-sm)',
+                    paddingBottom: 8,
+                    borderBottom: '1px solid var(--border-subtle)',
+                  }}
+                >
+                  <div style={{ color: 'var(--text-primary)' }}>{nt.displayName}</div>
+                  <div>
+                    Ready {nt.ready}/{nt.total} · Locked {nt.locked}/{nt.total}
+                    {nt.blockers[0] ? ` · ${nt.blockers[0]}` : ''}
+                  </div>
+                </Link>
+              ))}
+            </div>
+            <Link to="/national-teams" style={{ font: 'var(--text-body-sm)' }}>
+              Open National Teams
+            </Link>
+          </Panel>
+        ) : null}
+
         <Panel title="Warnings">
           {data.warnings.length === 0 ? (
             <p style={{ margin: 0, font: 'var(--text-body-sm)', color: 'var(--text-secondary)' }}>

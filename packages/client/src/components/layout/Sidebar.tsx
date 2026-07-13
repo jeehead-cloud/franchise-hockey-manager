@@ -1,5 +1,6 @@
 import {
   BookOpen,
+  Flag,
   FlaskConical,
   Hexagon,
   LayoutDashboard,
@@ -27,6 +28,7 @@ export const MAIN_NAV: NavItem[] = [
   { to: '/competitions', label: 'Competitions', icon: Trophy },
   { to: '/history', label: 'History', icon: BookOpen },
   { to: '/teams', label: 'Teams', icon: Shield },
+  { to: '/national-teams', label: 'National Teams', icon: Flag },
   { to: '/matches', label: 'Matches', icon: Swords },
   { to: '/players', label: 'Players', icon: Users },
   { to: '/coaches', label: 'Coaches', icon: UserRound },

@@ -25,6 +25,8 @@ import { HistoryArchivePage } from './pages/HistoryArchivePage';
 import { HistoryPage } from './pages/HistoryPage';
 import { PlayerHistoryPage } from './pages/PlayerHistoryPage';
 import { TeamHistoryPage } from './pages/TeamHistoryPage';
+import { NationalTeamsPage } from './pages/NationalTeamsPage';
+import { NationalTeamDetailPage } from './pages/NationalTeamDetailPage';
 import { CommissionerProvider } from './lib/commissioner';
 
 export function App() {
@@ -52,6 +54,8 @@ export function App() {
             <Route path="/teams/:teamId" element={<TeamDetailPage />} />
             <Route path="/teams/:teamId/history" element={<TeamHistoryPage />} />
             <Route path="/teams/:teamId/lines/edit" element={<TeamLinesEditPage />} />
+            <Route path="/national-teams" element={<NationalTeamsPage />} />
+            <Route path="/national-teams/:nationalTeamId" element={<NationalTeamDetailPage />} />
             <Route path="/coaches" element={<CoachesPage />} />
             <Route path="/coaches/new" element={<CoachNewPage />} />
             <Route path="/coaches/:coachId" element={<CoachDetailPage />} />

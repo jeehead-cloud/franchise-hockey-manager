@@ -189,6 +189,16 @@ export interface WorldSummary {
     competition?: { id: string; name: string; type: string };
     worldSeason?: { id: string; label: string };
   }>;
+  nationalTeamPreparation?: Array<{
+    competitionEditionId: string;
+    displayName: string;
+    competitionId: string;
+    competitionName: string;
+    total: number;
+    ready: number;
+    locked: number;
+    blockers: string[];
+  }>;
   warnings: Array<{ code: string; message: string; severity: 'info' | 'warning' }>;
   recommendedNextAction: {
     code: string;
@@ -2850,5 +2860,227 @@ export async function getTeamHistorySeasons(teamId: string, signal?: AbortSignal
   return getJson<{ item: { seasons: unknown[] } }>(
     `/api/history/teams/${teamId}/seasons`,
     signal,
+  );
+}
+
+/** F22 National Teams */
+export async function getNationalTeams(
+  params: Record<string, string | number | undefined | null> = {},
+  signal?: AbortSignal,
+) {
+  return getJson<{
+    items: unknown[];
+    total: number;
+    page: number;
+    pageSize: number;
+  }>(`/api/national-teams${qs(params)}`, signal);
+}
+
+export async function getNationalTeam(id: string, signal?: AbortSignal) {
+  return getJson<{ item: Record<string, unknown> }>(`/api/national-teams/${id}`, signal);
+}
+
+export async function getNationalTeamEditions(
+  params: Record<string, string | number | undefined | null> = {},
+  signal?: AbortSignal,
+) {
+  return getJson<{ items: unknown[]; total: number }>(
+    `/api/national-team-editions${qs(params)}`,
+    signal,
+  );
+}
+
+export async function getNationalTeamEdition(id: string, signal?: AbortSignal) {
+  return getJson<{ item: Record<string, unknown> }>(`/api/national-team-editions/${id}`, signal);
+}
+
+export async function getNationalTeamEditionCandidates(id: string, signal?: AbortSignal) {
+  return getJson<{ items?: unknown[]; item?: unknown }>(
+    `/api/national-team-editions/${id}/candidates`,
+    signal,
+  );
+}
+
+export async function getNationalTeamEditionRoster(id: string, signal?: AbortSignal) {
+  return getJson<{ items?: unknown[]; item?: unknown }>(
+    `/api/national-team-editions/${id}/roster`,
+    signal,
+  );
+}
+
+export async function getNationalTeamEditionStaff(id: string, signal?: AbortSignal) {
+  return getJson<{ items?: unknown[]; item?: unknown }>(
+    `/api/national-team-editions/${id}/staff`,
+    signal,
+  );
+}
+
+export async function getNationalTeamEditionTactics(id: string, signal?: AbortSignal) {
+  return getJson<{ item: Record<string, unknown> | null }>(
+    `/api/national-team-editions/${id}/tactics`,
+    signal,
+  );
+}
+
+export async function getNationalTeamEditionLineup(id: string, signal?: AbortSignal) {
+  return getJson<{ item: Record<string, unknown> | null }>(
+    `/api/national-team-editions/${id}/lineup`,
+    signal,
+  );
+}
+
+export async function getNationalTeamEditionReadiness(id: string, signal?: AbortSignal) {
+  return getJson<{ item: Record<string, unknown> }>(
+    `/api/national-team-editions/${id}/readiness`,
+    signal,
+  );
+}
+
+export async function createNationalTeam(payload: {
+  countryId: string;
+  category: 'SENIOR_MEN' | 'JUNIOR_U20';
+  displayName: string;
+  shortName?: string | null;
+  reason: string;
+}) {
+  return commissionerWrite<{ item: Record<string, unknown> }>(
+    '/api/commissioner/national-teams',
+    'POST',
+    payload,
+  );
+}
+
+export async function prepareNationalTeamEdition(
+  competitionEditionId: string,
+  nationalTeamId: string,
+  payload: { reason: string; expectedUpdatedAt: string; rules?: unknown },
+) {
+  return commissionerWrite<{ item: Record<string, unknown> }>(
+    `/api/commissioner/competition-editions/${competitionEditionId}/national-teams/${nationalTeamId}/prepare`,
+    'POST',
+    payload,
+  );
+}
+
+export async function updateNationalTeamRoster(
+  editionId: string,
+  payload: {
+    expectedUpdatedAt: string;
+    reason: string;
+    roster: Array<{
+      sourcePlayerId: string;
+      rosterRole: string;
+      rosterOrder: number;
+      jerseyNumber?: number | null;
+      captainRole?: string;
+    }>;
+  },
+) {
+  return commissionerWrite<{ item: unknown }>(
+    `/api/commissioner/national-team-editions/${editionId}/roster`,
+    'PATCH',
+    payload,
+  );
+}
+
+export async function reopenNationalTeamRoster(
+  editionId: string,
+  payload: { expectedUpdatedAt: string; reason: string },
+) {
+  return commissionerWrite<{ item: unknown }>(
+    `/api/commissioner/national-team-editions/${editionId}/reopen-roster`,
+    'POST',
+    payload,
+  );
+}
+
+export async function generateNationalTeamCandidates(
+  editionId: string,
+  payload: { expectedUpdatedAt: string; reason: string },
+) {
+  return commissionerWrite<{ item: unknown }>(
+    `/api/commissioner/national-team-editions/${editionId}/generate-candidates`,
+    'POST',
+    payload,
+  );
+}
+
+export async function suggestNationalTeamRoster(
+  editionId: string,
+  payload: {
+    expectedUpdatedAt: string;
+    reason: string;
+    targetRosterSize?: number;
+    confirmReplace?: boolean;
+  },
+) {
+  return commissionerWrite<{ item: unknown }>(
+    `/api/commissioner/national-team-editions/${editionId}/suggest-roster`,
+    'POST',
+    payload,
+  );
+}
+
+export async function confirmNationalTeamRoster(
+  editionId: string,
+  payload: { expectedUpdatedAt: string; reason: string },
+) {
+  return commissionerWrite<{ item: unknown }>(
+    `/api/commissioner/national-team-editions/${editionId}/confirm-roster`,
+    'POST',
+    payload,
+  );
+}
+
+export async function updateNationalTeamStaff(
+  editionId: string,
+  payload: {
+    expectedUpdatedAt: string;
+    reason: string;
+    staff: Array<{ sourceCoachId: string; role: string; assignmentOrder?: number }>;
+  },
+) {
+  return commissionerWrite<{ item: unknown }>(
+    `/api/commissioner/national-team-editions/${editionId}/staff`,
+    'PATCH',
+    payload,
+  );
+}
+
+export async function updateNationalTeamTactics(
+  editionId: string,
+  payload: {
+    expectedUpdatedAt: string;
+    reason: string;
+    tacticalStyle: string;
+    tacticsText?: string;
+  },
+) {
+  return commissionerWrite<{ item: unknown }>(
+    `/api/commissioner/national-team-editions/${editionId}/tactics`,
+    'PATCH',
+    payload,
+  );
+}
+
+export async function autoNationalTeamLineup(
+  editionId: string,
+  payload: { expectedUpdatedAt: string; reason: string },
+) {
+  return commissionerWrite<{ item: unknown }>(
+    `/api/commissioner/national-team-editions/${editionId}/auto-lineup`,
+    'POST',
+    payload,
+  );
+}
+
+export async function lockNationalTeamEdition(
+  editionId: string,
+  payload: { expectedUpdatedAt: string; reason: string },
+) {
+  return commissionerWrite<{ item: unknown }>(
+    `/api/commissioner/national-team-editions/${editionId}/lock`,
+    'POST',
+    payload,
   );
 }
