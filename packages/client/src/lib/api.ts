@@ -3187,3 +3187,393 @@ export async function cancelInternationalSimulation(editionId: string, runId: st
     {},
   );
 }
+
+// --- F24 Player Development ---
+
+export type PlayerDevelopmentRunStatus =
+  | 'PREPARED'
+  | 'RUNNING'
+  | 'COMPLETED'
+  | 'FAILED'
+  | 'CANCELLED';
+
+export type PlayerDevelopmentOutcome =
+  | 'DEVELOPED'
+  | 'DECLINED'
+  | 'STABLE'
+  | 'RETIRED'
+  | string;
+
+export interface DevelopmentRunSummaryDto {
+  totalPlayers: number;
+  developedCount: number;
+  declinedCount: number;
+  stableCount: number;
+  retiredCount: number;
+  warningCount: number;
+  averageAbilityChange: number;
+  inputHash: string;
+  resultHash: string;
+}
+
+export interface DevelopmentRunDto {
+  id: string;
+  worldSeasonId: string;
+  status: PlayerDevelopmentRunStatus;
+  runVersion: number;
+  effectiveDate: string;
+  baseSeed: string;
+  configVersionId: string;
+  configHash: string;
+  inputHash: string;
+  resultHash: string | null;
+  totalPlayers: number;
+  developedCount: number;
+  declinedCount: number;
+  stableCount: number;
+  retiredCount: number;
+  warningCount: number;
+  isCurrent: boolean;
+  backupPath: string | null;
+  failureReason: string | null;
+  startedAt: string | null;
+  completedAt: string | null;
+  failedAt: string | null;
+  cancelledAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DevelopmentStatus {
+  worldSeason: {
+    id: string;
+    label: string;
+    status: string;
+    phase: string;
+    updatedAt: string;
+  };
+  activeConfig: {
+    presetName: string;
+    versionId: string;
+    versionNumber: number;
+    configHash: string;
+  };
+  currentCompletedRun: DevelopmentRunDto | null;
+  activeRun: DevelopmentRunDto | null;
+  developmentApplied: boolean;
+}
+
+export interface DevelopmentReadiness {
+  worldSeasonId: string;
+  effectiveDate: string | null;
+  status: 'READY' | 'WARNING' | 'NOT_READY';
+  checks: Array<{ code: string; status: 'PASS' | 'WARN' | 'FAIL'; message: string }>;
+  blockers: string[];
+  warnings: string[];
+  eligiblePlayerCount: number;
+}
+
+export interface DevelopmentPreviewResultDto {
+  playerId: string;
+  playerName: string;
+  playerType: string;
+  position: string;
+  teamId: string | null;
+  teamName: string | null;
+  ageOnEffectiveDate: number;
+  currentAbilityBefore: number;
+  currentAbilityAfter: number;
+  roleBefore: string;
+  roleAfter: string;
+  formBefore: number;
+  formAfter: number;
+  outcome: string;
+  retired: boolean;
+  direction: string;
+  attributeChangeCount: number;
+  warnings: string[];
+  potentialCeiling?: number;
+}
+
+export interface DevelopmentPreviewResponse {
+  preview: true;
+  worldSeasonId: string;
+  effectiveDate: string;
+  baseSeed: string;
+  configHash: string;
+  summary: DevelopmentRunSummaryDto;
+  items: DevelopmentPreviewResultDto[];
+  page: number;
+  pageSize: number;
+  total: number;
+}
+
+export interface DevelopmentResultRow {
+  id: string;
+  runId: string;
+  playerId: string;
+  playerName: string;
+  playerType: string;
+  position: string;
+  teamId: string | null;
+  teamName: string | null;
+  ageOnEffectiveDate: number;
+  currentAbilityBefore: number;
+  currentAbilityAfter: number;
+  roleBefore: string;
+  roleAfter: string;
+  formBefore: number;
+  formAfter: number;
+  outcome: PlayerDevelopmentOutcome;
+  retired: boolean;
+  retirementReason: string | null;
+  attributeChanges: unknown;
+  resultHash: string;
+  potentialCeiling?: number;
+}
+
+export interface DevelopmentRetirementRow {
+  playerId: string;
+  playerName: string;
+  teamId: string | null;
+  teamName: string | null;
+  ageOnEffectiveDate: number;
+  currentAbilityBefore: number;
+  currentAbilityAfter: number;
+  retirementReason: string | null;
+  outcome: PlayerDevelopmentOutcome;
+}
+
+export interface DevelopmentPresetSummary {
+  id: string;
+  name: string;
+  description: string | null;
+  isSystem: boolean;
+  createdAt: string;
+  updatedAt: string;
+  latestVersion: {
+    id: string;
+    versionNumber: number;
+    schemaVersion: number;
+    configHash: string;
+    changeReason: string;
+    createdAt: string;
+    isActive: boolean;
+  } | null;
+  isActive: boolean;
+}
+
+export interface PlayerDevelopmentHistory {
+  playerId: string;
+  playerName: string;
+  results: Array<
+    DevelopmentResultRow & {
+      effectiveDate: string;
+      runStatus: PlayerDevelopmentRunStatus;
+      runCompletedAt: string | null;
+    }
+  >;
+  snapshots: Array<{
+    id: string;
+    runId: string;
+    worldSeasonId: string;
+    snapshotType: string;
+    snapshotDate: string;
+    role: string;
+    currentAbility: number;
+    form: number;
+    playerStatus: string;
+    attributesHash: string;
+    createdAt: string;
+    potentialCeiling?: number;
+  }>;
+}
+
+export interface DevelopmentRunDiagnostics {
+  run: DevelopmentRunDto;
+  config: {
+    presetName: string;
+    versionNumber: number;
+    configHash: string;
+  };
+  sampleTopChanges: Array<{
+    playerId: string;
+    playerName: string;
+    abilityDelta: number;
+    outcome: PlayerDevelopmentOutcome;
+    retired: boolean;
+    diagnostics: unknown;
+  }>;
+}
+
+export async function getDevelopmentStatus(
+  worldSeasonId?: string,
+  signal?: AbortSignal,
+): Promise<{ item: DevelopmentStatus }> {
+  return getJson(`/api/player-development/status${qs({ worldSeasonId })}`, signal);
+}
+
+export async function getDevelopmentReadiness(
+  params: {
+    worldSeasonId: string;
+    effectiveDate?: string;
+    configVersionId?: string;
+  },
+  signal?: AbortSignal,
+): Promise<{ item: DevelopmentReadiness }> {
+  return getJson(`/api/player-development/readiness${qs(params)}`, signal);
+}
+
+export async function listDevelopmentRuns(
+  worldSeasonId: string,
+  signal?: AbortSignal,
+): Promise<{ items: DevelopmentRunDto[] }> {
+  return getJson(`/api/player-development/runs${qs({ worldSeasonId })}`, signal);
+}
+
+export async function getDevelopmentRun(
+  runId: string,
+  signal?: AbortSignal,
+): Promise<{ item: DevelopmentRunDto }> {
+  return getJson(`/api/player-development/runs/${runId}`, signal);
+}
+
+export async function listDevelopmentResults(
+  runId: string,
+  params: {
+    page?: number;
+    pageSize?: number;
+    outcome?: string;
+  } = {},
+  signal?: AbortSignal,
+): Promise<Paginated<DevelopmentResultRow>> {
+  return getJson(`/api/player-development/runs/${runId}/results${qs(params)}`, signal);
+}
+
+export async function listDevelopmentRetirements(
+  runId: string,
+  signal?: AbortSignal,
+): Promise<{ item: { items: DevelopmentRetirementRow[]; total: number } }> {
+  return getJson(`/api/player-development/runs/${runId}/retirements`, signal);
+}
+
+export async function getPlayerDevelopmentHistory(
+  playerId: string,
+  signal?: AbortSignal,
+): Promise<{ item: PlayerDevelopmentHistory }> {
+  return getJson(`/api/players/${playerId}/development-history`, signal);
+}
+
+export async function listDevelopmentConfigurations(
+  signal?: AbortSignal,
+): Promise<{ items: DevelopmentPresetSummary[] }> {
+  return getJson('/api/player-development/configurations', signal);
+}
+
+async function commissionerDelete<T>(path: string, payload?: unknown): Promise<T> {
+  const res = await fetch(`${apiBase()}${path}`, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+      [COMMISSIONER_HEADER]: 'enabled',
+      'X-FHM-Commissioner-Source': 'ui',
+    },
+    body: payload != null ? JSON.stringify(payload) : undefined,
+  });
+  if (!res.ok) {
+    const err = new Error(await readError(res)) as Error & { status?: number };
+    err.status = res.status;
+    throw err;
+  }
+  if (res.status === 204) return undefined as T;
+  const text = await res.text();
+  if (!text) return undefined as T;
+  return JSON.parse(text) as T;
+}
+
+export async function previewPlayerDevelopment(payload: {
+  worldSeasonId: string;
+  effectiveDate: string;
+  baseSeed: string;
+  configVersionId?: string;
+  includeRetiredPlayers?: boolean;
+  page?: number;
+  pageSize?: number;
+}): Promise<{ item: DevelopmentPreviewResponse }> {
+  return commissionerWrite('/api/commissioner/player-development/preview', 'POST', payload);
+}
+
+export async function preparePlayerDevelopmentRun(payload: {
+  worldSeasonId: string;
+  expectedWorldSeasonUpdatedAt: string;
+  effectiveDate: string;
+  baseSeed: string;
+  configVersionId?: string;
+  reason: string;
+  includeRetiredPlayers?: boolean;
+}): Promise<{ item: DevelopmentRunDto }> {
+  return commissionerWrite('/api/commissioner/player-development/prepare', 'POST', payload);
+}
+
+export async function executePlayerDevelopmentRun(
+  runId: string,
+  payload: { confirmation: true; reason: string },
+): Promise<{ item: DevelopmentRunDto }> {
+  return commissionerWrite(
+    `/api/commissioner/player-development/runs/${runId}/execute`,
+    'POST',
+    payload,
+  );
+}
+
+export async function discardPlayerDevelopmentRun(
+  runId: string,
+  payload: { reason: string },
+): Promise<{ item: DevelopmentRunDto }> {
+  return commissionerDelete(`/api/commissioner/player-development/runs/${runId}`, payload);
+}
+
+export async function getPlayerDevelopmentRunDiagnostics(
+  runId: string,
+  signal?: AbortSignal,
+): Promise<{ item: DevelopmentRunDiagnostics }> {
+  return commissionerGetJson(
+    `/api/commissioner/player-development/runs/${runId}/diagnostics`,
+    signal,
+  );
+}
+
+export async function createDevelopmentConfiguration(payload: {
+  name: string;
+  description?: string | null;
+  reason: string;
+}): Promise<{ item: DevelopmentPresetSummary }> {
+  return commissionerWrite('/api/commissioner/player-development/configurations', 'POST', payload);
+}
+
+export async function createDevelopmentConfigurationVersion(
+  presetId: string,
+  payload: {
+    expectedLatestVersionId: string;
+    config: unknown;
+    reason: string;
+    activate?: boolean;
+  },
+): Promise<{ item: DevelopmentPresetSummary }> {
+  return commissionerWrite(
+    `/api/commissioner/player-development/configurations/${presetId}/versions`,
+    'POST',
+    payload,
+  );
+}
+
+export async function activateDevelopmentConfigurationVersion(
+  versionId: string,
+  payload: { reason: string; expectedActiveVersionId?: string },
+): Promise<{ item: DevelopmentPresetSummary }> {
+  return commissionerWrite(
+    `/api/commissioner/player-development/configuration-versions/${versionId}/activate`,
+    'POST',
+    payload,
+  );
+}

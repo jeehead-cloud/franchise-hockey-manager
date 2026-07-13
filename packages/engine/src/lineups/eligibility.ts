@@ -64,7 +64,11 @@ export function positionFit(candidate: LineupCandidate, slot: LineupSlot): Posit
 }
 
 export function isEligibleForLineup(candidate: LineupCandidate): boolean {
-  if (candidate.rosterStatus === 'PROSPECT' || candidate.rosterStatus === 'UNAVAILABLE') {
+  if (
+    candidate.rosterStatus === 'PROSPECT' ||
+    candidate.rosterStatus === 'UNAVAILABLE' ||
+    candidate.rosterStatus === 'RETIRED'
+  ) {
     return false;
   }
   if (candidate.modelStatus !== 'COMPLETE') return false;
@@ -75,6 +79,9 @@ export function eligibilityRejectionReason(candidate: LineupCandidate): string |
   if (candidate.rosterStatus === 'PROSPECT') return 'PROSPECT players cannot be assigned to the main lineup.';
   if (candidate.rosterStatus === 'UNAVAILABLE') {
     return 'UNAVAILABLE players cannot be assigned to the main lineup.';
+  }
+  if (candidate.rosterStatus === 'RETIRED') {
+    return 'RETIRED players cannot be assigned to the main lineup.';
   }
   if (candidate.modelStatus !== 'COMPLETE') return 'Incomplete player model cannot be assigned.';
   return null;

@@ -17,6 +17,8 @@ import { registerHistoryRoutes } from './routes/history.js';
 import { registerAggregatedLeagueRoutes } from './routes/aggregated-league.js';
 import { registerNationalTeamRoutes } from './routes/national-teams.js';
 import { registerInternationalTournamentRoutes } from './routes/international-tournaments.js';
+import { registerPlayerDevelopmentRoutes } from './routes/player-development.js';
+import { registerCommissionerPlayerDevelopmentRoutes } from './routes/commissioner-player-development.js';
 
 export async function buildApp(options?: { logger?: boolean }) {
   const app = Fastify({ logger: options?.logger ?? true });
@@ -50,6 +52,8 @@ export async function buildApp(options?: { logger?: boolean }) {
   await registerAggregatedLeagueRoutes(app);
   await registerNationalTeamRoutes(app);
   await registerInternationalTournamentRoutes(app);
+  await registerPlayerDevelopmentRoutes(app);
+  await registerCommissionerPlayerDevelopmentRoutes(app);
   await registerCommissionerRoutes(app);
 
   return app;
@@ -63,4 +67,8 @@ export async function ensureAppMeta() {
   });
   const { bootstrapBalanceConfiguration } = await import('./services/balance-config.js');
   await bootstrapBalanceConfiguration(prisma);
+  const { bootstrapPlayerDevelopmentConfiguration } = await import(
+    './services/player-development-config.js'
+  );
+  await bootstrapPlayerDevelopmentConfiguration(prisma);
 }

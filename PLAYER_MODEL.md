@@ -90,7 +90,17 @@ If no public estimate is imported, show `UNKNOWN` — do not derive public bands
 - Face-offs column (never populated in prototype)
 - Goalie placeholder (50/50 + all attrs = 10)
 
-Annual development, aging ops, role inertia, form, injuries remain deferred (F24+).
+Annual development (F24): see §0.5. Youth generation, draft, injuries remain deferred (F25+).
+
+### 0.5 Annual development (F24)
+
+- **Effective date:** age = completed years on `effectiveDate` from `dateOfBirth`.
+- **Config:** versioned `PlayerDevelopmentPreset` / `PlayerDevelopmentPresetVersion` (separate from F10 match balance).
+- **Order:** prior role may inform allocation weights → change attributes → recalculate CA (F5) → derive role (F5) → update form → evaluate retirement.
+- **Potential:** never auto-increased; soft ceiling on growth; decline allowed.
+- **Form:** annual regression toward 0 within configured bounds.
+- **Retirement:** `RETIRED` status; player retained; history/snapshots remain; club ownership unchanged in F24.
+- **History:** immutable `PlayerSeasonSnapshot` PRE/POST per official run; `PlayerDevelopmentResult` rows for reports.
 
 ### F12–F13 simulation consumption (2026-07-13)
 

@@ -1,5 +1,10 @@
 export type LineupPosition = 'LW' | 'RW' | 'C' | 'LD' | 'RD' | 'G';
-export type LineupRosterStatus = 'ACTIVE' | 'RESERVE' | 'PROSPECT' | 'UNAVAILABLE';
+export type LineupRosterStatus =
+  | 'ACTIVE'
+  | 'RESERVE'
+  | 'PROSPECT'
+  | 'UNAVAILABLE'
+  | 'RETIRED';
 export type LineupModelStatus = 'COMPLETE' | 'INCOMPLETE';
 
 export type LineupSlot =

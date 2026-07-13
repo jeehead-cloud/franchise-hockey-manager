@@ -26,7 +26,8 @@
     "verify:archive-history": "tsx src/competitions/history/verify-archive-history.ts",
     "verify:aggregated-league": "tsx src/competitions/aggregated/verify-aggregated-league.ts",
     "verify:national-teams": "tsx src/national-teams/verify-national-teams.ts",
-    "verify:international-tournaments": "tsx src/competitions/international/verify-international-tournaments.ts"
+    "verify:international-tournaments": "tsx src/competitions/international/verify-international-tournaments.ts",
+    "verify:player-development": "tsx src/development/verify-player-development.ts"
   },
   "devDependencies": {
     "typescript": "^5.8.2",

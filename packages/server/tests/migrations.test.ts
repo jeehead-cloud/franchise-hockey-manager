@@ -50,6 +50,12 @@ describe('Migrations', () => {
       expect(names).toContain('NationalTeamProfile');
       expect(names).toContain('NationalTeamEdition');
       expect(names).toContain('TournamentMedalResult');
+      expect(names).toContain('PlayerDevelopmentPreset');
+      expect(names).toContain('PlayerDevelopmentPresetVersion');
+      expect(names).toContain('ActivePlayerDevelopmentConfiguration');
+      expect(names).toContain('PlayerDevelopmentRun');
+      expect(names).toContain('PlayerDevelopmentResult');
+      expect(names).toContain('PlayerSeasonSnapshot');
       const cols = await prisma.$queryRaw<Array<{ name: string }>>`
         PRAGMA table_info('AppMeta')
       `;
@@ -59,6 +65,7 @@ describe('Migrations', () => {
       `;
       expect(playerCols.map((c) => c.name)).toContain('potentialFloor');
       expect(playerCols.map((c) => c.name)).toContain('publicPotentialEstimate');
+      expect(playerCols.map((c) => c.name)).toContain('form');
       const matchCols = await prisma.$queryRaw<Array<{ name: string }>>`
         PRAGMA table_info('Match')
       `;
@@ -74,7 +81,7 @@ describe('Migrations', () => {
     }
   });
 
-  it('records F1–F23 migrations in history', async () => {
+  it('records F1–F24 migrations in history', async () => {
     const { url, dir } = createTempDatabaseUrl();
     try {
       migrateTempDatabase(url);
@@ -93,7 +100,8 @@ describe('Migrations', () => {
       expect(names.some((n) => n.includes('f21_aggregated_league'))).toBe(true);
       expect(names.some((n) => n.includes('f22_national_teams'))).toBe(true);
       expect(names.some((n) => n.includes('f23_international_tournaments'))).toBe(true);
-      expect(names).toHaveLength(17);
+      expect(names.some((n) => n.includes('f24_player_development'))).toBe(true);
+      expect(names).toHaveLength(18);
       expect(names.some((n) => n.includes('f1_bootstrap'))).toBe(true);
       expect(names.some((n) => n.includes('f2_core_domain'))).toBe(true);
       expect(names.some((n) => n.includes('f3_source_metadata_and_init'))).toBe(true);

@@ -4,7 +4,7 @@ export type RosterPositionGroup = 'FORWARD' | 'DEFENSE' | 'GOALIE';
 
 export interface TeamReadinessRosterMember {
   position: 'LW' | 'RW' | 'C' | 'LD' | 'RD' | 'G';
-  rosterStatus: 'ACTIVE' | 'RESERVE' | 'PROSPECT' | 'UNAVAILABLE';
+  rosterStatus: 'ACTIVE' | 'RESERVE' | 'PROSPECT' | 'UNAVAILABLE' | 'RETIRED';
   /** F5 model completeness for ACTIVE/RESERVE players. */
   modelComplete: boolean;
 }

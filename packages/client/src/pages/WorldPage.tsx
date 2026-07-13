@@ -5,10 +5,11 @@ import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
 import { EmptyState, ErrorState, LoadingState } from '../components/ui/EmptyState';
 import { Panel } from '../components/ui/Panel';
-import { getWorldSummary, type WorldSummary } from '../lib/api';
+import { getWorldSummary, getDevelopmentStatus, type WorldSummary } from '../lib/api';
 
 export function WorldPage() {
   const [data, setData] = useState<WorldSummary | null>(null);
+  const [devApplied, setDevApplied] = useState<boolean | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -16,9 +17,19 @@ export function WorldPage() {
     const controller = new AbortController();
     setLoading(true);
     getWorldSummary(controller.signal)
-      .then((summary) => {
+      .then(async (summary) => {
         setData(summary);
         setError(null);
+        if (summary.season?.id) {
+          try {
+            const dev = await getDevelopmentStatus(summary.season.id, controller.signal);
+            setDevApplied(dev.item.developmentApplied);
+          } catch {
+            setDevApplied(null);
+          }
+        } else {
+          setDevApplied(null);
+        }
       })
       .catch((err: unknown) => {
         if (controller.signal.aborted) return;
@@ -251,6 +262,24 @@ export function WorldPage() {
             <Link to="/national-teams" style={{ font: 'var(--text-body-sm)' }}>
               Open National Teams
             </Link>
+          </Panel>
+        ) : null}
+
+        {devApplied !== null ? (
+          <Panel title="Player development">
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center' }}>
+              <div>
+                <div style={{ font: 'var(--text-body-sm)', color: 'var(--text-primary)' }}>
+                  {devApplied ? 'Annual development applied' : 'Development pending'}
+                </div>
+                <div style={{ font: 'var(--text-body-sm)', color: 'var(--text-tertiary)', marginTop: 4 }}>
+                  F24 official runs update abilities, roles, form, and retirements.
+                </div>
+              </div>
+              <Link to="/development" style={{ font: 'var(--text-body-sm)', color: 'var(--text-link)' }}>
+                Open Development
+              </Link>
+            </div>
           </Panel>
         ) : null}
 

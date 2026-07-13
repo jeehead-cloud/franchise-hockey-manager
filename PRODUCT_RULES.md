@@ -164,6 +164,17 @@ F23 International Tournament invariants:
 - Club ownership and club lineups remain unchanged.
 - Completed tournaments are immutable; F23 does not create future tournaments or alter development.
 
+F24 Player Development invariants:
+
+- Development uses an explicit `effectiveDate` (never the wall clock) to derive age from `dateOfBirth`.
+- Official development runs are deterministic for the same frozen inputs, config version, seed, and effective date.
+- Preview never writes; preparation freezes PRE snapshots; publication is atomic (no partial player updates).
+- One completed official development run per WorldSeason; completed runs are immutable.
+- Potential does not automatically increase; current ability and role are derived after attribute changes via F5 rules.
+- Retirement never deletes the player; F24 keeps `currentTeamId` and excludes RETIRED from lineup eligibility.
+- Club ownership, club lineups, locked national-team snapshots, and F20 archives remain unchanged.
+- F24 creates no new players and does not create or advance a WorldSeason.
+
 Invariants in force:
 
 - **Line/pairing synergy**: role compatibility is config-driven. Complementary roles can beat redundant higher-rated groups after bounded modifiers. Unknown role pairs use an explicit documented fallback.
@@ -191,9 +202,18 @@ See `PLAYER_MODEL.md` for the complete field list and formulas. Key invariants:
 
 ## 5. Aging & Development Rules
 
-- Player attribute totals evolve with age according to a configured curve (peak around age 25-27, decline afterward) — see `PLAYER_MODEL.md` §6 for the source table. This curve lives in `packages/engine/src/config/aging-curve.json`, not hardcoded.
-- Each player has an individual development trajectory bounded by a `risk` (downside) and `bonusPotential` (upside) value rolled at generation — actual year-to-year development should land somewhere in that range, not deterministically at either extreme.
-- A player's `stability` value governs season-to-season performance consistency (volatile vs. steady) — exact re-roll/drift behavior across seasons is an open design question; whatever is chosen must be documented here once decided.
+**F24 implemented (simplified, config-versioned):**
+
+- Age for development is calculated on an explicit `effectiveDate` from `Player.dateOfBirth` (UTC calendar). Do not use wall clock; do not invent a separate persisted integer age as source of truth.
+- Skater and goalie use separate age curves and attribute allocation groups (attributes remain 1–20).
+- Annual attribute-change **budget** is deterministic (age band, potential gap, optional developmentRate, seeded variance), then allocated across attributes. Budget is not “CA points.”
+- After attributes change: recalculate current ability and derived role with existing F5 functions. Potential floor/ceiling are never auto-increased by development.
+- Positive development softens near potential ceiling; decline is not blocked by potential.
+- Form (`Player.form`, −10..10) regresses toward neutral annually with bounded seeded variance — not a permanent skill.
+- Retirement evaluation is deterministic; forced age and probability curve are config-driven. Retirement sets `rosterStatus = RETIRED` without deleting the player. F24 keeps `currentTeamId` (roster cleanup deferred).
+- Official run workflow: preview → prepare (PRE snapshots) → execute (backup + stale check + atomic POST snapshots/results). One completed official run per WorldSeason.
+
+Prototype aging table in §6 remains historical reference; F24 uses `PlayerDevelopmentPresetVersion` config, not a live spreadsheet curve.
 
 ---
 

@@ -1429,46 +1429,7 @@ Use:
 
 # 29. F24 — Player Development
 
-## Goal
-
-Apply annual development and decline.
-
-## Scope
-
-Operation:
-
-```text
-Apply Annual Development
-```
-
-Steps:
-
-- save season snapshot;
-- increase age;
-- calculate development budget;
-- distribute changes across attributes;
-- recalculate ratings;
-- recalculate role;
-- update form;
-- evaluate retirement.
-
-## Deliverables
-
-- aging config;
-- development config;
-- engine functions;
-- PlayerSeasonSnapshot persistence;
-- development report UI;
-- tests.
-
-## Acceptance Criteria
-
-- same input and seed produce same development result;
-- attributes remain in valid ranges;
-- goalie and skater development are separate;
-- roles can change only through derived rules;
-- snapshots preserve old values;
-- tests pass.
+**Status: implemented locally (2026-07-13).** Deterministic annual development for existing players: versioned development config; effective-date aging; skater/goalie curves; budgets/allocation; F5 CA/role recalculation; form; retirement without deletion; PRE/POST snapshots; preview/prepare/atomic execute; APIs/UI; verifier `verify:player-development`. No youth generation, no next WorldSeason, no auto roster replacement.
 
 ---
 

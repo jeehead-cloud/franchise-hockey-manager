@@ -490,6 +490,41 @@ Client: `/international-tournaments`; edition Tournament tab
 
 Verifier: `npm run verify:international-tournaments`
 
+## 7j. Player Development (F24)
+
+Separate from F10 match-balance presets:
+
+- `PlayerDevelopmentPreset` / immutable `PlayerDevelopmentPresetVersion` / `ActivePlayerDevelopmentConfiguration`
+- Default bootstrap: **Development Default v1** (idempotent; simplified curves, not NHL-calibrated)
+
+Engine (`packages/engine/src/development/`):
+- Explicit `effectiveDate` aging (`dateOfBirth` authoritative; no wall clock)
+- Skater vs goalie age curves and attribute groups (attrs remain **1–20**)
+- Deterministic budget → allocation → F5 CA recalculation → F5 role derivation → form regression → retirement
+- Potential never auto-increased; soft ceiling reduces positive budget near potential
+- PRE/POST hashes; reconciliation before publish
+
+Persistence:
+- `Player.form` (−10..10 baseline)
+- `RosterStatus.RETIRED` (player retained; `currentTeamId` kept in F24)
+- `PlayerDevelopmentRun` / `PlayerDevelopmentResult` / `PlayerSeasonSnapshot` (PRE_DEVELOPMENT / POST_DEVELOPMENT)
+- One current completed official run per WorldSeason
+
+Workflow:
+1. Preview (no writes)
+2. Prepare (freeze PRE snapshots + inputHash)
+3. Execute (SQLite safety backup → stale-input check → compute → reconcile → atomic publish)
+
+Invariants:
+- Club ownership unchanged; club lineups not auto-rewritten; locked NT / F20 archives unchanged
+- Completed runs immutable; no ordinary second official run; no completed-run restore UI
+
+APIs: `/api/player-development/*`, `/api/commissioner/player-development/*`, `/api/players/:id/development-history`
+
+Client: `/development`, `/development/runs/:runId`, player Development tab
+
+Verifier: `npm run verify:player-development`
+
 ---
 
 ## 8. Why Client-Server From Day One

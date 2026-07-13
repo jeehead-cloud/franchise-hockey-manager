@@ -28,6 +28,8 @@ import { TeamHistoryPage } from './pages/TeamHistoryPage';
 import { NationalTeamsPage } from './pages/NationalTeamsPage';
 import { NationalTeamDetailPage } from './pages/NationalTeamDetailPage';
 import { InternationalTournamentsPage } from './pages/InternationalTournamentsPage';
+import { DevelopmentPage } from './pages/DevelopmentPage';
+import { DevelopmentRunDetailPage } from './pages/DevelopmentRunDetailPage';
 import { CommissionerProvider } from './lib/commissioner';
 
 export function App() {
@@ -70,6 +72,8 @@ export function App() {
             <Route path="/matches/new" element={<NewMatchPage />} />
             <Route path="/matches/:matchId" element={<MatchDetailPage />} />
             <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/development" element={<DevelopmentPage />} />
+            <Route path="/development/runs/:runId" element={<DevelopmentRunDetailPage />} />
             <Route path="/simulation-lab" element={<SimulationLabPage />} />
             <Route path="*" element={<NotFoundPage />} />
           </Route>

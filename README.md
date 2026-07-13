@@ -41,6 +41,7 @@ npm run dev:client
 - **Competitions (F17–F21):** `/competitions`, edition pages with regular season (F18), playoffs (F19), aggregated seasons (F21), plus immutable archive/history (F20) under `/history`.
 - **National Teams (F22):** `/national-teams`, `/national-teams/:id` — senior/U20 profiles, tournament-edition roster preparation (candidates, roster, staff, tactics, lines, readiness/lock). No tournament matches yet (F23).
 - **International Tournaments (F23):** `/international-tournaments` and CompetitionEdition **Tournament** tab — templates, groups, schedule, simulate, medals (simplified formats).
+- **Player Development (F24):** `/development`, `/development/runs/:runId` — annual development overview/preview/runs (Commissioner prepare/execute); player detail Development tab. Does not create youth or advance WorldSeason.
 - **History (F20):** `/history`, `/history/competitions/:archiveId`, player/team season history routes. Aggregated archives are labeled distinctly from detailed seasons.
 - **Technical simulation (F16):** `/simulation-lab` — Batch Lab (1/10/100/1000 unpersisted F14 aggregates) + Single Match Debug (F13 technical); neither creates official Match records
 - **Matches (F15):** `/matches`, `/matches/new`, `/matches/:matchId` — persisted match viewer (overview, public events, stats, lines/usage; Commissioner diagnostics/attempts)
@@ -87,6 +88,7 @@ npm run verify:simulation-lab
 npm run verify:aggregated-league
 npm run verify:national-teams
 npm run verify:international-tournaments
+npm run verify:player-development
 ```
 
 Vitest uses isolated temporary SQLite databases for server tests (does not mutate the normal `dev.db` except when you run migrate yourself).

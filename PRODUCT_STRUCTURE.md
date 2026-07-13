@@ -1496,6 +1496,8 @@ It uses the same universal competition engine.
 
 ## 57. Player Development
 
+**F24:** Development occurs once per WorldSeason via an official `PlayerDevelopmentRun` (preview → prepare with PRE snapshots → atomic execute). Age uses an explicit effective date. See `ARCHITECTURE.md` §7j and `PLAYER_MODEL.md` §0.5.
+
 Development occurs once per global season.
 
 ```text
@@ -2080,7 +2082,7 @@ The Simulation Lab is a first-class product area.
 
 **F16 partial implementation (2026-07-13):** `/simulation-lab` hosts **Batch Lab** (default) for unpersisted 1/10/100/1000-game balance analysis plus **Single Match Debug** (preserved F13 technical tool). Official Matches are never created by Lab runs.
 
-**F17–F23 (2026-07-13):** Competitions host structural editions with participants/stages/rules. F18 enables DETAILED regular-season schedules and standings. F19 enables BEST_OF_SERIES playoffs through champion determination and edition completion readiness. F20 archives COMPLETED editions into immutable historical records with awards, records, and History UI. F21 enables AGGREGATED domestic leagues via fast deterministic season simulation without MatchEvent persistence. F22 adds persistent national teams and CompetitionEdition-scoped roster preparation. F23 runs international tournaments from locked national-team snapshots through groups, knockout, medals, and archive readiness (simplified templates).
+**F17–F24 (2026-07-13):** Competitions host structural editions with participants/stages/rules. F18 enables DETAILED regular-season schedules and standings. F19 enables BEST_OF_SERIES playoffs through champion determination and edition completion readiness. F20 archives COMPLETED editions into immutable historical records with awards, records, and History UI. F21 enables AGGREGATED domestic leagues via fast deterministic season simulation without MatchEvent persistence. F22 adds persistent national teams and CompetitionEdition-scoped roster preparation. F23 runs international tournaments from locked national-team snapshots through groups, knockout, medals, and archive readiness (simplified templates). F24 applies one deterministic annual player-development cycle per WorldSeason (preview/prepare/execute) without youth generation or season advancement.
 
 Inputs:
 

@@ -81,6 +81,7 @@ enum RosterStatus {
   RESERVE
   PROSPECT
   UNAVAILABLE
+  RETIRED
 }
 
 enum CoachingStyle {
@@ -230,6 +231,8 @@ enum CommissionerAuditEntityType {
   NATIONAL_TEAM_ROSTER
   NATIONAL_TEAM_LINEUP
   NATIONAL_TEAM_STAFF
+  PLAYER_DEVELOPMENT_CONFIG
+  PLAYER_DEVELOPMENT_RUN
 }
 
 enum CommissionerAuditAction {
@@ -297,6 +300,14 @@ enum CommissionerAuditAction {
   INTERNATIONAL_TOURNAMENT_PREPARED
   INTERNATIONAL_SCHEDULE_GENERATED
   INTERNATIONAL_TOURNAMENT_COMPLETED
+  DEVELOPMENT_CONFIG_CREATED
+  DEVELOPMENT_CONFIG_VERSION_CREATED
+  DEVELOPMENT_CONFIG_ACTIVATED
+  DEVELOPMENT_RUN_PREPARED
+  DEVELOPMENT_RUN_CANCELLED
+  DEVELOPMENT_RUN_STARTED
+  DEVELOPMENT_RUN_COMPLETED
+  DEVELOPMENT_RUN_FAILED
 }
 
 /// F20 competition archive status.
@@ -385,6 +396,8 @@ model WorldSeason {
 
   competitionEditions CompetitionEdition[]
   archives            CompetitionArchive[]
+  developmentRuns     PlayerDevelopmentRun[]
+  playerSnapshots     PlayerSeasonSnapshot[]
 }
 
 model Country {
@@ -491,6 +504,8 @@ model Player {
   /// Hidden — never expose on ordinary public player APIs.
   potentialCeiling        Int?
   publicPotentialEstimate PublicPotentialEstimate?
+  /// F24 annual form baseline (-10..10).
+  form                    Int                      @default(0)
   createdAt               DateTime                 @default(now())
   updatedAt               DateTime                 @updatedAt
 
@@ -500,6 +515,8 @@ model Player {
   goalieAttributes   GoalieAttributes?
   secondaryPositions PlayerSecondaryPosition[]
   lineupAssignments  LineupAssignment[]
+  developmentResults PlayerDevelopmentResult[]
+  seasonSnapshots    PlayerSeasonSnapshot[]
 
   @@unique([sourceDataset, externalId])
   @@index([nationalityCountryId])
@@ -639,29 +656,29 @@ model Competition {
 }
 
 model CompetitionEdition {
-  id                String            @id @default(cuid())
-  competitionId     String
-  worldSeasonId     String
-  displayName       String
-  status            CompetitionStatus
-  editionNumber     Int?
-  rulesSnapshotText String            @default("{}")
-  rulesHash         String            @default("")
-  preparedAt        DateTime?
-  activatedAt       DateTime?
-  completedAt       DateTime?
-  archivedAt        DateTime?
+  id                     String            @id @default(cuid())
+  competitionId          String
+  worldSeasonId          String
+  displayName            String
+  status                 CompetitionStatus
+  editionNumber          Int?
+  rulesSnapshotText      String            @default("{}")
+  rulesHash              String            @default("")
+  preparedAt             DateTime?
+  activatedAt            DateTime?
+  completedAt            DateTime?
+  archivedAt             DateTime?
   /// F23 international tournament metadata (nullable for non-international editions)
-  tournamentTemplateKey   String?
-  tournamentTemplateText  String?
-  tournamentTemplateHash  String?
-  tournamentBaseSeed      String?
-  tournamentScheduleHash  String?
-  tournamentBracketHash   String?
-  tournamentResultHash    String?
-  tournamentPreparedAt    DateTime?
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
+  tournamentTemplateKey  String?
+  tournamentTemplateText String?
+  tournamentTemplateHash String?
+  tournamentBaseSeed     String?
+  tournamentScheduleHash String?
+  tournamentBracketHash  String?
+  tournamentResultHash   String?
+  tournamentPreparedAt   DateTime?
+  createdAt              DateTime          @default(now())
+  updatedAt              DateTime          @updatedAt
 
   competition          Competition              @relation(fields: [competitionId], references: [id], onDelete: Restrict)
   worldSeason          WorldSeason              @relation(fields: [worldSeasonId], references: [id], onDelete: Restrict)
@@ -894,11 +911,11 @@ model Match {
   createdAt                     DateTime    @default(now())
   updatedAt                     DateTime    @updatedAt
 
-  homeTeam           Team                @relation("MatchHomeTeam", fields: [homeTeamId], references: [id], onDelete: Restrict)
-  awayTeam           Team                @relation("MatchAwayTeam", fields: [awayTeamId], references: [id], onDelete: Restrict)
-  competitionEdition CompetitionEdition? @relation(fields: [competitionEditionId], references: [id], onDelete: Restrict)
-  competitionStage   CompetitionStage?   @relation(fields: [competitionStageId], references: [id], onDelete: Restrict)
-  playoffSeries      PlayoffSeries?      @relation(fields: [playoffSeriesId], references: [id], onDelete: Restrict)
+  homeTeam           Team                    @relation("MatchHomeTeam", fields: [homeTeamId], references: [id], onDelete: Restrict)
+  awayTeam           Team                    @relation("MatchAwayTeam", fields: [awayTeamId], references: [id], onDelete: Restrict)
+  competitionEdition CompetitionEdition?     @relation(fields: [competitionEditionId], references: [id], onDelete: Restrict)
+  competitionStage   CompetitionStage?       @relation(fields: [competitionStageId], references: [id], onDelete: Restrict)
+  playoffSeries      PlayoffSeries?          @relation(fields: [playoffSeriesId], references: [id], onDelete: Restrict)
   results            MatchResult[]
   tournamentMedals   TournamentMedalResult[]
 
@@ -1757,14 +1774,14 @@ model NationalTeamEdition {
   createdAt                DateTime                  @default(now())
   updatedAt                DateTime                  @updatedAt
 
-  profile     NationalTeamProfile           @relation(fields: [nationalTeamProfileId], references: [id], onDelete: Restrict)
-  edition     CompetitionEdition            @relation(fields: [competitionEditionId], references: [id], onDelete: Restrict)
-  participant CompetitionParticipant        @relation(fields: [competitionParticipantId], references: [id], onDelete: Restrict)
-  candidates  NationalTeamCandidate[]
-  roster      NationalTeamRosterPlayer[]
-  staff       NationalTeamStaffAssignment[]
-  tactics     NationalTeamTactics?
-  lineup      NationalTeamLineup?
+  profile      NationalTeamProfile           @relation(fields: [nationalTeamProfileId], references: [id], onDelete: Restrict)
+  edition      CompetitionEdition            @relation(fields: [competitionEditionId], references: [id], onDelete: Restrict)
+  participant  CompetitionParticipant        @relation(fields: [competitionParticipantId], references: [id], onDelete: Restrict)
+  candidates   NationalTeamCandidate[]
+  roster       NationalTeamRosterPlayer[]
+  staff        NationalTeamStaffAssignment[]
+  tactics      NationalTeamTactics?
+  lineup       NationalTeamLineup?
   medalResults TournamentMedalResult[]
 
   @@unique([nationalTeamProfileId, competitionEditionId])
@@ -1909,10 +1926,10 @@ model TournamentMedalResult {
   resultHash               String
   createdAt                DateTime            @default(now())
 
-  edition             CompetitionEdition     @relation(fields: [competitionEditionId], references: [id], onDelete: Restrict)
-  stage               CompetitionStage?      @relation(fields: [competitionStageId], references: [id], onDelete: Restrict)
-  nationalTeamEdition NationalTeamEdition?   @relation(fields: [nationalTeamEditionId], references: [id], onDelete: Restrict)
-  sourceMatch         Match?                 @relation(fields: [sourceMatchId], references: [id], onDelete: Restrict)
+  edition             CompetitionEdition   @relation(fields: [competitionEditionId], references: [id], onDelete: Restrict)
+  stage               CompetitionStage?    @relation(fields: [competitionStageId], references: [id], onDelete: Restrict)
+  nationalTeamEdition NationalTeamEdition? @relation(fields: [nationalTeamEditionId], references: [id], onDelete: Restrict)
+  sourceMatch         Match?               @relation(fields: [sourceMatchId], references: [id], onDelete: Restrict)
 
   @@unique([competitionEditionId, medalType])
   @@unique([competitionEditionId, competitionParticipantId])
@@ -1922,4 +1939,182 @@ model TournamentMedalResult {
   @@index([nationalTeamEditionId])
   @@index([sourceMatchId])
   @@index([medalType])
+}
+
+// ---------------------------------------------------------------------------
+// F24 — Player development configuration, runs, snapshots
+// ---------------------------------------------------------------------------
+
+enum PlayerDevelopmentRunStatus {
+  PREPARED
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+  SUPERSEDED
+}
+
+enum PlayerDevelopmentOutcome {
+  DEVELOPED
+  DECLINED
+  STABLE
+  RETIRED
+}
+
+enum PlayerSeasonSnapshotType {
+  PRE_DEVELOPMENT
+  POST_DEVELOPMENT
+}
+
+/// Named development preset (system default or user duplicate). F24.
+model PlayerDevelopmentPreset {
+  id          String                           @id @default(cuid())
+  name        String                           @unique
+  description String?
+  isSystem    Boolean                          @default(false)
+  createdAt   DateTime                         @default(now())
+  updatedAt   DateTime                         @updatedAt
+  versions    PlayerDevelopmentPresetVersion[]
+}
+
+/// Immutable development configuration snapshot. F24.
+model PlayerDevelopmentPresetVersion {
+  id              String                                @id @default(cuid())
+  presetId        String
+  versionNumber   Int
+  schemaVersion   Int
+  configJson      String
+  configHash      String
+  changeReason    String
+  createdAt       DateTime                              @default(now())
+  createdBySource CommissionerAuditSource?
+  preset          PlayerDevelopmentPreset               @relation(fields: [presetId], references: [id], onDelete: Restrict)
+  activeFor       ActivePlayerDevelopmentConfiguration?
+  runs            PlayerDevelopmentRun[]
+
+  @@unique([presetId, versionNumber])
+  @@index([configHash])
+  @@index([presetId, createdAt])
+}
+
+/// Singleton active development version. F24.
+model ActivePlayerDevelopmentConfiguration {
+  id                    String                         @id @default("default")
+  activePresetVersionId String                         @unique
+  updatedAt             DateTime                       @updatedAt
+  activeVersion         PlayerDevelopmentPresetVersion @relation(fields: [activePresetVersionId], references: [id], onDelete: Restrict)
+}
+
+/// Official annual development run per WorldSeason. F24.
+model PlayerDevelopmentRun {
+  id              String                     @id @default(cuid())
+  worldSeasonId   String
+  status          PlayerDevelopmentRunStatus @default(PREPARED)
+  runVersion      Int
+  effectiveDate   String
+  baseSeed        String
+  configVersionId String
+  configHash      String
+  inputHash       String
+  resultHash      String?
+  totalPlayers    Int                        @default(0)
+  developedCount  Int                        @default(0)
+  declinedCount   Int                        @default(0)
+  stableCount     Int                        @default(0)
+  retiredCount    Int                        @default(0)
+  warningCount    Int                        @default(0)
+  isCurrent       Boolean                    @default(false)
+  backupPath      String?
+  failureReason   String?
+  startedAt       DateTime?
+  completedAt     DateTime?
+  failedAt        DateTime?
+  cancelledAt     DateTime?
+  createdAt       DateTime                   @default(now())
+  updatedAt       DateTime                   @updatedAt
+
+  worldSeason   WorldSeason                    @relation(fields: [worldSeasonId], references: [id], onDelete: Restrict)
+  configVersion PlayerDevelopmentPresetVersion @relation(fields: [configVersionId], references: [id], onDelete: Restrict)
+  results       PlayerDevelopmentResult[]
+  snapshots     PlayerSeasonSnapshot[]
+
+  @@unique([worldSeasonId, runVersion])
+  @@index([worldSeasonId, status])
+  @@index([worldSeasonId, isCurrent])
+  @@index([inputHash])
+  @@index([configHash])
+  @@index([resultHash])
+}
+
+/// Per-player outcome for a development run. F24.
+model PlayerDevelopmentResult {
+  id                   String                   @id @default(cuid())
+  runId                String
+  playerId             String
+  playerNameSnapshot   String
+  playerType           String
+  positionSnapshot     String
+  teamIdSnapshot       String?
+  teamNameSnapshot     String?
+  ageBefore            Int?
+  ageOnEffectiveDate   Int
+  lifecycleBefore      String
+  lifecycleAfter       String
+  currentAbilityBefore Float
+  currentAbilityAfter  Float
+  potentialSnapshot    Int
+  roleBefore           String
+  roleAfter            String
+  formBefore           Int
+  formAfter            Int
+  developmentBudget    Float
+  usedBudget           Float
+  unusedBudget         Float
+  outcome              PlayerDevelopmentOutcome
+  retired              Boolean
+  retirementReasonText String?
+  attributeChangesText String
+  diagnosticsText      String
+  inputHash            String
+  resultHash           String
+  createdAt            DateTime                 @default(now())
+
+  run    PlayerDevelopmentRun @relation(fields: [runId], references: [id], onDelete: Restrict)
+  player Player               @relation(fields: [playerId], references: [id], onDelete: Restrict)
+
+  @@unique([runId, playerId])
+  @@index([runId, outcome])
+  @@index([playerId])
+}
+
+/// Immutable player model snapshot before/after development. F24.
+model PlayerSeasonSnapshot {
+  id                      String                   @id @default(cuid())
+  playerId                String
+  worldSeasonId           String
+  runId                   String
+  snapshotType            PlayerSeasonSnapshotType
+  snapshotDate            String
+  playerNameSnapshot      String
+  teamIdSnapshot          String?
+  teamNameSnapshot        String?
+  playerStatusSnapshot    String
+  positionSnapshot        String
+  roleSnapshot            String?
+  currentAbilitySnapshot  Float?
+  potentialSnapshot       Int?
+  formSnapshot            Int
+  attributesText          String
+  attributesHash          String
+  playerUpdatedAtSnapshot DateTime
+  inputHash               String
+  createdAt               DateTime                 @default(now())
+
+  player      Player               @relation(fields: [playerId], references: [id], onDelete: Restrict)
+  run         PlayerDevelopmentRun @relation(fields: [runId], references: [id], onDelete: Restrict)
+  worldSeason WorldSeason          @relation(fields: [worldSeasonId], references: [id], onDelete: Restrict)
+
+  @@unique([playerId, runId, snapshotType])
+  @@index([playerId, worldSeasonId])
+  @@index([runId, snapshotType])
 }

@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   Settings,
   Shield,
+  Sprout,
   Swords,
   Trophy,
   Users,
@@ -34,6 +35,7 @@ export const MAIN_NAV: NavItem[] = [
   { to: '/matches', label: 'Matches', icon: Swords },
   { to: '/players', label: 'Players', icon: Users },
   { to: '/coaches', label: 'Coaches', icon: UserRound },
+  { to: '/development', label: 'Development', icon: Sprout },
   { to: '/settings', label: 'Settings', icon: Settings },
   { to: '/simulation-lab', label: 'Simulation Lab', icon: FlaskConical },
 ];

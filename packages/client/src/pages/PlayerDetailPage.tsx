@@ -10,8 +10,10 @@ import { Tabs } from '../components/ui/Tabs';
 import {
   getPlayer,
   getPlayerAuditLog,
+  getPlayerDevelopmentHistory,
   type PlayerAuditItem,
   type PlayerDetail,
+  type PlayerDevelopmentHistory,
 } from '../lib/api';
 import { useCommissioner } from '../lib/commissioner';
 import { playerLabel } from '../lib/listQuery';
@@ -29,6 +31,8 @@ export function PlayerDetailPage() {
   const [tab, setTab] = useState<TabId>('profile');
   const [audits, setAudits] = useState<PlayerAuditItem[]>([]);
   const [auditError, setAuditError] = useState<string | null>(null);
+  const [devHistory, setDevHistory] = useState<PlayerDevelopmentHistory | null>(null);
+  const [devHistoryError, setDevHistoryError] = useState<string | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -50,6 +54,21 @@ export function PlayerDetailPage() {
       });
     return () => controller.abort();
   }, [playerId]);
+
+  useEffect(() => {
+    if (tab !== 'development') return;
+    const controller = new AbortController();
+    getPlayerDevelopmentHistory(playerId, controller.signal)
+      .then((res) => {
+        setDevHistory(res.item);
+        setDevHistoryError(null);
+      })
+      .catch((err: unknown) => {
+        if (controller.signal.aborted) return;
+        setDevHistoryError(err instanceof Error ? err.message : 'Failed to load development history');
+      });
+    return () => controller.abort();
+  }, [tab, playerId]);
 
   useEffect(() => {
     if (!enabled || tab !== 'history') return;
@@ -267,15 +286,60 @@ export function PlayerDetailPage() {
       ) : null}
 
       {tab === 'development' && complete && model && 'developmentRate' in model ? (
-        <Panel title="Development profile">
-          <Row label="Development rate" value={String(model.developmentRate)} />
-          <Row label="Public potential estimate" value={model.publicPotentialEstimate} />
-          <Row label="Current ability" value={String(model.currentAbility)} />
-          <EmptyState
-            title="Annual development starts in F24"
-            description="Exact hidden potential floor/ceiling and development risk are not shown on this public profile. Scouting fog of war arrives in F26."
-          />
-        </Panel>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <Panel title="Development profile">
+            <Row label="Development rate" value={String(model.developmentRate)} />
+            <Row label="Public potential estimate" value={model.publicPotentialEstimate} />
+            <Row label="Current ability" value={String(model.currentAbility)} />
+          </Panel>
+          <Panel title="Development history">
+            {devHistoryError ? <ErrorState description={devHistoryError} /> : null}
+            {!devHistoryError && !devHistory ? (
+              <LoadingState label="Loading development history…" />
+            ) : null}
+            {!devHistoryError && devHistory && devHistory.results.length === 0 ? (
+              <EmptyState
+                title="No development runs yet"
+                description="Annual development results appear here after an official run completes."
+              />
+            ) : null}
+            {!devHistoryError && devHistory && devHistory.results.length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {devHistory.results.map((r) => (
+                  <div
+                    key={r.id}
+                    style={{
+                      padding: '10px 0',
+                      borderBottom: '1px solid var(--border-subtle)',
+                      font: 'var(--text-body-sm)',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+                      <strong style={{ color: 'var(--text-primary)' }}>
+                        {r.effectiveDate} · {r.outcome}
+                      </strong>
+                      <Link to={`/development/runs/${r.runId}`} style={{ color: 'var(--text-link)' }}>
+                        Run detail
+                      </Link>
+                    </div>
+                    <div style={{ color: 'var(--text-secondary)', marginTop: 4 }}>
+                      CA {r.currentAbilityBefore} → {r.currentAbilityAfter} · Role {r.roleBefore} →{' '}
+                      {r.roleAfter} · Form {r.formBefore} → {r.formAfter}
+                    </div>
+                    {r.retired ? (
+                      <div style={{ color: 'var(--accent-danger)', marginTop: 4 }}>
+                        Retired{r.retirementReason ? `: ${r.retirementReason}` : ''}
+                      </div>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            ) : null}
+            <p style={{ margin: '12px 0 0', font: 'var(--text-body-sm)', color: 'var(--text-tertiary)' }}>
+              Hidden potential floor/ceiling and development risk are not shown in normal mode.
+            </p>
+          </Panel>
+        </div>
       ) : null}
 
       {tab === 'history' && enabled ? (
