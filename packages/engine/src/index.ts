@@ -142,12 +142,14 @@ export {
   isF11CompatibleBalanceConfig,
   isF12CompatibleBalanceConfig,
   isF13CompatibleBalanceConfig,
+  isF14CompatibleBalanceConfig,
   BALANCE_SCHEMA_VERSIONS,
   PENALTY_INFRACTIONS,
   SHOT_TYPES,
   defaultShotsSection,
   defaultGoaliesSection,
   defaultPenaltiesSection,
+  defaultMatchCompletionSection,
 } from './balance/index.js';
 
 export type {
@@ -162,6 +164,7 @@ export type {
   ShotsBalanceSection,
   GoaliesBalanceSection,
   PenaltiesBalanceSection,
+  MatchCompletionBalanceSection,
   PenaltyInfraction,
   ShotType,
 } from './balance/index.js';
@@ -169,6 +172,7 @@ export type {
 export {
   FHM_ENGINE_VERSION,
   F13_SIMULATION_MODE,
+  F14_SIMULATION_MODE,
   F12_SIMULATION_MODE,
   F12_ENGINE_VERSION,
   F11_ENGINE_VERSION,
@@ -176,6 +180,7 @@ export {
   SNAPSHOT_SCHEMA_VERSION,
   REGULATION_PERIODS,
   PERIOD_DURATION_SECONDS,
+  OVERTIME_DURATION_SECONDS,
   MINOR_PENALTY_SECONDS,
   FORBIDDEN_F14_EVENT_TYPES,
   FORBIDDEN_F13_EVENT_TYPES,
@@ -196,6 +201,7 @@ export {
   simulateNextEvent,
   simulateUntil,
   simulateRegulation,
+  simulateCompleteMatch,
   simulateStep,
   computeDiagnostics,
   serializeMatchSnapshot,
@@ -227,6 +233,10 @@ export type {
   MatchEventType,
   MatchSnapshot,
   SimulationResult,
+  CompleteSimulationResult,
+  FinalMatchResult,
+  MatchCompletionRules,
+  CompleteMatchResult,
   SimulationDiagnostics,
   MatchStatistics,
   PlayerSkaterStats,

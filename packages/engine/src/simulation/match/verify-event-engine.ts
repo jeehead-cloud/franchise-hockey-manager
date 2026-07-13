@@ -6,7 +6,7 @@ let failures = 0;
 
 for (let i = 0; i < count; i += 1) {
   try {
-    const result = simulateRegulation(buildTestSimulationInput(`verify-${i}`));
+    const result = simulateRegulation(buildTestSimulationInput(`verify-${i}`, { mode: 'F13' }));
     if (result.finalState.simulationStatus !== 'REGULATION_COMPLETE') {
       console.error(`Run ${i}: did not complete`);
       failures += 1;

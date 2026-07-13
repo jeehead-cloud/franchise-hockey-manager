@@ -2070,6 +2070,8 @@ The Simulation Lab is a first-class product area.
 
 **F13 partial implementation (2026-07-13):** `/simulation-lab` hosts **Technical Match Simulation (F13)** — regulation scoring plus basic 5v4 special teams, strength/penalty panels, PP/PK stats, and step/resume. Batch counts (10/100/1000) and full Lab analytics remain future (F16).
 
+**F14 partial implementation (2026-07-13):** `/matches` hosts **Playable Match (F14)** — create ad hoc matches, simulate regulation + OT + shootout, persist results/events/stats, reload identical outcomes. Commissioner resimulation with attempt history. Not a schedule view (F17).
+
 Inputs:
 
 ```text

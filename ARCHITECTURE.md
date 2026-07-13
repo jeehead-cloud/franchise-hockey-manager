@@ -7,13 +7,15 @@
 > Technical source of truth for stack, monorepo structure, data flow, and config-driven balance.
 > For game behavior, see `PRODUCT_RULES.md` and `PLAYER_MODEL.md`. For status, see `CURRENT_STATUS.md`.
 
-F10 adds versioned balance presets (`BalancePreset` / immutable `BalancePresetVersion` / singleton `ActiveBalanceConfiguration`). Repository Standard defaults are composed in `packages/engine/src/balance` (**schemaVersion 4** includes active F13 `match` + `shots` + `goalies` + `penalties` sections; older versions remain immutable). Chemistry and simulation load the active immutable snapshot. F5 player derivation still uses static JSON imports.
+F10 adds versioned balance presets (`BalancePreset` / immutable `BalancePresetVersion` / singleton `ActiveBalanceConfiguration`). Repository Standard defaults are composed in `packages/engine/src/balance` (**schemaVersion 5** includes active F14 `matchCompletion` + F13 `match` + `shots` + `goalies` + `penalties` sections; older versions remain immutable). Chemistry and simulation load the active immutable snapshot. F5 player derivation still uses static JSON imports.
 
 **F11** adds a pure match engine in `packages/engine/src/simulation/match/`: deterministic regulation progression (periods → shifts → possessions → events), seeded Mulberry32 RNG, immutable simulation input, pause/resume snapshots, and trace hashing.
 
 **F12** extends the engine with offensive-zone shot opportunities, shot resolution, assists from pass chains, event-derived statistics, reconciliation, and pending-shot pause/resume.
 
 **F13** extends the engine to `f13.1` / `F13_SPECIAL_TEAMS`: one-at-a-time two-minute minors, 5v4 power plays / penalty kills, automatic temporary special-team units, penalty clocks with period carryover, PP-goal cancellation, and PP/PK/PIM statistics. Server read-only debug endpoints under `/api/simulation/debug/*` return strength/penalty diagnostics. Client `/simulation-lab` shows F13 special-teams UI (not batch Simulation Lab).
+
+**F14** extends the engine to `f14.1` / `F14_PLAYABLE_MATCH`: `simulateCompleteMatch()` runs regulation then optional 3v3 OT (no OT penalties) and shootout. Server persists `Match`, `MatchResult`, `MatchEvent`, `PlayerGameStat`, and `TeamGameStat` atomically via `/api/matches/*`. Commissioner resimulation at `/api/commissioner/matches/:id/resimulate` reuses stored immutable input with a new seed and supersedes the prior result. Client `/matches` is the first persistent match UI.
 
 F9 chemistry remains derived on read and now consumes the active preset chemistry section (with preset/version/hash metadata). Familiarity is still stubbed at 0.
 

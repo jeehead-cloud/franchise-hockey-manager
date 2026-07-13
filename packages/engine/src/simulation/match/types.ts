@@ -1,6 +1,11 @@
 import type { BalanceConfig } from '../../balance/types.js';
 import type { GoalieAttributes, SkaterAttributes } from '../../players/types.js';
-import type { FHM_ENGINE_VERSION, F13_SIMULATION_MODE, SNAPSHOT_SCHEMA_VERSION } from './constants.js';
+import type {
+  FHM_ENGINE_VERSION,
+  F13_SIMULATION_MODE,
+  F14_SIMULATION_MODE,
+  SNAPSHOT_SCHEMA_VERSION,
+} from './constants.js';
 import type { GoalStrength, PenaltyEndReason, PenaltyInfraction } from './penalty-types.js';
 import type { RngState } from './rng.js';
 import type { ShotType } from './shot-types.js';
@@ -9,17 +14,26 @@ export type { ShotType } from './shot-types.js';
 export { SHOT_TYPES } from './shot-types.js';
 export type { GoalStrength, PenaltyEndReason, PenaltyInfraction } from './penalty-types.js';
 
-export type SimulationMode = typeof F13_SIMULATION_MODE;
+export type SimulationMode = typeof F13_SIMULATION_MODE | typeof F14_SIMULATION_MODE;
 
 export type SimulationStatus =
   | 'NOT_STARTED'
   | 'IN_PROGRESS'
   | 'PERIOD_COMPLETE'
   | 'REGULATION_COMPLETE'
+  | 'MATCH_COMPLETE'
   | 'PAUSED'
   | 'FAILED';
 
-export type StrengthState = 'EVEN_5V5' | 'HOME_POWER_PLAY_5V4' | 'AWAY_POWER_PLAY_5V4';
+export type StrengthState =
+  | 'EVEN_5V5'
+  | 'EVEN_3V3'
+  | 'HOME_POWER_PLAY_5V4'
+  | 'AWAY_POWER_PLAY_5V4';
+
+export type MatchSegment = 'REGULATION' | 'OVERTIME' | 'SHOOTOUT' | 'COMPLETE';
+
+export type MatchDecisionType = 'REGULATION' | 'OVERTIME' | 'SHOOTOUT' | 'TIE';
 
 export type PossessionSide = 'HOME' | 'AWAY' | 'NONE';
 
@@ -39,6 +53,12 @@ export type MatchEventType =
   | 'SHIFT_END'
   | 'PERIOD_END'
   | 'REGULATION_END'
+  | 'OVERTIME_START'
+  | 'OVERTIME_END'
+  | 'SHOOTOUT_START'
+  | 'SHOOTOUT_ATTEMPT'
+  | 'SHOOTOUT_END'
+  | 'MATCH_END'
   | 'SHOT'
   | 'SHOT_BLOCKED'
   | 'SHOT_MISSED'
@@ -57,6 +77,13 @@ export type MatchPhase =
   | 'AWAITING_STOPPAGE_FACEOFF'
   | 'AWAITING_PERIOD_END'
   | 'AWAITING_REGULATION_END'
+  | 'AWAITING_POST_REGULATION'
+  | 'AWAITING_OVERTIME_START'
+  | 'IN_OVERTIME'
+  | 'AWAITING_OVERTIME_END'
+  | 'AWAITING_SHOOTOUT'
+  | 'IN_SHOOTOUT'
+  | 'AWAITING_MATCH_END'
   | 'COMPLETE'
   | 'FAILED';
 
@@ -67,6 +94,12 @@ export type MissReason = 'WIDE' | 'HIGH' | 'POST';
 export interface RegulationRules {
   regulationPeriods: number;
   periodDurationSeconds: number;
+}
+
+export interface MatchCompletionRules {
+  overtimeEnabled: boolean;
+  shootoutEnabled: boolean;
+  tiesAllowed: boolean;
 }
 
 export interface SimulationBalanceRef {
@@ -132,6 +165,8 @@ export interface SimulationInput {
   homeTeam: SimulationTeamInput;
   awayTeam: SimulationTeamInput;
   rules: RegulationRules;
+  /** Required for F14_PLAYABLE_MATCH; governs post-regulation resolution. */
+  completionRules?: MatchCompletionRules;
 }
 
 export interface ActiveLines {
@@ -180,6 +215,20 @@ export interface PendingShot {
   attemptCreatorId: string | null;
 }
 
+export interface ShootoutState {
+  round: number;
+  homeAttempts: number;
+  awayAttempts: number;
+  homeGoals: number;
+  awayGoals: number;
+  usedHomeShooters: string[];
+  usedAwayShooters: string[];
+  /** Side taking the next attempt. */
+  nextSide: 'HOME' | 'AWAY';
+  /** True once initial rounds are complete and sudden-death rules apply. */
+  suddenDeath: boolean;
+}
+
 export interface ActivePenalty {
   penaltySequenceId: number;
   penalizedTeamId: string;
@@ -219,6 +268,11 @@ export interface MatchState {
   penaltySequenceId: number;
   /** Absolute regulation seconds marker for spacing between penalties. */
   lastPenaltyEndedRegulationSeconds: number | null;
+  regulationScore: MatchScore;
+  overtimeScore: MatchScore;
+  shootoutScore: MatchScore;
+  matchSegment: MatchSegment;
+  shootoutState: ShootoutState | null;
 }
 
 export interface MatchEvent {
@@ -309,6 +363,8 @@ export interface TeamStats {
   penaltyKills: number;
   penaltyKillPercentage: number;
   shortHandedGoals: number;
+  shootoutAttempts: number;
+  shootoutGoals: number;
 }
 
 export interface PeriodScore {
@@ -379,6 +435,20 @@ export interface SimulationDiagnostics {
   evenStrengthGoals: number;
 }
 
+export interface FinalMatchResult {
+  decisionType: MatchDecisionType;
+  winnerSide: 'HOME' | 'AWAY' | null;
+  regulationScore: MatchScore;
+  overtimeScore: MatchScore;
+  shootoutScore: MatchScore;
+  /** Regulation + overtime goals (shootout goals excluded). */
+  displayScore: MatchScore;
+}
+
+export interface CompleteSimulationResult extends SimulationResult {
+  finalResult: FinalMatchResult;
+}
+
 export interface SimulationResult {
   metadata: {
     engineVersion: typeof FHM_ENGINE_VERSION;
@@ -396,6 +466,20 @@ export interface SimulationResult {
   statistics: MatchStatistics;
   reconciliation: ReconciliationResult;
   periodScores: PeriodScore[];
+}
+
+/** Full persisted match outcome (regulation + optional OT/shootout). */
+export interface CompleteMatchResult extends SimulationResult {
+  decisionType: MatchDecisionType;
+  homeScore: number;
+  awayScore: number;
+  homeRegulationScore: number;
+  awayRegulationScore: number;
+  homeOvertimeScore: number;
+  awayOvertimeScore: number;
+  homeShootoutScore: number;
+  awayShootoutScore: number;
+  winnerTeamId: string | null;
 }
 
 export type StepMode = 'NEXT_EVENT' | 'NEXT_SHIFT' | 'END_PERIOD' | 'END_REGULATION';

@@ -1,6 +1,17 @@
-import { isF13CompatibleBalanceConfig, type MatchBalanceSection } from '../../balance/index.js';
+import {
+  isF13CompatibleBalanceConfig,
+  isF14CompatibleBalanceConfig,
+  type MatchBalanceSection,
+  type MatchCompletionBalanceSection,
+} from '../../balance/index.js';
 import { GOALIE_ATTRIBUTE_KEYS, SKATER_ATTRIBUTE_KEYS } from '../../players/types.js';
-import { FHM_ENGINE_VERSION, F13_SIMULATION_MODE, REGULATION_PERIODS, PERIOD_DURATION_SECONDS } from './constants.js';
+import {
+  FHM_ENGINE_VERSION,
+  F13_SIMULATION_MODE,
+  F14_SIMULATION_MODE,
+  REGULATION_PERIODS,
+  PERIOD_DURATION_SECONDS,
+} from './constants.js';
 import { getPenaltiesConfig } from './penalties.js';
 import { IncompatibleBalanceConfigError, InvalidSimulationInputError } from './errors.js';
 import type { SimulationInput, SimulationPlayerProfile, SimulationTeamInput } from './types.js';
@@ -63,6 +74,10 @@ function validateTeam(team: SimulationTeamInput, label: string) {
   if (!center) throw new InvalidSimulationInputError(`${label} missing center in lineup`);
 }
 
+export function isF14PlayableMatch(input: SimulationInput): boolean {
+  return input.simulationMode === F14_SIMULATION_MODE;
+}
+
 export function getMatchConfig(input: SimulationInput): MatchBalanceSection {
   if (!isF13CompatibleBalanceConfig(input.balance.snapshot)) {
     throw new IncompatibleBalanceConfigError(
@@ -72,6 +87,15 @@ export function getMatchConfig(input: SimulationInput): MatchBalanceSection {
   return input.balance.snapshot.match;
 }
 
+export function getCompletionConfig(input: SimulationInput): MatchCompletionBalanceSection {
+  if (!isF14CompatibleBalanceConfig(input.balance.snapshot)) {
+    throw new IncompatibleBalanceConfigError(
+      `Active balance schemaVersion ${input.balance.snapshot.schemaVersion} is not F14-compatible (requires schemaVersion >= 5 with active matchCompletion)`,
+    );
+  }
+  return input.balance.snapshot.matchCompletion;
+}
+
 export { getPenaltiesConfig };
 
 /** Validate simulation input without mutating it. */
@@ -79,9 +103,9 @@ export function validateSimulationInput(input: SimulationInput): void {
   if (input.engineVersion !== FHM_ENGINE_VERSION) {
     throw new InvalidSimulationInputError(`Unsupported engineVersion ${input.engineVersion}`);
   }
-  if (input.simulationMode !== F13_SIMULATION_MODE) {
+  if (input.simulationMode !== F13_SIMULATION_MODE && input.simulationMode !== F14_SIMULATION_MODE) {
     throw new InvalidSimulationInputError(
-      `Unsupported simulationMode ${input.simulationMode} (requires ${F13_SIMULATION_MODE})`,
+      `Unsupported simulationMode ${input.simulationMode} (requires ${F13_SIMULATION_MODE} or ${F14_SIMULATION_MODE})`,
     );
   }
   if (!input.inputFingerprint) throw new InvalidSimulationInputError('inputFingerprint required');
@@ -100,6 +124,19 @@ export function validateSimulationInput(input: SimulationInput): void {
         throw new InvalidSimulationInputError(`Duplicate player ${p.playerId} across teams`);
       }
       allIds.add(p.playerId);
+    }
+  }
+
+  if (isF14PlayableMatch(input)) {
+    getCompletionConfig(input);
+    if (!input.completionRules) {
+      throw new InvalidSimulationInputError('completionRules required for F14_PLAYABLE_MATCH');
+    }
+  } else {
+    if (!isF13CompatibleBalanceConfig(input.balance.snapshot)) {
+      throw new IncompatibleBalanceConfigError(
+        `F13 mode requires F13-compatible balance (schemaVersion >= 4)`,
+      );
     }
   }
 

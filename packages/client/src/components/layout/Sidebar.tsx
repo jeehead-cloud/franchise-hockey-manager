@@ -4,6 +4,7 @@ import {
   LayoutDashboard,
   Settings,
   Shield,
+  Swords,
   Trophy,
   Users,
   UserRound,
@@ -24,6 +25,7 @@ export const MAIN_NAV: NavItem[] = [
   { to: '/world', label: 'World', icon: LayoutDashboard },
   { to: '/competitions', label: 'Competitions', icon: Trophy },
   { to: '/teams', label: 'Teams', icon: Shield },
+  { to: '/matches', label: 'Matches', icon: Swords },
   { to: '/players', label: 'Players', icon: Users },
   { to: '/coaches', label: 'Coaches', icon: UserRound },
   { to: '/settings', label: 'Settings', icon: Settings },
@@ -116,7 +118,7 @@ export function Sidebar({
           style={{ font: 'var(--text-data-sm)', color: 'var(--text-tertiary)' }}
           className="max-md:hidden"
         >
-          Local · F7
+          Local · F14
         </div>
       </div>
     </aside>

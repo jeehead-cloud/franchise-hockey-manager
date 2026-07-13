@@ -17,7 +17,7 @@ npm run db:generate --workspace=@fhm/server
 npm run db:migrate --workspace=@fhm/server
 ```
 
-`db:migrate` applies Prisma migrations to local SQLite (`packages/server/prisma/dev.db`). F1 → … → F10 balance presets → **F11–F13 event engine (no new DB migration; balance JSON schemaVersion 4 for penalties/special teams)**. After migrate on an existing world, run `npm run balance:bootstrap` if Standard v4 is missing (also runs on server start / world init; upgrades active Standard v1–v3 → v4 only). Do not commit `*.db` files.
+`db:migrate` applies Prisma migrations to local SQLite (`packages/server/prisma/dev.db`). F1 → … → F10 balance presets → **F11–F13 event engine** → **F14 match persistence tables**. After migrate on an existing world, run `npm run balance:bootstrap` if Standard v5 is missing (also runs on server start / world init; upgrades active Standard v1–v4 → v5 only). Do not commit `*.db` files.
 
 ## Run locally
 
@@ -34,10 +34,11 @@ npm run dev:server
 npm run dev:client
 ```
 
-- API: http://127.0.0.1:3000 (`GET /health`, read `GET /api/...`, balance `GET /api/balance/*`, setup `GET|POST /api/setup/*`, world summary `GET /api/world`, chemistry `GET /api/teams/:id/chemistry`, **F13 debug** `POST /api/simulation/debug/*` when enabled)
+- API: http://127.0.0.1:3000 (`GET /health`, read `GET /api/...`, balance `GET /api/balance/*`, setup `GET|POST /api/setup/*`, world summary `GET /api/world`, chemistry `GET /api/teams/:id/chemistry`, **matches** `GET|POST /api/matches/*`, **F13 debug** `POST /api/simulation/debug/*` when enabled)
 - UI: http://localhost:5173 (Vite proxies `/health` and `/api`)
 - Setup World: http://localhost:5173/setup
 - Settings: `/settings` (Game Balance / Runtime & Debug / Commissioner Mode)
+- **Matches (F14):** `/matches`, `/matches/new`, `/matches/:matchId` — persistent ad hoc match results
 - **Technical simulation (F13):** `/simulation-lab` — regulation scoring + basic 5v4 special teams; not batch Simulation Lab
 - Browsers: `/world`, `/teams`, `/players`, `/competitions`, `/coaches` (+ detail routes; Team Lines shows chemistry + active balance meta)
 - Commissioner editor: `/players/:playerId/edit` (requires Commissioner Mode)
@@ -77,6 +78,7 @@ npm run test:server
 npm run verify:event-engine
 npm run verify:scoring-engine
 npm run verify:special-teams-engine
+npm run verify:playable-match-engine
 ```
 
 Vitest uses isolated temporary SQLite databases for server tests (does not mutate the normal `dev.db` except when you run migrate yourself).

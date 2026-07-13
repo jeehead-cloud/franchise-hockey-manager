@@ -48,6 +48,7 @@ npm run db:validate
 npm run verify:event-engine
 npm run verify:scoring-engine
 npm run verify:special-teams-engine
+npm run verify:playable-match-engine
 npm run setup:validate
 npm run setup:status
 ```

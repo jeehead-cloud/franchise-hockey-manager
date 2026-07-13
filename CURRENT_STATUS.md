@@ -12,42 +12,37 @@
 
 ## 1. Current Development Phase
 
-**F13 — Penalties and Special Teams: implemented locally (not committed).** Extends the F12 scoring engine with deterministic minor penalties, one-at-a-time 5v4 special teams, automatic PP/PK units, penalty clocks with period carryover, PP-goal cancellation, event-derived PP/PK/PIM statistics, balance schemaVersion 4, and `/simulation-lab` F13 diagnostics.
+**F14 — Playable Match: implemented locally (not committed).** Adds persistent `Match` / `MatchResult` / events / game statistics, full regulation + 3v3 OT + shootout via `simulateCompleteMatch`, atomic server persistence, match APIs, `/matches` UI, and Commissioner-gated resimulation with superseded-result history.
 
-**Next milestone: F14 — Match Persistence and Results** (do not start until requested).
+**Next milestone: F15 — Match UI and Diagnostics** (do not start until requested).
 
-F1–F12 remain complete on `main`.
+F1–F13 remain complete on `main`. F14 work is local only.
 
 ---
 
 ## 2. Milestone Status
 
-### F1–F12
+### F1–F13
 
-Complete on `main`.
+Complete on `main` (F13 committed/pushed as `cd5cbe6`).
 
-### F13 — Penalties and Special Teams (Done locally)
+### F14 — Playable Match (Done locally)
 
 Implemented:
-- Engine `f13.1` / mode `F13_SPECIAL_TEAMS`; snapshot schemaVersion **3** (rejects F11/F12 snapshots)
-- Supported strength states only: `EVEN_5V5`, `HOME_POWER_PLAY_5V4`, `AWAY_POWER_PLAY_5V4`
-- One active two-minute minor at a time; second opportunities suppressed while a minor is active
-- Infractions: TRIPPING, HOOKING, HOLDING, INTERFERENCE, SLASHING, ROUGHING (all 120s)
-- Deterministic penalized-player selection; aggression raises long-run tendency
-- Automatic temporary PP (5) / PK (4) units from main lineup; penalized player excluded
-- Penalty clock uses game time; period carryover; exact expiration → `PENALTY_EXPIRED`
-- Power-play goal ends the minor immediately; short-handed / even-strength goals do not
-- Regulation-ending open penalty counted as successful PK (no separate expire event)
-- Statistics: PIM, PP opportunities/goals/%, PK opportunities/kills/%, SH goals
-- Balance schemaVersion **4** with active `penalties` section; Standard v4 bootstrap / legacy Standard auto-upgrade
-- Debug APIs + `/simulation-lab` F13 strength/penalty/PP UI
-- Verification: `npm run verify:special-teams-engine` (500 seeded runs default)
+- Engine `f14.1` / mode `F14_PLAYABLE_MATCH`; snapshot schemaVersion **4** (rejects F11–F13 snapshots)
+- `simulateCompleteMatch()`: regulation → optional 5-minute 3v3 OT (sudden death, no OT penalties) → optional shootout
+- Shootout goals separate from player/team normal goals; `MATCH_END` final event
+- Balance schemaVersion **5** with `matchCompletion` (overtime + shootout); Standard v5 bootstrap / legacy Standard auto-upgrade
+- Prisma: `Match`, `MatchResult`, `MatchEvent`, `PlayerGameStat`, `TeamGameStat` + F14 migration
+- APIs: `POST/GET /api/matches`, simulate, result, events; Commissioner resimulate + attempts
+- Client: `/matches`, `/matches/new`, `/matches/:matchId` (overview, events, stats, metadata, Commissioner resimulation)
+- Verification: `npm run verify:playable-match-engine` (500 runs default)
 
-Not in F13:
-- Coincidental penalties, double minors, majors, misconducts, delayed penalties, penalty shots
-- 5v3, 4v4, empty net, goalie pull
-- Overtime, shootout, match persistence, schedules, standings
-- Special-team lineup persistence/editing UI
+Not in F14:
+- Competition schedules, standings, playoff series, batch season simulation
+- Live persisted pause/resume, graphical playback, Simulation Lab batches
+- NHL-style OT penalty carryover; 5v3/4v4 during OT
+- `useCurrentWorldState` resimulation (deferred; default is `ORIGINAL` immutable input)
 
 ### M1–M8
 
@@ -57,23 +52,21 @@ Unchanged.
 
 ## 3. Known Bugs / Limitations Worth Remembering
 
-- Scoring rates remain high (~10 combined goals/game in F13 batches) — first-version balance; defer broad realism tuning to F16.
-- Observed ~5 penalties/game with Standard v4 defaults (configurable); PP% ~19%, PK% ~81% in 500-run batch.
-- TIP/DEFLECTION still role-based only (no rink coordinates).
-- Temporary PP/PK units use bounded attribute composites — not persisted F9 chemistry.
-- Faceoffs still use center CA + role rating + home bonus.
-- Manual UI verification for F13 was **NOT RUN**.
-- F13 changes not yet committed/pushed.
+- Scoring rates remain high (~10 combined goals/game in batches) — first-version balance; defer broad realism tuning to F16.
+- F14 OT simplification: regulation-ending penalties are resolved for stats as in F13; OT starts even 3v3 with no new penalties.
+- Shootout uses deterministic shooter ordering; no chemistry optimization for OT units.
+- `/simulation-lab` remains F13 regulation debug — not replaced by Match pages.
+- Manual UI verification for F14 was **NOT RUN**.
+- F14 changes not yet committed/pushed.
 - Commissioner header is not security.
 
 ---
 
 ## 4. Nearest Next Steps
 
-1. Commit/push F13 when the owner requests.
-2. Manual UI pass on disposable DB with two READY teams and Standard v4 balance.
-3. Optional: tune Standard v4 penalty/scoring rates.
-4. **F14 — Match Persistence and Results** (when requested).
+1. Commit/push F14 when the owner requests.
+2. Manual UI pass on disposable DB with two READY teams and Standard v5 balance.
+3. **F15 — Match UI and Diagnostics** (when requested).
 
 ---
 
@@ -81,55 +74,47 @@ Unchanged.
 
 > Ordinary repository-relevant history, newest first.
 
+### 2026-07-13 — F14 Playable Match
+
+- Work completed: engine OT/SO + `simulateCompleteMatch`, balance schema v5, Prisma match persistence, match APIs, Commissioner resimulation, `/matches` UI, `verify:playable-match-engine`
+- Validation: 107 engine + 135 server tests PASS; typecheck/build PASS; playable-match verify 500 runs PASS (431 REG / 47 OT / 22 SO; ~9.89 goals/game; PP% ~18.2%; 0 recon/replay/safety failures); scoring/special-teams verify 500 runs PASS; manual UI **NOT RUN**
+- Remaining: F14 uncommitted; F15 deferred
+
 ### 2026-07-13 — F13 Penalties and Special Teams
 
-- Work completed: minor penalties, 5v4 special teams, PP/PK stats/reconciliation, balance schema v4, debug API + Simulation Lab F13 UI, `verify:special-teams-engine`
-- Validation: 99 engine + 129 server tests PASS; typecheck/build PASS; special-teams verify 500 runs PASS (0 recon/illegal/replay failures; ~5.0 penalties/game; PP% ~18.9%; PK% ~81.1%); manual UI **NOT RUN**
-- Remaining: F13 uncommitted; F14 deferred
+- Committed/pushed on `main` (`cd5cbe6`)
 
 ### 2026-07-13 — F12 Shots, Goalies, and Scoring
 
 - Committed/pushed on `main` (`6c09ff5`)
 
-### 2026-07-13 — F11 Event Engine Core
-
-- Committed/pushed on `main`
-
 ---
 
 ## 6. Significant Changes
 
-> Major capability or architecture shifts only.
+> Major architectural or product decisions only.
 
-### 2026-07-13 — F13 basic 5v4 special teams (Significant)
+### 2026-07-13 — F14 Playable Match (Significant)
 
-- First supported strength states beyond 5v5; one-active-minor model; PP goals end minors; SH goals do not
-- Automatic deterministic PP/PK units; event-derived PP/PK/PIM statistics with reconciliation
-- Balance schemaVersion 4 adds active `penalties` configuration
+- First persisted match workflow: immutable simulation input + atomic result/events/stats persistence
+- OT/shootout as isolated post-regulation phases; shootout stats separated from normal goals
+- Commissioner resimulation reuses original input with new seed; prior results superseded not deleted
+- No schedule/standings impact in F14 (F17 will connect matches to competition stages)
 
-### 2026-07-13 — F12 regulation scoring from events (Significant)
+### 2026-07-13 — F13 Penalties and Special Teams (Significant)
 
-- Final score is count of GOAL events only; statistics reduced from events with explicit reconciliation
-
-### 2026-07-13 — F11 deterministic event engine (Significant)
-
-- First pure regulation match simulation path
-
-### 2026-07-13 — F10 versioned balance presets (Significant)
-
-- Persistent immutable balance versions with active singleton
+- One-active-minor 5v4 special teams model with event-derived PP/PK statistics
 
 ---
 
-## 7. Engine / API Quick Reference (F13)
+## 7. Quick Reference
 
 | Item | Value |
-|------|--------|
-| Engine version | `f13.1` |
-| Simulation mode | `F13_SPECIAL_TEAMS` |
-| Strength states | EVEN_5V5, HOME_POWER_PLAY_5V4, AWAY_POWER_PLAY_5V4 |
-| Max active penalties | 1 (two-minute minors) |
-| Snapshot schema | 3 |
-| Balance | schemaVersion ≥ 4 with active match + shots + goalies + penalties |
-| Debug gate | `FHM_SIMULATION_DEBUG_ENABLED` |
-| Verify commands | `verify:event-engine`, `verify:scoring-engine`, `verify:special-teams-engine` |
+|---|---|
+| Engine version (playable) | `f14.1` |
+| Simulation mode (playable) | `F14_PLAYABLE_MATCH` |
+| Balance schema (active) | **5** (Standard v5) |
+| Snapshot schema | **4** |
+| Debug simulation mode | `F13_SPECIAL_TEAMS` (regulation only) |
+| Match UI routes | `/matches`, `/matches/new`, `/matches/:matchId` |
+| Verify command | `npm run verify:playable-match-engine` |

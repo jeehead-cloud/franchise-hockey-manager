@@ -1,7 +1,13 @@
 import { getStandardBalanceConfig } from '../../balance/index.js';
 import type { GoalieAttributes, SkaterAttributes } from '../../players/types.js';
-import { FHM_ENGINE_VERSION, F13_SIMULATION_MODE, REGULATION_PERIODS, PERIOD_DURATION_SECONDS } from './constants.js';
-import type { SimulationInput, SimulationPlayerProfile, SimulationTeamInput } from './types.js';
+import {
+  FHM_ENGINE_VERSION,
+  F13_SIMULATION_MODE,
+  F14_SIMULATION_MODE,
+  REGULATION_PERIODS,
+  PERIOD_DURATION_SECONDS,
+} from './constants.js';
+import type { MatchCompletionRules, SimulationInput, SimulationPlayerProfile, SimulationTeamInput } from './types.js';
 
 function defaultSkaterAttrs(ca: number): SkaterAttributes {
   const base = Math.round(ca / 5);
@@ -148,12 +154,32 @@ function buildTeam(side: 'HOME' | 'AWAY', prefix: string): SimulationTeamInput {
   };
 }
 
-export function buildTestSimulationInput(seed: string | number = 'f13-test-001'): SimulationInput {
+export type TestSimulationInputOptions = {
+  mode?: 'F13' | 'F14';
+  completionRules?: Partial<MatchCompletionRules>;
+};
+
+const defaultF14CompletionRules: MatchCompletionRules = {
+  overtimeEnabled: true,
+  shootoutEnabled: true,
+  tiesAllowed: false,
+};
+
+export function buildTestSimulationInput(
+  seed: string | number = 'f14-test-001',
+  options: TestSimulationInputOptions = {},
+): SimulationInput {
+  const mode = options.mode ?? 'F14';
   const balanceConfig = getStandardBalanceConfig();
+  const completionRules: MatchCompletionRules | undefined =
+    mode === 'F14'
+      ? { ...defaultF14CompletionRules, ...options.completionRules }
+      : undefined;
+
   return {
     matchId: 'test-match-001',
     engineVersion: FHM_ENGINE_VERSION,
-    simulationMode: F13_SIMULATION_MODE,
+    simulationMode: mode === 'F14' ? F14_SIMULATION_MODE : F13_SIMULATION_MODE,
     seed,
     inputFingerprint: 'test-fingerprint',
     balance: {
@@ -171,5 +197,6 @@ export function buildTestSimulationInput(seed: string | number = 'f13-test-001')
       regulationPeriods: REGULATION_PERIODS,
       periodDurationSeconds: PERIOD_DURATION_SECONDS,
     },
+    completionRules,
   };
 }

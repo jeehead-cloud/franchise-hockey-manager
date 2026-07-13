@@ -8,6 +8,7 @@ import {
   type BalanceValidationResult,
   type GoaliesBalanceSection,
   type MatchBalanceSection,
+  type MatchCompletionBalanceSection,
   type PenaltiesBalanceSection,
   type RuntimeSimulationSettings,
   type ShotsBalanceSection,
@@ -245,6 +246,48 @@ const activeGoaliesSectionSchema = z
   })
   .strict();
 
+const activeMatchCompletionSectionSchema = z
+  .object({
+    active: z.literal(true),
+    overtime: z
+      .object({
+        enabled: z.boolean(),
+        durationSeconds: z.number().int().min(60).max(1200),
+        skaterCount: z.literal(3),
+        generatePenalties: z.literal(false),
+        suddenDeath: z.boolean(),
+        possessionModifier: modifierNeg05To05,
+        shotOpportunityModifier: modifierNeg05To05,
+      })
+      .strict(),
+    shootout: z
+      .object({
+        enabled: z.boolean(),
+        initialRounds: z.number().int().min(1).max(10),
+        suddenDeath: z.boolean(),
+        shooterWeights: z
+          .object({
+            shooting: positiveFinite,
+            offensiveAwareness: positiveFinite,
+            stickhandling: positiveFinite,
+            currentAbility: positiveFinite,
+          })
+          .strict(),
+        goalieWeights: z
+          .object({
+            reflexes: positiveFinite,
+            positioning: positiveFinite,
+            consistency: positiveFinite,
+          })
+          .strict(),
+        probabilityFloor: unit01,
+        probabilityCeiling: unit01,
+        heroRatingWeight: unit01,
+      })
+      .strict(),
+  })
+  .strict();
+
 const activePenaltiesSectionSchema = z
   .object({
     active: z.literal(true),
@@ -363,6 +406,7 @@ export const balanceConfigSchema = z
     shots: z.union([inactiveSectionSchema, activeShotsSectionSchema]),
     goalies: z.union([inactiveSectionSchema, activeGoaliesSectionSchema]),
     penalties: z.union([inactiveSectionSchema, activePenaltiesSectionSchema]),
+  matchCompletion: z.union([inactiveSectionSchema, activeMatchCompletionSectionSchema]).optional(),
     development: inactiveSectionSchema,
     scouting: inactiveSectionSchema,
     draft: inactiveSectionSchema,
@@ -775,6 +819,47 @@ function penaltiesSemanticErrors(config: BalanceConfig): BalanceValidationIssue[
   return errors;
 }
 
+function matchCompletionSemanticErrors(config: BalanceConfig): BalanceValidationIssue[] {
+  const errors: BalanceValidationIssue[] = [];
+  if (config.schemaVersion < 5) return errors;
+  if (!config.matchCompletion || config.matchCompletion.active !== true) {
+    errors.push({
+      path: 'matchCompletion.active',
+      message: 'F14 requires active matchCompletion section',
+    });
+    return errors;
+  }
+  const completion = config.matchCompletion as MatchCompletionBalanceSection;
+  if (!(completion.shootout.probabilityFloor <= completion.shootout.probabilityCeiling)) {
+    errors.push({
+      path: 'matchCompletion.shootout.probabilityFloor',
+      message: 'probabilityFloor must be <= probabilityCeiling',
+    });
+  }
+  const shooterTotal =
+    completion.shootout.shooterWeights.shooting +
+    completion.shootout.shooterWeights.offensiveAwareness +
+    completion.shootout.shooterWeights.stickhandling +
+    completion.shootout.shooterWeights.currentAbility;
+  if (!(shooterTotal > 0)) {
+    errors.push({
+      path: 'matchCompletion.shootout.shooterWeights',
+      message: 'Shooter weights must sum > 0',
+    });
+  }
+  const goalieTotal =
+    completion.shootout.goalieWeights.reflexes +
+    completion.shootout.goalieWeights.positioning +
+    completion.shootout.goalieWeights.consistency;
+  if (!(goalieTotal > 0)) {
+    errors.push({
+      path: 'matchCompletion.shootout.goalieWeights',
+      message: 'Goalie weights must sum > 0',
+    });
+  }
+  return errors;
+}
+
 export function isF11CompatibleBalanceConfig(
   config: BalanceConfig,
 ): config is BalanceConfig & { match: MatchBalanceSection } {
@@ -810,6 +895,22 @@ export function isF13CompatibleBalanceConfig(
     config.shots.active === true &&
     config.goalies.active === true &&
     config.penalties.active === true
+  );
+}
+
+export function isF14CompatibleBalanceConfig(
+  config: BalanceConfig,
+): config is BalanceConfig & {
+  match: MatchBalanceSection;
+  shots: ShotsBalanceSection;
+  goalies: GoaliesBalanceSection;
+  penalties: PenaltiesBalanceSection;
+  matchCompletion: MatchCompletionBalanceSection;
+} {
+  return (
+    isF13CompatibleBalanceConfig(config) &&
+    config.schemaVersion >= 5 &&
+    config.matchCompletion?.active === true
   );
 }
 

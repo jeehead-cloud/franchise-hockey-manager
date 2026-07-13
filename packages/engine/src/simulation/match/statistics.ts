@@ -84,6 +84,8 @@ function emptyTeam(teamId: string, side: 'HOME' | 'AWAY'): TeamStats {
     penaltyKills: 0,
     penaltyKillPercentage: 0,
     shortHandedGoals: 0,
+    shootoutAttempts: 0,
+    shootoutGoals: 0,
   };
 }
 
@@ -320,6 +322,10 @@ export function reduceStatistics(
     }
 
     if (e.type === 'GOAL') {
+      const goalSegment = String(e.details.goalSegment ?? 'REGULATION');
+      if (goalSegment === 'SHOOTOUT') {
+        continue;
+      }
       const scorerId = String(e.details.scorerId ?? e.playerIds[0] ?? '');
       const goalieId = String(e.details.goalieId ?? '');
       const scoringTeamId = String(e.details.scoringTeamId ?? e.teamId ?? '');
@@ -372,6 +378,16 @@ export function reduceStatistics(
       if (scoringTeamId === home.teamId) bucket.home += 1;
       else if (scoringTeamId === away.teamId) bucket.away += 1;
       periodGoalCounts.set(e.period, bucket);
+    }
+
+    if (e.type === 'SHOOTOUT_ATTEMPT') {
+      const shootingTeamId = String(e.details.shootingTeamId ?? e.teamId ?? '');
+      const scored = Boolean(e.details.scored);
+      const team = teamById.get(shootingTeamId);
+      if (team) {
+        team.shootoutAttempts += 1;
+        if (scored) team.shootoutGoals += 1;
+      }
     }
   }
 

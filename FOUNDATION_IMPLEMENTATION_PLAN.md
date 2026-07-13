@@ -981,6 +981,8 @@ Features:
 
 # 19. F14 — Playable Match
 
+**Status: implemented locally (2026-07-13).** Engine `f14.1` / `F14_PLAYABLE_MATCH`, balance schemaVersion 5 (`matchCompletion`), Prisma match persistence, `/api/matches/*`, `/matches` UI, Commissioner resimulation. Schedules/standings remain F17+.
+
 ## Goal
 
 Simulate and persist one complete hockey match.

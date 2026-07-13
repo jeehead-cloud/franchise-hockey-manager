@@ -31,6 +31,8 @@ export function formatStrengthLabel(strength: StrengthState): string {
       return 'Home PP 5v4';
     case 'AWAY_POWER_PLAY_5V4':
       return 'Away PP 5v4';
+    case 'EVEN_3V3':
+      return '3v3';
     default:
       return '5v5';
   }

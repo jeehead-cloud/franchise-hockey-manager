@@ -11,6 +11,7 @@ import { parseBalanceConfig } from './schema.js';
 import type {
   BalanceConfig,
   GoaliesBalanceSection,
+  MatchCompletionBalanceSection,
   PenaltiesBalanceSection,
   RolePenaltyTendencyTier,
   RoleShotTendencyTier,
@@ -20,7 +21,7 @@ import type {
 import { BALANCE_SCHEMA_VERSION, PENALTY_INFRACTIONS } from './types.js';
 
 /** Keep in sync with simulation FHM_ENGINE_VERSION. */
-const ENGINE_COMPAT_VERSION = 'f13.1';
+const ENGINE_COMPAT_VERSION = 'f14.1';
 
 const HIGH_SHOT_TENDENCY_ROLES = new Set([
   'POINT_SHOOTER',
@@ -282,6 +283,40 @@ export function defaultPenaltiesSection(): PenaltiesBalanceSection {
   };
 }
 
+export function defaultMatchCompletionSection(): MatchCompletionBalanceSection {
+  return {
+    active: true,
+    overtime: {
+      enabled: true,
+      durationSeconds: 300,
+      skaterCount: 3,
+      generatePenalties: false,
+      suddenDeath: true,
+      possessionModifier: 0.08,
+      shotOpportunityModifier: 0.12,
+    },
+    shootout: {
+      enabled: true,
+      initialRounds: 3,
+      suddenDeath: true,
+      shooterWeights: {
+        shooting: 0.4,
+        offensiveAwareness: 0.25,
+        stickhandling: 0.2,
+        currentAbility: 0.15,
+      },
+      goalieWeights: {
+        reflexes: 0.4,
+        positioning: 0.35,
+        consistency: 0.25,
+      },
+      probabilityFloor: 0.18,
+      probabilityCeiling: 0.72,
+      heroRatingWeight: 0.08,
+    },
+  };
+}
+
 function inactive(milestone: string, notes: string) {
   return {
     active: false as const,
@@ -345,6 +380,7 @@ export function getStandardBalanceConfig(): BalanceConfig {
     shots: defaultShotsSection(),
     goalies: defaultGoaliesSection(),
     penalties: defaultPenaltiesSection(),
+    matchCompletion: defaultMatchCompletionSection(),
     development: inactive('F24', 'Annual development curves are deferred until F24.'),
     scouting: inactive('F26', 'Scouting confidence curves are deferred until F26.'),
     draft: inactive('F27', 'Draft lottery/order coefficients are deferred until F27.'),

@@ -63,6 +63,18 @@ F13 special-teams invariants:
 - PP/PK/PIM statistics derive from events and must reconcile.
 - Temporary PP/PK units are automatic and non-persistent.
 
+F14 playable-match invariants:
+
+- Completed match results derive only from the deterministic event engine (`simulateCompleteMatch`).
+- Final score equals regulation/overtime GOAL events; shootout winner is separate (no fake GOAL event for SO winner).
+- Shootout goals/attempts are tracked separately — no skater goal/point or goalie SOG/save credit from shootout.
+- Persisted statistics must reconcile with event-derived reducers before commit.
+- A match has at most one current result; normal completed results are immutable (no duplicate simulation).
+- Commissioner resimulation creates a new attempt, supersedes the prior result, and preserves full history + audit.
+- F14 ad hoc matches do not update standings or competition progression (F17 connects schedules later).
+- Overtime: even 3v3, sudden death, no penalties generated during OT in F14; regulation-ending penalties resolved per F13 stats rules.
+- Engine remains Prisma-free; server owns immutable input construction and atomic persistence.
+
 Invariants in force:
 
 - **Line/pairing synergy**: role compatibility is config-driven. Complementary roles can beat redundant higher-rated groups after bounded modifiers. Unknown role pairs use an explicit documented fallback.

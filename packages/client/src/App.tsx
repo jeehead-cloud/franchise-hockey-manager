@@ -2,6 +2,9 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AppShell } from './components/layout/AppShell';
 import { CompetitionDetailPage } from './pages/CompetitionDetailPage';
 import { CompetitionsPage } from './pages/CompetitionsPage';
+import { MatchDetailPage } from './pages/MatchDetailPage';
+import { MatchesPage } from './pages/MatchesPage';
+import { NewMatchPage } from './pages/NewMatchPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { PlayerDetailPage } from './pages/PlayerDetailPage';
 import { PlayerEditPage } from './pages/PlayerEditPage';
@@ -40,6 +43,9 @@ export function App() {
             <Route path="/players" element={<PlayersPage />} />
             <Route path="/players/:playerId" element={<PlayerDetailPage />} />
             <Route path="/players/:playerId/edit" element={<PlayerEditPage />} />
+            <Route path="/matches" element={<MatchesPage />} />
+            <Route path="/matches/new" element={<NewMatchPage />} />
+            <Route path="/matches/:matchId" element={<MatchDetailPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/simulation-lab" element={<SimulationLabPage />} />
             <Route path="*" element={<NotFoundPage />} />

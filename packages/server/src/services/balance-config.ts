@@ -12,6 +12,7 @@ import {
   defaultRuntimeSimulationSettings,
   getStandardBalanceConfig,
   isF13CompatibleBalanceConfig,
+  isF14CompatibleBalanceConfig,
   normalizeBalanceConfig,
   parseBalanceConfig,
   validateBalanceConfig,
@@ -396,7 +397,7 @@ export async function bootstrapBalanceConfiguration(db?: DbClient): Promise<{
     });
     if (activeVersion) {
       const activeConfig = requireValidConfig(JSON.parse(activeVersion.configJson));
-      const activeCompatible = isF13CompatibleBalanceConfig(activeConfig);
+      const activeCompatible = isF14CompatibleBalanceConfig(activeConfig);
       const activeIsStandard = activeVersion.presetId === standard.id;
       if (activeIsStandard && !activeCompatible && latestCompatible.id !== activeVersion.id) {
         await client.activeBalanceConfiguration.update({

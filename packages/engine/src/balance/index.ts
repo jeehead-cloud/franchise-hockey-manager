@@ -14,6 +14,7 @@ export {
   isF11CompatibleBalanceConfig,
   isF12CompatibleBalanceConfig,
   isF13CompatibleBalanceConfig,
+  isF14CompatibleBalanceConfig,
 } from './schema.js';
 export {
   getStandardBalanceConfig,
@@ -21,6 +22,7 @@ export {
   defaultShotsSection,
   defaultGoaliesSection,
   defaultPenaltiesSection,
+  defaultMatchCompletionSection,
 } from './standard.js';
 export {
   canonicalizeBalanceConfig,

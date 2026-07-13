@@ -68,7 +68,7 @@ describe('F13 simulation debug API', () => {
 
     vi.spyOn(await import('../src/services/simulation-input.js'), 'buildSimulationInput').mockImplementation(
       async (opts) => {
-        const input = buildTestSimulationInput(opts.seed);
+        const input = buildTestSimulationInput(opts.seed, { mode: 'F13' });
         input.matchId = `debug-${opts.homeTeamId}-${opts.awayTeamId}`;
         input.inputFingerprint = `mock-${opts.homeTeamId}-${opts.awayTeamId}-${opts.seed}`;
         return input;
@@ -94,7 +94,7 @@ describe('F13 simulation debug API', () => {
     });
     expect(res.statusCode).toBe(200);
     const item = res.json().item;
-    expect(item.metadata.engineVersion).toBe('f13.1');
+    expect(item.metadata.engineVersion).toBe('f14.1');
     expect(item.metadata.simulationMode).toBe('F13_SPECIAL_TEAMS');
     expect(item.metadata.balanceHash).toBeTruthy();
     expect(item.finalState.simulationStatus).toBe('REGULATION_COMPLETE');
@@ -169,7 +169,7 @@ describe('F13 simulation debug API', () => {
     expect(incomplete.json().error).toBe('TeamNotSimulationReady');
 
     vi.spyOn(inputMod, 'buildSimulationInput').mockImplementation(async (opts) => {
-      const input = buildTestSimulationInput(opts.seed);
+      const input = buildTestSimulationInput(opts.seed, { mode: 'F13' });
       input.matchId = `debug-${opts.homeTeamId}-${opts.awayTeamId}`;
       input.inputFingerprint = `mock-${opts.homeTeamId}-${opts.awayTeamId}-${opts.seed}`;
       return input;

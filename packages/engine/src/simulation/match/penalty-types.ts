@@ -12,6 +12,7 @@ export type PenaltyEndReason =
 
 export const SUPPORTED_STRENGTH_STATES = [
   'EVEN_5V5',
+  'EVEN_3V3',
   'HOME_POWER_PLAY_5V4',
   'AWAY_POWER_PLAY_5V4',
 ] as const;

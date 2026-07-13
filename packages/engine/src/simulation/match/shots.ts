@@ -871,6 +871,13 @@ export function resolvePendingShot(
       ? { home: state.score.home + 1, away: state.score.away }
       : { home: state.score.home, away: state.score.away + 1 };
 
+  const overtimeScoreAfter: MatchScore =
+    state.matchSegment === 'OVERTIME'
+      ? pending.attackingSide === 'HOME'
+        ? { home: state.overtimeScore.home + 1, away: state.overtimeScore.away }
+        : { home: state.overtimeScore.home, away: state.overtimeScore.away + 1 }
+      : state.overtimeScore;
+
   const assistIds = [details.primaryAssistId, details.secondaryAssistId].filter(
     (id): id is string => Boolean(id),
   );
@@ -894,19 +901,29 @@ export function resolvePendingShot(
       strengthState: strengthBefore,
       activePenaltySequenceId,
       penaltyEndedByGoal,
+      goalSegment: state.matchSegment,
       ...(penaltyEndedByGoal ? { reason: 'POWER_PLAY_GOAL' as const } : {}),
     },
   });
 
   const periodDuration = input.rules.periodDurationSeconds;
+  let nextPhase: MatchState['phase'] = 'AWAITING_STOPPAGE_FACEOFF';
+  if (state.matchSegment === 'OVERTIME') {
+    const otCfg = input.balance.snapshot.matchCompletion?.active
+      ? input.balance.snapshot.matchCompletion.overtime
+      : { suddenDeath: true };
+    nextPhase = otCfg.suddenDeath ? 'AWAITING_OVERTIME_END' : 'AWAITING_STOPPAGE_FACEOFF';
+  }
+
   let next: MatchState = {
     ...bumpEvent({ ...state, rng }),
     pendingShot: null,
     passChainPlayerIds: [],
     score: scoreAfter,
+    overtimeScore: overtimeScoreAfter,
     possession: 'NONE',
     zone: null,
-    phase: 'AWAITING_STOPPAGE_FACEOFF',
+    phase: nextPhase,
   };
 
   if (penaltyEndedByGoal) {

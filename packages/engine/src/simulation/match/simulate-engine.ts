@@ -2,11 +2,12 @@ import type { MatchBalanceSection, PenaltiesBalanceSection } from '../../balance
 import { isF13CompatibleBalanceConfig } from '../../balance/schema.js';
 import {
   FHM_ENGINE_VERSION,
+  F13_SIMULATION_MODE,
   FORBIDDEN_F14_EVENT_TYPES,
   SNAPSHOT_SCHEMA_VERSION,
 } from './constants.js';
 import { IllegalStateTransitionError, InvalidSnapshotError, SafetyLimitExceededError } from './errors.js';
-import { getMatchConfig, validateSimulationInput } from './input.js';
+import { getMatchConfig, isF14PlayableMatch, validateSimulationInput } from './input.js';
 import { computeTraceHash } from './hash.js';
 import {
   getPenaltiesConfig,
@@ -26,10 +27,19 @@ import { reduceStatistics } from './statistics.js';
 import { reconcileStatistics } from './reconciliation.js';
 import { selectSpecialTeamLines, specialTeamUnitEp } from './special-teams.js';
 import { isPowerPlayForSide, isShortHandedForSide } from './strength-state.js';
+import {
+  buildOvertimeLines,
+  overtimePeriodDuration,
+  resolveOvertimePossessionAction,
+} from './overtime.js';
+import { initializeShootoutState, resolveShootoutAttempt } from './shootout.js';
 import type {
   ActiveLines,
+  FinalMatchResult,
+  MatchDecisionType,
   MatchEvent,
   MatchEventType,
+  MatchScore,
   MatchSnapshot,
   MatchState,
   PossessionSide,
@@ -41,7 +51,14 @@ import type {
   StepResult,
 } from './types.js';
 
-function periodRemaining(state: MatchState, periodDuration: number): number {
+function periodDurationForState(state: MatchState, input: SimulationInput): number {
+  if (state.matchSegment === 'OVERTIME') return overtimePeriodDuration(input);
+  if (state.matchSegment === 'SHOOTOUT') return 0;
+  return input.rules.periodDurationSeconds;
+}
+
+function periodRemaining(state: MatchState, input: SimulationInput): number {
+  const periodDuration = periodDurationForState(state, input);
   return Math.max(0, periodDuration - state.clockElapsedSeconds);
 }
 
@@ -51,13 +68,13 @@ function makeEvent(
   type: MatchEventType,
   extra: Partial<MatchEvent> & { details?: Record<string, unknown> },
 ): MatchEvent {
-  const periodDuration = input.rules.periodDurationSeconds;
+  const periodDuration = periodDurationForState(state, input);
   return {
     index: state.eventIndex + 1,
     type,
     period: state.period,
     elapsedSeconds: state.clockElapsedSeconds,
-    remainingSeconds: periodRemaining(state, periodDuration),
+    remainingSeconds: periodRemaining(state, input),
     teamId: extra.teamId ?? null,
     playerIds: extra.playerIds ?? [],
     zone: extra.zone ?? state.zone,
@@ -74,14 +91,21 @@ function makeEvent(
       type === 'SHOT_BLOCKED' ||
       type === 'SHOT_MISSED' ||
       type === 'PENALTY' ||
-      type === 'PENALTY_EXPIRED'
+      type === 'PENALTY_EXPIRED' ||
+      type === 'OVERTIME_START' ||
+      type === 'OVERTIME_END' ||
+      type === 'SHOOTOUT_START' ||
+      type === 'SHOOTOUT_ATTEMPT' ||
+      type === 'SHOOTOUT_END' ||
+      type === 'MATCH_END'
         ? 'PUBLIC'
         : 'TECHNICAL'),
     details: extra.details ?? {},
   };
 }
 
-function advanceClock(state: MatchState, seconds: number, periodDuration: number): MatchState {
+function advanceClock(state: MatchState, seconds: number, input: SimulationInput): MatchState {
+  const periodDuration = periodDurationForState(state, input);
   const advance = Math.max(0, seconds);
   const elapsed = Math.min(periodDuration, state.clockElapsedSeconds + advance);
   const next = {
@@ -89,7 +113,10 @@ function advanceClock(state: MatchState, seconds: number, periodDuration: number
     clockElapsedSeconds: elapsed,
     clockRemainingSeconds: Math.max(0, periodDuration - elapsed),
   };
-  return applyPenaltyClock(next, elapsed - state.clockElapsedSeconds);
+  if (state.matchSegment === 'REGULATION') {
+    return applyPenaltyClock(next, elapsed - state.clockElapsedSeconds);
+  }
+  return next;
 }
 
 function teamIdForSide(input: SimulationInput, side: PossessionSide): string | null {
@@ -259,6 +286,63 @@ export function createInitialMatchState(input: SimulationInput): MatchState {
     activePenalty: null,
     penaltySequenceId: 0,
     lastPenaltyEndedRegulationSeconds: null,
+    regulationScore: { home: 0, away: 0 },
+    overtimeScore: { home: 0, away: 0 },
+    shootoutScore: { home: 0, away: 0 },
+    matchSegment: 'REGULATION',
+    shootoutState: null,
+  };
+}
+
+function isMatchComplete(state: MatchState): boolean {
+  return state.phase === 'COMPLETE' || state.simulationStatus === 'MATCH_COMPLETE';
+}
+
+function winnerSideFromScore(score: MatchScore): 'HOME' | 'AWAY' | null {
+  if (score.home > score.away) return 'HOME';
+  if (score.away > score.home) return 'AWAY';
+  return null;
+}
+
+function displayScoreFromState(state: MatchState): MatchScore {
+  return {
+    home: state.regulationScore.home + state.overtimeScore.home,
+    away: state.regulationScore.away + state.overtimeScore.away,
+  };
+}
+
+export function buildFinalMatchResult(state: MatchState): FinalMatchResult {
+  const displayScore = displayScoreFromState(state);
+  const regulationTied = state.regulationScore.home === state.regulationScore.away;
+  const hasOtGoals = state.overtimeScore.home > 0 || state.overtimeScore.away > 0;
+  const shootoutPlayed =
+    state.shootoutState != null &&
+    (state.shootoutState.homeAttempts > 0 || state.shootoutState.awayAttempts > 0);
+  const soWinner = winnerSideFromScore(state.shootoutScore);
+
+  let decisionType: MatchDecisionType = 'REGULATION';
+  let winnerSide: 'HOME' | 'AWAY' | null = winnerSideFromScore(displayScore);
+
+  if (shootoutPlayed && displayScore.home === displayScore.away) {
+    decisionType = 'SHOOTOUT';
+    winnerSide = soWinner;
+  } else if (!regulationTied && !hasOtGoals) {
+    decisionType = 'REGULATION';
+    winnerSide = winnerSideFromScore(state.regulationScore);
+  } else if (hasOtGoals && winnerSide != null) {
+    decisionType = 'OVERTIME';
+  } else if (displayScore.home === displayScore.away) {
+    decisionType = 'TIE';
+    winnerSide = null;
+  }
+
+  return {
+    decisionType,
+    winnerSide,
+    regulationScore: { ...state.regulationScore },
+    overtimeScore: { ...state.overtimeScore },
+    shootoutScore: { ...state.shootoutScore },
+    displayScore,
   };
 }
 
@@ -285,7 +369,7 @@ function emit(
   };
   if (timeCost > 0) {
     const effectiveTimeCost = clampTimeCostForPenalty(state, timeCost);
-    next = advanceClock(next, effectiveTimeCost, input.rules.periodDurationSeconds);
+    next = advanceClock(next, effectiveTimeCost, input);
   }
   return { state: next, events: [...events, ev] };
 }
@@ -311,7 +395,7 @@ function startShift(input: SimulationInput, state: MatchState, events: MatchEven
   const selected = selectLines(input, state, cfg);
   const lines = selected.lines;
   let r = selected.rng;
-  const remaining = periodRemaining(state, cfg.periodDurationSeconds);
+  const remaining = periodRemaining(state, input);
   const plannedRoll = nextInt(r, cfg.minimumShiftSeconds, cfg.maximumShiftSeconds);
   r = plannedRoll.rng;
   const planned = Math.min(remaining, plannedRoll.value);
@@ -343,6 +427,113 @@ function startShift(input: SimulationInput, state: MatchState, events: MatchEven
   return { state: s, events: out.events };
 }
 
+function startOvertimeShift(
+  input: SimulationInput,
+  state: MatchState,
+  events: MatchEvent[],
+): { state: MatchState; events: MatchEvent[] } {
+  const cfg = getMatchConfig(input);
+  const unitIndex = state.currentShift?.shiftNumber ?? 0;
+  const lines = buildOvertimeLines(input, unitIndex);
+  const remaining = periodRemaining(state, input);
+  const plannedRoll = nextInt(state.rng, cfg.minimumShiftSeconds, cfg.maximumShiftSeconds);
+  const planned = Math.min(remaining, plannedRoll.value);
+  const shiftNumber = (state.currentShift?.shiftNumber ?? 0) + 1;
+  const shift = {
+    shiftNumber,
+    startElapsedSeconds: state.clockElapsedSeconds,
+    plannedDurationSeconds: planned,
+    lines,
+  };
+  let s: MatchState = {
+    ...state,
+    rng: plannedRoll.rng,
+    currentShift: shift,
+    shiftElapsedSeconds: 0,
+    phase: 'IN_OVERTIME',
+    simulationStatus: 'IN_PROGRESS',
+    strengthState: 'EVEN_3V3',
+  };
+  const out = emit(input, s, events, 'SHIFT_START', {
+    details: {
+      lines,
+      plannedDurationSeconds: planned,
+      strengthState: 'EVEN_3V3',
+      segment: 'OVERTIME',
+    },
+    playerIds: [
+      ...lines.homeForwardPlayerIds,
+      ...lines.homeDefensePlayerIds,
+      ...lines.awayForwardPlayerIds,
+      ...lines.awayDefensePlayerIds,
+      lines.homeGoalieId,
+      lines.awayGoalieId,
+    ],
+  });
+  return { state: out.state, events: out.events };
+}
+
+function beginShootout(
+  input: SimulationInput,
+  state: MatchState,
+  events: MatchEvent[],
+): { state: MatchState; events: MatchEvent[] } {
+  const soStart = emit(input, state, events, 'SHOOTOUT_START', {
+    visibility: 'PUBLIC',
+    details: { initialRounds: input.balance.snapshot.matchCompletion?.active ? input.balance.snapshot.matchCompletion.shootout.initialRounds : 3 },
+  });
+  return {
+    state: {
+      ...soStart.state,
+      phase: 'IN_SHOOTOUT',
+      matchSegment: 'SHOOTOUT',
+      shootoutState: initializeShootoutState(input),
+      currentShift: null,
+      possession: 'NONE',
+      zone: null,
+    },
+    events: soStart.events,
+  };
+}
+
+function finishMatch(
+  input: SimulationInput,
+  state: MatchState,
+  events: MatchEvent[],
+  emitShootoutEnd: boolean,
+): { state: MatchState; events: MatchEvent[]; completed: boolean } {
+  let s = state;
+  let evts = events;
+  if (emitShootoutEnd) {
+    const soEnd = emit(input, s, evts, 'SHOOTOUT_END', {
+      visibility: 'PUBLIC',
+      details: { shootoutScore: s.shootoutScore },
+    });
+    s = soEnd.state;
+    evts = soEnd.events;
+  }
+  const finalResult = buildFinalMatchResult(s);
+  const matchEnd = emit(input, s, evts, 'MATCH_END', {
+    visibility: 'PUBLIC',
+    details: {
+      decisionType: finalResult.decisionType,
+      winnerSide: finalResult.winnerSide,
+      regulationScore: finalResult.regulationScore,
+      overtimeScore: finalResult.overtimeScore,
+      shootoutScore: finalResult.shootoutScore,
+      displayScore: finalResult.displayScore,
+      score: finalResult.displayScore,
+    },
+  });
+  s = {
+    ...matchEnd.state,
+    phase: 'COMPLETE',
+    simulationStatus: 'MATCH_COMPLETE',
+    matchSegment: 'COMPLETE',
+  };
+  return { state: s, events: matchEnd.events, completed: true };
+}
+
 function resolvePossessionAction(input: SimulationInput, state: MatchState, events: MatchEvent[]): { state: MatchState; events: MatchEvent[] } {
   const cfg = getMatchConfig(input);
   if (!state.currentShift || state.possession === 'NONE' || !state.zone) {
@@ -361,7 +552,7 @@ function resolvePossessionAction(input: SimulationInput, state: MatchState, even
   const z = cfg.zoneTransitionWeights;
   const durationRoll = nextInt(rng, cfg.minimumPossessionSeconds, cfg.maximumPossessionSeconds);
   rng = durationRoll.rng;
-  let timeCost = Math.min(durationRoll.value, periodRemaining(state, cfg.periodDurationSeconds));
+  let timeCost = Math.min(durationRoll.value, periodRemaining(state, input));
 
   if (state.zone === 'NEUTRAL') {
     const p =
@@ -416,7 +607,7 @@ function resolvePossessionAction(input: SimulationInput, state: MatchState, even
     const roll = nextFloat(rng);
     rng = roll.rng;
     const r = roll.value;
-    let s = advanceClock({ ...state, rng }, timeCost, input.rules.periodDurationSeconds);
+    let s = advanceClock({ ...state, rng }, timeCost, input);
 
     if (r < shotOppP) {
       return createShotAttempt(input, s, events);
@@ -526,7 +717,7 @@ export function simulateNextEvent(input: SimulationInput, state: MatchState, exi
 } {
   validateSimulationInput(input);
   const cfg = getMatchConfig(input);
-  if (state.phase === 'COMPLETE' || state.simulationStatus === 'REGULATION_COMPLETE') {
+  if (isMatchComplete(state)) {
     return { state, events: [], completed: true };
   }
 
@@ -559,7 +750,8 @@ export function simulateNextEvent(input: SimulationInput, state: MatchState, exi
       }, cfg.stoppageSeconds);
       s = out.state;
       events = out.events;
-      const shiftStart = startShift(input, s, events);
+      const shiftStart =
+        s.matchSegment === 'OVERTIME' ? startOvertimeShift(input, s, events) : startShift(input, s, events);
       s = shiftStart.state;
       events = shiftStart.events;
       const pg = emit(input, s, events, 'POSSESSION_GAIN', { teamId: teamIdForSide(input, side), zone: 'NEUTRAL', possession: side }, 0);
@@ -569,7 +761,8 @@ export function simulateNextEvent(input: SimulationInput, state: MatchState, exi
     }
     case 'AWAITING_STOPPAGE_FACEOFF': {
       const { side, rng } = faceoffWinner(input, s, cfg);
-      s = { ...s, rng, possession: side, zone: 'NEUTRAL', phase: 'IN_SHIFT' as const };
+      const resumePhase = s.matchSegment === 'OVERTIME' ? ('IN_OVERTIME' as const) : ('IN_SHIFT' as const);
+      s = { ...s, rng, possession: side, zone: 'NEUTRAL', phase: resumePhase };
       const centerId = centerForFaceoff(input, side, s.currentShift?.lines);
       const out = emit(input, s, events, 'FACEOFF', {
         teamId: teamIdForSide(input, side),
@@ -581,7 +774,8 @@ export function simulateNextEvent(input: SimulationInput, state: MatchState, exi
       s = out.state;
       events = out.events;
       if (!s.currentShift) {
-        const shiftStart = startShift(input, s, events);
+        const shiftStart =
+          s.matchSegment === 'OVERTIME' ? startOvertimeShift(input, s, events) : startShift(input, s, events);
         s = shiftStart.state;
         events = shiftStart.events;
       }
@@ -613,7 +807,7 @@ export function simulateNextEvent(input: SimulationInput, state: MatchState, exi
         const out = emit(input, s, events, 'SHIFT_END', { details: { durationSeconds: shiftDuration } });
         s = { ...out.state, currentShift: null, shiftElapsedSeconds: 0 };
         events = out.events;
-        if (periodRemaining(s, cfg.periodDurationSeconds) <= 0) {
+        if (periodRemaining(s, input) <= 0) {
           s = { ...s, phase: 'AWAITING_PERIOD_END' };
         } else {
           s = { ...s, phase: 'AWAITING_FACEOFF', possession: 'NONE', zone: null };
@@ -624,6 +818,37 @@ export function simulateNextEvent(input: SimulationInput, state: MatchState, exi
       s = resolved.state;
       events = resolved.events;
       if (s.phase === 'AWAITING_STOPPAGE_FACEOFF') break;
+      break;
+    }
+    case 'IN_OVERTIME': {
+      const otDuration = overtimePeriodDuration(input);
+      if (s.clockElapsedSeconds >= otDuration) {
+        s = { ...s, phase: 'AWAITING_OVERTIME_END' };
+        break;
+      }
+      if (s.pendingShot) {
+        const resolved = resolvePendingShot(input, s, events);
+        s = resolved.state;
+        events = resolved.events;
+        break;
+      }
+      const shift = s.currentShift!;
+      const shiftDuration = s.clockElapsedSeconds - shift.startElapsedSeconds;
+      if (shiftDuration >= shift.plannedDurationSeconds) {
+        const out = emit(input, s, events, 'SHIFT_END', { details: { durationSeconds: shiftDuration, segment: 'OVERTIME' } });
+        s = { ...out.state, currentShift: null, shiftElapsedSeconds: 0 };
+        events = out.events;
+        if (periodRemaining(s, input) <= 0) {
+          s = { ...s, phase: 'AWAITING_OVERTIME_END' };
+        } else {
+          s = { ...s, phase: 'AWAITING_FACEOFF', possession: 'NONE', zone: null };
+        }
+        break;
+      }
+      const resolved = resolveOvertimePossessionAction(input, s, events, emit, cfg);
+      s = resolved.state;
+      events = resolved.events;
+      if (s.phase === 'AWAITING_STOPPAGE_FACEOFF' || s.phase === 'AWAITING_OVERTIME_END') break;
       break;
     }
     case 'AWAITING_PERIOD_END': {
@@ -638,7 +863,6 @@ export function simulateNextEvent(input: SimulationInput, state: MatchState, exi
       break;
     }
     case 'AWAITING_REGULATION_END': {
-      // Open penalties at regulation end count as successful PKs in stats (no PENALTY_EXPIRED event).
       const openPenalty = s.activePenalty;
       const regulationDetails: Record<string, unknown> = { score: s.score };
       if (openPenalty && !openPenalty.powerPlayGoalScored) {
@@ -649,21 +873,125 @@ export function simulateNextEvent(input: SimulationInput, state: MatchState, exi
         visibility: 'PUBLIC',
         details: regulationDetails,
       });
+      const clearedPenalty = openPenalty && !openPenalty.powerPlayGoalScored;
+      if (isF14PlayableMatch(input)) {
+        s = {
+          ...out.state,
+          phase: 'AWAITING_POST_REGULATION',
+          simulationStatus: 'REGULATION_COMPLETE',
+          regulationScore: { ...s.score },
+          activePenalty: clearedPenalty ? null : s.activePenalty,
+          strengthState: clearedPenalty ? 'EVEN_5V5' : s.strengthState,
+        };
+        events = out.events;
+        break;
+      }
       s = {
         ...out.state,
         phase: 'COMPLETE',
         simulationStatus: 'REGULATION_COMPLETE',
-        activePenalty: openPenalty && !openPenalty.powerPlayGoalScored ? null : s.activePenalty,
-        strengthState: openPenalty && !openPenalty.powerPlayGoalScored ? 'EVEN_5V5' : s.strengthState,
+        regulationScore: { ...s.score },
+        matchSegment: 'COMPLETE',
+        activePenalty: clearedPenalty ? null : s.activePenalty,
+        strengthState: clearedPenalty ? 'EVEN_5V5' : s.strengthState,
       };
       events = out.events;
       return { state: s, events, completed: true };
+    }
+    case 'AWAITING_POST_REGULATION': {
+      const rules = input.completionRules!;
+      const completion = input.balance.snapshot.matchCompletion;
+      const tied = s.score.home === s.score.away;
+      if (!tied) {
+        const done = finishMatch(input, s, events, false);
+        return done;
+      }
+      if (
+        rules.overtimeEnabled &&
+        completion?.active === true &&
+        completion.overtime.enabled
+      ) {
+        const otDuration = overtimePeriodDuration(input);
+        const otStart = emit(input, s, events, 'OVERTIME_START', {
+          visibility: 'PUBLIC',
+          details: { durationSeconds: otDuration, score: s.score },
+        });
+        s = {
+          ...otStart.state,
+          phase: 'AWAITING_FACEOFF',
+          period: 4,
+          clockElapsedSeconds: 0,
+          clockRemainingSeconds: otDuration,
+          strengthState: 'EVEN_3V3',
+          matchSegment: 'OVERTIME',
+          activePenalty: null,
+          currentShift: null,
+          possession: 'NONE',
+          zone: null,
+        };
+        events = otStart.events;
+        break;
+      }
+      if (
+        rules.shootoutEnabled &&
+        completion?.active === true &&
+        completion.shootout.enabled
+      ) {
+        const started = beginShootout(input, s, events);
+        s = started.state;
+        events = started.events;
+        break;
+      }
+      if (rules.tiesAllowed) {
+        const done = finishMatch(input, s, events, false);
+        return done;
+      }
+      throw new IllegalStateTransitionError('Tied regulation with no overtime, shootout, or tiesAllowed');
+    }
+    case 'AWAITING_OVERTIME_END': {
+      const otEnd = emit(input, s, events, 'OVERTIME_END', {
+        visibility: 'PUBLIC',
+        details: { overtimeScore: s.overtimeScore, score: s.score },
+      });
+      s = otEnd.state;
+      events = otEnd.events;
+      if (s.score.home !== s.score.away) {
+        return finishMatch(input, s, events, false);
+      }
+      const rules = input.completionRules!;
+      const completion = input.balance.snapshot.matchCompletion;
+      if (
+        rules.shootoutEnabled &&
+        completion?.active === true &&
+        completion.shootout.enabled
+      ) {
+        const started = beginShootout(input, s, events);
+        s = started.state;
+        events = started.events;
+        break;
+      }
+      if (rules.tiesAllowed) {
+        return finishMatch(input, s, events, false);
+      }
+      throw new IllegalStateTransitionError('Tied after overtime with no shootout or tiesAllowed');
+    }
+    case 'IN_SHOOTOUT': {
+      const attempt = resolveShootoutAttempt(input, s, events, emit);
+      s = attempt.state;
+      events = attempt.events;
+      if (s.phase === 'AWAITING_MATCH_END') {
+        return finishMatch(input, s, events, true);
+      }
+      break;
+    }
+    case 'AWAITING_MATCH_END': {
+      return finishMatch(input, s, events, s.matchSegment === 'SHOOTOUT');
     }
     default:
       throw new IllegalStateTransitionError(`Unsupported phase ${s.phase}`);
   }
 
-  const completed = s.phase === 'COMPLETE' || s.simulationStatus === 'REGULATION_COMPLETE';
+  const completed = isMatchComplete(s);
   return { state: s, events, completed };
 }
 
@@ -684,11 +1012,16 @@ export function simulateUntil(
     steps += 1;
     if (step.completed) break;
   }
-  return { state: s, events, completed: s.phase === 'COMPLETE' };
+  return { state: s, events, completed: isMatchComplete(s) };
 }
 
 export function simulateRegulation(input: SimulationInput): SimulationResult {
   validateSimulationInput(input);
+  if (input.simulationMode !== F13_SIMULATION_MODE) {
+    throw new IllegalStateTransitionError(
+      `simulateRegulation requires ${F13_SIMULATION_MODE} (use simulateCompleteMatch for F14)`,
+    );
+  }
   let state = createInitialMatchState(input);
   let events: MatchEvent[] = [];
   const cfg = getMatchConfig(input);
@@ -721,6 +1054,50 @@ export function simulateRegulation(input: SimulationInput): SimulationResult {
     statistics,
     reconciliation,
     periodScores: statistics.periodScores,
+  };
+}
+
+export function simulateCompleteMatch(
+  input: SimulationInput,
+): SimulationResult & { finalResult: FinalMatchResult } {
+  validateSimulationInput(input);
+  if (!isF14PlayableMatch(input)) {
+    throw new IllegalStateTransitionError('simulateCompleteMatch requires F14_PLAYABLE_MATCH mode');
+  }
+  let state = createInitialMatchState(input);
+  let events: MatchEvent[] = [];
+  const cfg = getMatchConfig(input);
+  while (!isMatchComplete(state) && state.safetyEventsEmitted < cfg.eventSafetyLimit) {
+    const step = simulateNextEvent(input, state, events);
+    state = step.state;
+    events = step.events;
+    if (step.completed) break;
+  }
+  if (!isMatchComplete(state)) {
+    throw new SafetyLimitExceededError('Complete match simulation did not finish before safety limit');
+  }
+  const statistics = reduceStatistics(input, events, state);
+  const reconciliation = reconcileStatistics(input, events, state, statistics);
+  const diagnostics = computeDiagnostics(input, events, state, false, reconciliation.ok);
+  const finalResult = buildFinalMatchResult(state);
+  return {
+    metadata: {
+      engineVersion: FHM_ENGINE_VERSION,
+      simulationMode: input.simulationMode,
+      balancePresetId: input.balance.presetId,
+      balanceVersionId: input.balance.versionId,
+      balanceVersionNumber: input.balance.versionNumber,
+      balanceHash: input.balance.configHash,
+      seed: input.seed,
+      inputFingerprint: input.inputFingerprint,
+    },
+    finalState: state,
+    events,
+    diagnostics,
+    statistics,
+    reconciliation,
+    periodScores: statistics.periodScores,
+    finalResult,
   };
 }
 
@@ -771,7 +1148,7 @@ export function simulateStep(
     events: newEvents,
     snapshot: snap,
     diagnostics: computeDiagnostics(input, run.events, run.state, false),
-    completed: run.state.phase === 'COMPLETE',
+    completed: isMatchComplete(run.state),
   };
 }
 

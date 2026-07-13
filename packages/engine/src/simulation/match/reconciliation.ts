@@ -1,4 +1,5 @@
 import { StatisticsReconciliationError } from './errors.js';
+import { isF14PlayableMatch } from './input.js';
 import type {
   MatchEvent,
   MatchState,
@@ -371,6 +372,59 @@ export function reconcileStatistics(
   );
 
   void penaltyExpiredEvents;
+
+  if (isF14PlayableMatch(input)) {
+    const regulationGoals = goals.filter((g) => String(g.details.goalSegment ?? 'REGULATION') !== 'OVERTIME');
+    const otGoals = goals.filter((g) => String(g.details.goalSegment ?? '') === 'OVERTIME');
+    const regHome = regulationGoals.filter(
+      (e) => String(e.details.scoringTeamId ?? e.teamId) === input.homeTeam.teamId,
+    ).length;
+    const regAway = regulationGoals.filter(
+      (e) => String(e.details.scoringTeamId ?? e.teamId) === input.awayTeam.teamId,
+    ).length;
+    checks.push(
+      check(
+        'F14_REGULATION_SCORE',
+        state.regulationScore.home === regHome && state.regulationScore.away === regAway,
+        `Regulation score ${state.regulationScore.home}-${state.regulationScore.away} vs regulation GOAL events ${regHome}-${regAway}`,
+      ),
+    );
+    const otHome = otGoals.filter(
+      (e) => String(e.details.scoringTeamId ?? e.teamId) === input.homeTeam.teamId,
+    ).length;
+    const otAway = otGoals.filter(
+      (e) => String(e.details.scoringTeamId ?? e.teamId) === input.awayTeam.teamId,
+    ).length;
+    checks.push(
+      check(
+        'F14_OVERTIME_SCORE',
+        state.overtimeScore.home === otHome && state.overtimeScore.away === otAway,
+        `OT score ${state.overtimeScore.home}-${state.overtimeScore.away} vs OT GOAL events ${otHome}-${otAway}`,
+      ),
+    );
+    const shootoutAttempts = events.filter((e) => e.type === 'SHOOTOUT_ATTEMPT');
+    const soHome = shootoutAttempts.filter(
+      (e) => String(e.details.shootingTeamId ?? e.teamId) === input.homeTeam.teamId && e.details.scored,
+    ).length;
+    const soAway = shootoutAttempts.filter(
+      (e) => String(e.details.shootingTeamId ?? e.teamId) === input.awayTeam.teamId && e.details.scored,
+    ).length;
+    checks.push(
+      check(
+        'F14_SHOOTOUT_TEAM_STATS',
+        stats.home.shootoutAttempts + stats.away.shootoutAttempts === shootoutAttempts.length &&
+          stats.home.shootoutGoals === soHome &&
+          stats.away.shootoutGoals === soAway,
+        `Shootout stats home ${stats.home.shootoutGoals}/${stats.home.shootoutAttempts} away ${stats.away.shootoutGoals}/${stats.away.shootoutAttempts}`,
+      ),
+    );
+    if (state.phase === 'COMPLETE' && state.simulationStatus === 'MATCH_COMPLETE') {
+      const matchEnd = events.filter((e) => e.type === 'MATCH_END').at(-1);
+      checks.push(
+        check('F14_MATCH_END_PRESENT', Boolean(matchEnd), 'Complete F14 match must emit MATCH_END'),
+      );
+    }
+  }
 
   const failures = checks.filter((c) => !c.ok).map((c) => `${c.code}: ${c.message}`);
   const result: ReconciliationResult = {

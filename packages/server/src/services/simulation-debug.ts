@@ -6,7 +6,9 @@ import {
   type MatchSnapshot,
   type MatchStatistics,
   type ReconciliationResult,
+  type SimulationDiagnostics,
   type SimulationInput,
+  type SimulationResult,
   type StepMode,
   InvalidSnapshotError,
   InvalidSimulationInputError,
@@ -17,6 +19,41 @@ import {
   StatisticsReconciliationError,
 } from '@fhm/engine';
 import { buildSimulationInput, SimulationHttpError } from './simulation-input.js';
+
+export interface TechnicalRegulationResponse {
+  metadata: SimulationResult['metadata'];
+  finalState: SimulationResult['finalState'];
+  diagnostics: SimulationResult['diagnostics'];
+  statistics: MatchStatistics;
+  reconciliation: ReconciliationResult;
+  periodScores: SimulationResult['periodScores'];
+  playerDirectory: Record<string, { firstName: string; lastName: string; teamId: string }>;
+  events?: MatchEvent[];
+  eventSummary?: { total: number; byType: Record<string, number> };
+  eventsTruncated?: boolean;
+  totalEventCount: number;
+  notice: string;
+}
+
+export interface TechnicalStepResponse {
+  metadata: {
+    engineVersion: string;
+    balancePresetId: string;
+    balanceVersionId: string;
+    balanceVersionNumber: number;
+    balanceHash: string;
+    seed: string | number;
+    inputFingerprint: string;
+    simulationMode: string;
+  };
+  state: MatchSnapshot['state'];
+  snapshot: MatchSnapshot;
+  diagnostics: SimulationDiagnostics;
+  playerDirectory: Record<string, { firstName: string; lastName: string; teamId: string }>;
+  events?: MatchEvent[];
+  completed: boolean;
+  notice: string;
+}
 
 export function isSimulationDebugEnabled(): boolean {
   if (process.env.NODE_ENV === 'test') return true;
@@ -105,7 +142,7 @@ export async function runTechnicalRegulation(opts: {
   awayTeamId: string;
   seed: string | number;
   eventDetail?: EventDetailLevel;
-}) {
+}): Promise<TechnicalRegulationResponse> {
   const input = await buildSimulationInput(opts);
   try {
     const result = simulateRegulation(input);
@@ -137,7 +174,7 @@ export async function runTechnicalStep(opts: {
   stepMode: StepMode;
   snapshot?: MatchSnapshot | null;
   eventDetail?: EventDetailLevel;
-}) {
+}): Promise<TechnicalStepResponse> {
   const input = await buildSimulationInput(opts);
   try {
     const step = simulateStep(input, opts.snapshot ?? null, opts.stepMode);

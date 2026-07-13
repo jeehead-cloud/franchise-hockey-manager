@@ -20,7 +20,7 @@ let shutouts = 0;
 for (let i = 0; i < count; i += 1) {
   const seed = `scoring-verify-${i}`;
   try {
-    const input = buildTestSimulationInput(seed);
+    const input = buildTestSimulationInput(seed, { mode: 'F13' });
     const result = simulateRegulation(input);
     if (result.finalState.simulationStatus !== 'REGULATION_COMPLETE') {
       console.error(`Run ${i}: did not complete`);
@@ -43,7 +43,7 @@ for (let i = 0; i < count; i += 1) {
       }
     }
 
-    const replay = simulateRegulation(buildTestSimulationInput(seed));
+    const replay = simulateRegulation(buildTestSimulationInput(seed, { mode: 'F13' }));
     if (replay.diagnostics.traceHash !== result.diagnostics.traceHash) {
       replayFailures += 1;
       failures += 1;

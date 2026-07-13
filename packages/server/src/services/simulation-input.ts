@@ -2,11 +2,14 @@ import { createHash } from 'node:crypto';
 import {
   FHM_ENGINE_VERSION,
   F13_SIMULATION_MODE,
+  F14_SIMULATION_MODE,
   PERIOD_DURATION_SECONDS,
   REGULATION_PERIODS,
   canonicalizeSimulationInput,
   isF13CompatibleBalanceConfig,
+  isF14CompatibleBalanceConfig,
   validateSimulationInput,
+  type MatchCompletionRules,
   type SimulationInput,
   type SimulationPlayerProfile,
   type SimulationTeamInput,
@@ -92,7 +95,7 @@ function toPlayerProfile(row: LineupPlayerRow, slot: string): SimulationPlayerPr
   };
 }
 
-async function assertTeamSimulationReady(teamId: string): Promise<void> {
+export async function assertTeamSimulationReady(teamId: string): Promise<void> {
   const team = await prisma.team.findUnique({
     where: { id: teamId },
     include: {
@@ -233,6 +236,9 @@ export async function buildSimulationInput(opts: {
   awayTeamId: string;
   seed: string | number;
   matchId?: string;
+  forPlayableMatch?: boolean;
+  completionRules?: MatchCompletionRules;
+  rules?: { regulationPeriods: number; periodDurationSeconds: number };
 }): Promise<SimulationInput> {
   if (opts.homeTeamId === opts.awayTeamId) {
     throw new SimulationHttpError(400, 'InvalidSimulationRequest', 'Home and away teams must differ');
@@ -244,8 +250,18 @@ export async function buildSimulationInput(opts: {
   await assertTeamSimulationReady(opts.homeTeamId);
   await assertTeamSimulationReady(opts.awayTeamId);
 
+  const forPlayableMatch = opts.forPlayableMatch === true;
   const snapshot = await getActiveBalanceSnapshot();
-  if (!isF13CompatibleBalanceConfig(snapshot.config)) {
+  if (forPlayableMatch) {
+    if (!isF14CompatibleBalanceConfig(snapshot.config)) {
+      throw new SimulationHttpError(
+        409,
+        'IncompatibleBalanceConfiguration',
+        'Active balance configuration is not F14-compatible (requires schemaVersion >= 5 with active matchCompletion section)',
+        { schemaVersion: snapshot.version.schemaVersion },
+      );
+    }
+  } else if (!isF13CompatibleBalanceConfig(snapshot.config)) {
     throw new SimulationHttpError(
       409,
       'IncompatibleBalanceConfiguration',
@@ -268,7 +284,7 @@ export async function buildSimulationInput(opts: {
   const draft: Omit<SimulationInput, 'inputFingerprint'> = {
     matchId: opts.matchId ?? `debug-${opts.homeTeamId}-${opts.awayTeamId}`,
     engineVersion: FHM_ENGINE_VERSION,
-    simulationMode: F13_SIMULATION_MODE,
+    simulationMode: forPlayableMatch ? F14_SIMULATION_MODE : F13_SIMULATION_MODE,
     seed: opts.seed,
     balance: {
       presetId: snapshot.preset.id,
@@ -282,9 +298,16 @@ export async function buildSimulationInput(opts: {
     homeTeam,
     awayTeam,
     rules: {
-      regulationPeriods: REGULATION_PERIODS,
-      periodDurationSeconds: PERIOD_DURATION_SECONDS,
+      regulationPeriods: opts.rules?.regulationPeriods ?? REGULATION_PERIODS,
+      periodDurationSeconds: opts.rules?.periodDurationSeconds ?? PERIOD_DURATION_SECONDS,
     },
+    completionRules: forPlayableMatch
+      ? (opts.completionRules ?? {
+          overtimeEnabled: false,
+          shootoutEnabled: false,
+          tiesAllowed: true,
+        })
+      : undefined,
   };
 
   const fingerprint = createHash('sha256')

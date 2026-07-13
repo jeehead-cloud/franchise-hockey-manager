@@ -9,6 +9,7 @@ import {
   getStandardBalanceConfig,
   isF12CompatibleBalanceConfig,
   isF13CompatibleBalanceConfig,
+  isF14CompatibleBalanceConfig,
   normalizeBalanceConfig,
   PENALTY_INFRACTIONS,
   SHOT_TYPES,
@@ -28,7 +29,7 @@ function hash(config: ReturnType<typeof getStandardBalanceConfig>) {
 describe('balance config', () => {
   it('parses Standard defaults with required sections', () => {
     const config = getStandardBalanceConfig();
-    expect(config.schemaVersion).toBe(4);
+    expect(config.schemaVersion).toBe(5);
     expect(config.presetKey).toBe('standard');
     expect(config.chemistry.active).toBe(true);
     expect(config.playerModel.active).toBe(true);
@@ -63,6 +64,11 @@ describe('balance config', () => {
     expect(config.chemistry.weights.version).toBe('f9-v1');
     expect(isF12CompatibleBalanceConfig(config)).toBe(true);
     expect(isF13CompatibleBalanceConfig(config)).toBe(true);
+    expect(isF14CompatibleBalanceConfig(config)).toBe(true);
+    if (config.matchCompletion?.active) {
+      expect(config.matchCompletion.overtime.durationSeconds).toBe(300);
+      expect(config.matchCompletion.shootout.initialRounds).toBe(3);
+    }
     const result = validateBalanceConfig(config);
     expect(result.ok).toBe(true);
   });

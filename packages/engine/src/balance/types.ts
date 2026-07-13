@@ -1,6 +1,6 @@
-export const BALANCE_SCHEMA_VERSION = 4 as const;
+export const BALANCE_SCHEMA_VERSION = 5 as const;
 
-export const BALANCE_SCHEMA_VERSIONS = [1, 2, 3, 4] as const;
+export const BALANCE_SCHEMA_VERSIONS = [1, 2, 3, 4, 5] as const;
 
 export const SHOT_TYPES = ['WRIST', 'SLAP', 'SNAP', 'BACKHAND', 'TIP', 'DEFLECTION'] as const;
 
@@ -147,6 +147,42 @@ export interface MatchBalanceSection {
   offensiveZoneContinuedPossessionProbability: number;
 }
 
+export interface OvertimeBalanceConfig {
+  enabled: boolean;
+  durationSeconds: number;
+  skaterCount: 3;
+  generatePenalties: false;
+  suddenDeath: boolean;
+  possessionModifier: number;
+  shotOpportunityModifier: number;
+}
+
+export interface ShootoutBalanceConfig {
+  enabled: boolean;
+  initialRounds: number;
+  suddenDeath: boolean;
+  shooterWeights: {
+    shooting: number;
+    offensiveAwareness: number;
+    stickhandling: number;
+    currentAbility: number;
+  };
+  goalieWeights: {
+    reflexes: number;
+    positioning: number;
+    consistency: number;
+  };
+  probabilityFloor: number;
+  probabilityCeiling: number;
+  heroRatingWeight: number;
+}
+
+export interface MatchCompletionBalanceSection {
+  active: true;
+  overtime: OvertimeBalanceConfig;
+  shootout: ShootoutBalanceConfig;
+}
+
 export interface ShotsBalanceSection {
   active: true;
   shotTypeWeights: Record<ShotType, number>;
@@ -262,6 +298,7 @@ export interface BalanceConfig extends BalanceMetadata {
   shots: ShotsBalanceSection | InactiveSection;
   goalies: GoaliesBalanceSection | InactiveSection;
   penalties: PenaltiesBalanceSection | InactiveSection;
+  matchCompletion?: MatchCompletionBalanceSection | InactiveSection;
   development: InactiveSection;
   scouting: InactiveSection;
   draft: InactiveSection;

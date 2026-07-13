@@ -69,14 +69,14 @@ describe('F12 match engine RNG', () => {
 
 describe('F12 simulation input', () => {
   it('accepts valid fixture input', () => {
-    const input = buildTestSimulationInput();
+    const input = buildTestSimulationInput('f13-test-001', { mode: 'F13' });
     expect(input.engineVersion).toBe(FHM_ENGINE_VERSION);
     expect(input.simulationMode).toBe(F13_SIMULATION_MODE);
     expect(() => validateSimulationInput(input)).not.toThrow();
   });
 
   it('rejects same team and incompatible balance', () => {
-    const input = buildTestSimulationInput();
+    const input = buildTestSimulationInput('f13-test-001', { mode: 'F13' });
     const badTeam = { ...input, awayTeam: { ...input.homeTeam, side: 'AWAY' as const } };
     expect(() => validateSimulationInput(badTeam)).toThrow(InvalidSimulationInputError);
     const v1 = getStandardBalanceConfig();
@@ -97,7 +97,7 @@ describe('F12 simulation input', () => {
 
 describe('F12 regulation simulation', () => {
   it('runs three periods with score derived from GOAL events', () => {
-    const input = buildTestSimulationInput('f12-reg-001');
+    const input = buildTestSimulationInput('f12-reg-001', { mode: 'F13' });
     const result = simulateRegulation(input);
     expect(result.finalState.simulationStatus).toBe('REGULATION_COMPLETE');
     expect(result.events[0]?.type).toBe('MATCH_START');
@@ -117,7 +117,7 @@ describe('F12 regulation simulation', () => {
   });
 
   it('resolves every SHOT exactly once', () => {
-    const result = simulateRegulation(buildTestSimulationInput('f12-shot-resolve'));
+    const result = simulateRegulation(buildTestSimulationInput('f12-shot-resolve', { mode: 'F13' }));
     const shots = result.events.filter((e) => e.type === 'SHOT');
     const resolutions = result.events.filter((e) =>
       ['SHOT_BLOCKED', 'SHOT_MISSED', 'SAVE', 'GOAL'].includes(e.type),
@@ -131,8 +131,8 @@ describe('F12 regulation simulation', () => {
   });
 
   it('is deterministic for same seed', () => {
-    const a = simulateRegulation(buildTestSimulationInput('det-001'));
-    const b = simulateRegulation(buildTestSimulationInput('det-001'));
+    const a = simulateRegulation(buildTestSimulationInput('det-001', { mode: 'F13' }));
+    const b = simulateRegulation(buildTestSimulationInput('det-001', { mode: 'F13' }));
     expect(a.diagnostics.traceHash).toBe(b.diagnostics.traceHash);
     expect(a.events.length).toBe(b.events.length);
     expect(a.finalState.score).toEqual(b.finalState.score);
@@ -140,13 +140,13 @@ describe('F12 regulation simulation', () => {
   });
 
   it('differs by seed', () => {
-    const a = simulateRegulation(buildTestSimulationInput('seed-one'));
-    const b = simulateRegulation(buildTestSimulationInput('seed-two'));
+    const a = simulateRegulation(buildTestSimulationInput('seed-one', { mode: 'F13' }));
+    const b = simulateRegulation(buildTestSimulationInput('seed-two', { mode: 'F13' }));
     expect(a.diagnostics.traceHash).not.toBe(b.diagnostics.traceHash);
   });
 
   it('pause/resume matches full run', () => {
-    const input = buildTestSimulationInput('resume-001');
+    const input = buildTestSimulationInput('resume-001', { mode: 'F13' });
     const full = simulateRegulation(input);
     let snap = null;
     let events: typeof full.events = [];
@@ -163,7 +163,7 @@ describe('F12 regulation simulation', () => {
   });
 
   it('pause after SHOT matches uninterrupted resolution', () => {
-    const input = buildTestSimulationInput('shot-pause-001');
+    const input = buildTestSimulationInput('shot-pause-001', { mode: 'F13' });
     const full = simulateRegulation(input);
     let snap = null;
     let events: typeof full.events = [];
@@ -190,7 +190,7 @@ describe('F12 regulation simulation', () => {
   });
 
   it('rejects incompatible snapshot metadata', () => {
-    const input = buildTestSimulationInput('snap-001');
+    const input = buildTestSimulationInput('snap-001', { mode: 'F13' });
     const state = createInitialMatchState(input);
     const snap = serializeMatchSnapshot(input, state, []);
     expect(() => restoreMatchSnapshot({ ...snap, balanceHash: 'wrong' }, input)).toThrow(InvalidSnapshotError);
@@ -200,7 +200,7 @@ describe('F12 regulation simulation', () => {
   });
 
   it('clock stays within period bounds', () => {
-    const result = simulateRegulation(buildTestSimulationInput('clock-001'));
+    const result = simulateRegulation(buildTestSimulationInput('clock-001', { mode: 'F13' }));
     for (const ev of result.events) {
       expect(ev.elapsedSeconds).toBeGreaterThanOrEqual(0);
       expect(ev.elapsedSeconds).toBeLessThanOrEqual(1200);
@@ -209,7 +209,7 @@ describe('F12 regulation simulation', () => {
   });
 
   it('goal assists follow pass-chain rules', () => {
-    const result = simulateRegulation(buildTestSimulationInput('assist-rules'));
+    const result = simulateRegulation(buildTestSimulationInput('assist-rules', { mode: 'F13' }));
     for (const goal of result.events.filter((e) => e.type === 'GOAL')) {
       const scorer = String(goal.details.scorerId ?? goal.playerIds[0]);
       const primary = goal.details.primaryAssistId as string | null | undefined;
@@ -228,7 +228,7 @@ describe('F12 regulation simulation', () => {
 describe('F12 invariant batch', () => {
   it('terminates for 100 seeded runs with reconciliation', () => {
     for (let i = 0; i < 100; i += 1) {
-      const result = simulateRegulation(buildTestSimulationInput(`batch-${i}`));
+      const result = simulateRegulation(buildTestSimulationInput(`batch-${i}`, { mode: 'F13' }));
       expect(result.finalState.simulationStatus).toBe('REGULATION_COMPLETE');
       expect(result.diagnostics.safetyLimitHit).toBe(false);
       expect(result.reconciliation.ok).toBe(true);
@@ -242,7 +242,7 @@ describe('F12 invariant batch', () => {
     let homeGoals = 0;
     let awayGoals = 0;
     for (let i = 0; i < 80; i += 1) {
-      const result = simulateRegulation(buildTestSimulationInput(`offense-${i}`));
+      const result = simulateRegulation(buildTestSimulationInput(`offense-${i}`, { mode: 'F13' }));
       homeGoals += result.finalState.score.home;
       awayGoals += result.finalState.score.away;
     }
@@ -253,7 +253,7 @@ describe('F12 invariant batch', () => {
 
 describe('F12 safety limit', () => {
   it('fails when safety limit is tiny', () => {
-    const input = buildTestSimulationInput('unsafe');
+    const input = buildTestSimulationInput('unsafe', { mode: 'F13' });
     if (input.balance.snapshot.match.active) {
       input.balance.snapshot.match.eventSafetyLimit = 5;
     }
@@ -263,7 +263,7 @@ describe('F12 safety limit', () => {
 
 describe('F12 statistics reducer', () => {
   it('reconciles independently from simulateRegulation output', () => {
-    const input = buildTestSimulationInput('reducer-001');
+    const input = buildTestSimulationInput('reducer-001', { mode: 'F13' });
     const result = simulateRegulation(input);
     const stats = reduceStatistics(input, result.events, result.finalState);
     const recon = reconcileStatistics(input, result.events, result.finalState, stats);
@@ -275,7 +275,7 @@ describe('F12 statistics reducer', () => {
 
 describe('F13 step pending shot', () => {
   it('exposes pending shot between SHOT and resolution', () => {
-    const input = buildTestSimulationInput('pending-shot');
+    const input = buildTestSimulationInput('pending-shot', { mode: 'F13' });
     let state = createInitialMatchState(input);
     let events: ReturnType<typeof simulateRegulation>['events'] = [];
     let foundPending = false;
@@ -298,7 +298,7 @@ describe('F13 penalties smoke', () => {
   it('may emit PENALTY events in regulation', () => {
     let penaltyCount = 0;
     for (let i = 0; i < 30; i += 1) {
-      const result = simulateRegulation(buildTestSimulationInput(`penalty-smoke-${i}`));
+      const result = simulateRegulation(buildTestSimulationInput(`penalty-smoke-${i}`, { mode: 'F13' }));
       penaltyCount += result.events.filter((e) => e.type === 'PENALTY').length;
       expect(result.diagnostics.penalties).toBe(
         result.events.filter((e) => e.type === 'PENALTY').length,
@@ -308,7 +308,7 @@ describe('F13 penalties smoke', () => {
   });
 
   it('tracks PP opportunities when penalties occur', () => {
-    const result = simulateRegulation(buildTestSimulationInput('penalty-stats-001'));
+    const result = simulateRegulation(buildTestSimulationInput('penalty-stats-001', { mode: 'F13' }));
     const penalties = result.events.filter((e) => e.type === 'PENALTY');
     if (penalties.length > 0) {
       expect(result.statistics.home.powerPlayOpportunities + result.statistics.away.powerPlayOpportunities).toBe(

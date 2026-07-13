@@ -130,6 +130,32 @@ enum PublicPotentialEstimate {
   UNKNOWN
 }
 
+enum MatchStatus {
+  PREPARED
+  SIMULATING
+  COMPLETED
+  FAILED
+  SUPERSEDED
+}
+
+enum MatchResultStatus {
+  COMPLETED
+  SUPERSEDED
+  FAILED
+}
+
+enum MatchDecisionType {
+  REGULATION
+  OVERTIME
+  SHOOTOUT
+  TIE
+}
+
+enum MatchSource {
+  MANUAL
+  COMPETITION
+}
+
 enum CommissionerAuditEntityType {
   PLAYER
   COACH
@@ -138,6 +164,8 @@ enum CommissionerAuditEntityType {
   BALANCE_PRESET
   BALANCE_PRESET_VERSION
   ACTIVE_BALANCE_CONFIGURATION
+  MATCH
+  MATCH_RESULT
 }
 
 enum CommissionerAuditAction {
@@ -161,6 +189,8 @@ enum CommissionerAuditAction {
   VERSION_ACTIVATED
   PRESET_RESET
   PRESET_IMPORTED
+  MATCH_RESIMULATED
+  MATCH_RESULT_SUPERSEDED
 }
 
 enum LineupSlot {
@@ -267,10 +297,12 @@ model Team {
   country Country @relation(fields: [countryId], references: [id], onDelete: Restrict)
   league  League? @relation(fields: [leagueId], references: [id], onDelete: Restrict)
 
-  players Player[]
+  players     Player[]
   /// At most one current head coach (unique on Coach.currentTeamId).
-  coach   Coach?
-  lineup  TeamLineup?
+  coach       Coach?
+  lineup      TeamLineup?
+  homeMatches Match[]     @relation("MatchHomeTeam")
+  awayMatches Match[]     @relation("MatchAwayTeam")
 
   @@unique([leagueId, name])
   @@unique([sourceDataset, externalId])
@@ -456,6 +488,7 @@ model CompetitionEdition {
 
   competition Competition @relation(fields: [competitionId], references: [id], onDelete: Restrict)
   worldSeason WorldSeason @relation(fields: [worldSeasonId], references: [id], onDelete: Restrict)
+  matches     Match[]
 
   @@unique([competitionId, worldSeasonId])
   @@index([worldSeasonId])
@@ -507,6 +540,152 @@ model BalancePresetVersion {
   @@unique([presetId, versionNumber])
   @@index([configHash])
   @@index([presetId, createdAt])
+}
+
+/// Prepared or completed playable match (F14).
+model Match {
+  id                            String      @id @default(cuid())
+  homeTeamId                    String
+  awayTeamId                    String
+  competitionEditionId          String?
+  status                        MatchStatus @default(PREPARED)
+  scheduledAt                   DateTime?
+  /// Application-level pointer to current MatchResult (no FK constraint).
+  currentResultId               String?
+  latestSimulationAttemptNumber Int         @default(0)
+  source                        MatchSource @default(MANUAL)
+  createdBySource               String?
+  /// Canonical match rules JSON (regulation + completion).
+  rulesJson                     String?
+  createdAt                     DateTime    @default(now())
+  updatedAt                     DateTime    @updatedAt
+
+  homeTeam           Team                @relation("MatchHomeTeam", fields: [homeTeamId], references: [id], onDelete: Restrict)
+  awayTeam           Team                @relation("MatchAwayTeam", fields: [awayTeamId], references: [id], onDelete: Restrict)
+  competitionEdition CompetitionEdition? @relation(fields: [competitionEditionId], references: [id], onDelete: Restrict)
+  results            MatchResult[]
+
+  @@index([homeTeamId])
+  @@index([awayTeamId])
+  @@index([competitionEditionId])
+  @@index([status])
+  @@index([scheduledAt])
+}
+
+/// Immutable simulation attempt for a match (F14).
+model MatchResult {
+  id                     String            @id @default(cuid())
+  matchId                String
+  attemptNumber          Int
+  status                 MatchResultStatus
+  decisionType           MatchDecisionType
+  homeScore              Int
+  awayScore              Int
+  homeRegulationScore    Int
+  awayRegulationScore    Int
+  homeOvertimeScore      Int               @default(0)
+  awayOvertimeScore      Int               @default(0)
+  homeShootoutScore      Int               @default(0)
+  awayShootoutScore      Int               @default(0)
+  winnerTeamId           String?
+  engineVersion          String
+  simulationMode         String
+  randomSeed             String
+  inputFingerprint       String
+  balancePresetId        String
+  balancePresetVersionId String
+  balanceVersionNumber   Int
+  balanceConfigHash      String
+  balanceSnapshotText    String
+  simulationInputText    String
+  diagnosticsText        String?
+  traceHash              String
+  reconciliationStatus   String
+  reconciliationJson     String?
+  startedAt              DateTime
+  completedAt            DateTime?
+  supersededAt           DateTime?
+  supersededByResultId   String?
+  createdAt              DateTime          @default(now())
+
+  match       Match            @relation(fields: [matchId], references: [id], onDelete: Restrict)
+  events      MatchEvent[]
+  playerStats PlayerGameStat[]
+  teamStats   TeamGameStat[]
+
+  @@unique([matchId, attemptNumber])
+  @@index([matchId, status])
+  @@index([inputFingerprint])
+}
+
+/// Ordered event feed for a match result (F14).
+model MatchEvent {
+  id               String   @id @default(cuid())
+  matchResultId    String
+  eventIndex       Int
+  eventType        String
+  period           Int
+  elapsedSeconds   Int
+  remainingSeconds Int
+  teamId           String?
+  primaryPlayerId  String?
+  eventJson        String
+  visibility       String
+  createdAt        DateTime @default(now())
+
+  matchResult MatchResult @relation(fields: [matchResultId], references: [id], onDelete: Restrict)
+
+  @@unique([matchResultId, eventIndex])
+  @@index([matchResultId, period])
+}
+
+/// Per-player box score for a match result (F14).
+model PlayerGameStat {
+  id               String   @id @default(cuid())
+  matchResultId    String
+  playerId         String
+  teamId           String
+  position         String
+  statsJson        String
+  goals            Int      @default(0)
+  assists          Int      @default(0)
+  points           Int      @default(0)
+  shotsOnGoal      Int      @default(0)
+  penaltyMinutes   Int      @default(0)
+  powerPlayGoals   Int      @default(0)
+  shortHandedGoals Int      @default(0)
+  shootoutAttempts Int      @default(0)
+  shootoutGoals    Int      @default(0)
+  createdAt        DateTime @default(now())
+
+  matchResult MatchResult @relation(fields: [matchResultId], references: [id], onDelete: Restrict)
+
+  @@unique([matchResultId, playerId])
+  @@index([matchResultId, teamId])
+  @@index([playerId])
+}
+
+/// Per-team box score for a match result (F14).
+model TeamGameStat {
+  id               String   @id @default(cuid())
+  matchResultId    String
+  teamId           String
+  side             String
+  statsJson        String
+  goals            Int      @default(0)
+  shotsOnGoal      Int      @default(0)
+  penalties        Int      @default(0)
+  penaltyMinutes   Int      @default(0)
+  powerPlayGoals   Int      @default(0)
+  shortHandedGoals Int      @default(0)
+  shootoutAttempts Int      @default(0)
+  shootoutGoals    Int      @default(0)
+  createdAt        DateTime @default(now())
+
+  matchResult MatchResult @relation(fields: [matchResultId], references: [id], onDelete: Restrict)
+
+  @@unique([matchResultId, teamId])
+  @@index([matchResultId])
 }
 
 /// Singleton active balance version for simulation/runtime. F10.

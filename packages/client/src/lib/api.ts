@@ -1373,3 +1373,235 @@ export async function stepTechnicalSimulation(
 }> {
   return postJson('/api/simulation/debug/step', payload, signal);
 }
+
+export type MatchStatus = 'PREPARED' | 'SIMULATING' | 'COMPLETED' | 'FAILED' | 'SUPERSEDED';
+export type MatchDecisionType = 'REGULATION' | 'OVERTIME' | 'SHOOTOUT' | 'TIE';
+
+export interface MatchCurrentResultSummary {
+  id: string;
+  decisionType: MatchDecisionType;
+  homeScore: number;
+  awayScore: number;
+  winnerTeamId: string | null;
+  completedAt: string | null;
+  engineVersion: string;
+  randomSeed: string;
+  traceHash: string;
+}
+
+export interface MatchListItem {
+  id: string;
+  homeTeamId: string;
+  awayTeamId: string;
+  homeTeamName: string;
+  awayTeamName: string;
+  competitionEditionId: string | null;
+  status: MatchStatus;
+  scheduledAt: string | null;
+  currentResultId: string | null;
+  currentResult: MatchCurrentResultSummary | null;
+  latestSimulationAttemptNumber: number;
+  source: 'MANUAL' | 'COMPETITION';
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MatchDetail extends MatchListItem {
+  rules: {
+    regulationPeriods: number;
+    periodDurationSeconds: number;
+    completion: {
+      overtimeEnabled: boolean;
+      shootoutEnabled: boolean;
+      tiesAllowed: boolean;
+    };
+  };
+  competitionEdition: {
+    id: string;
+    displayName: string;
+    status: string;
+  } | null;
+}
+
+export interface MatchSimulateResult {
+  matchId: string;
+  resultId: string;
+  decisionType: MatchDecisionType;
+  homeScore: number;
+  awayScore: number;
+  winnerTeamId: string | null;
+  traceHash: string;
+  reconciliationOk: boolean;
+}
+
+export interface MatchPlayerStat {
+  playerId: string;
+  teamId: string;
+  teamName: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  position: string;
+  goals: number;
+  assists: number;
+  points: number;
+  shotsOnGoal: number;
+  penaltyMinutes: number;
+  powerPlayGoals: number;
+  shortHandedGoals: number;
+  shootoutAttempts: number;
+  shootoutGoals: number;
+  stats: Record<string, unknown>;
+}
+
+export interface MatchTeamStat {
+  teamId: string;
+  teamName: string | null;
+  side: string;
+  goals: number;
+  shotsOnGoal: number;
+  penalties: number;
+  penaltyMinutes: number;
+  powerPlayGoals: number;
+  shortHandedGoals: number;
+  shootoutAttempts: number;
+  shootoutGoals: number;
+  stats: Record<string, unknown>;
+}
+
+export interface MatchResultDetail {
+  matchId: string;
+  resultId: string;
+  attemptNumber: number;
+  status: string;
+  decisionType: MatchDecisionType;
+  homeTeam: { id: string; name: string; side: 'HOME' };
+  awayTeam: { id: string; name: string; side: 'AWAY' };
+  score: {
+    home: number;
+    away: number;
+    homeRegulation: number;
+    awayRegulation: number;
+    homeOvertime: number;
+    awayOvertime: number;
+    homeShootout: number;
+    awayShootout: number;
+  };
+  winnerTeamId: string | null;
+  engineVersion: string;
+  simulationMode: string;
+  randomSeed: string;
+  inputFingerprint: string;
+  balance: {
+    presetId: string;
+    versionId: string;
+    versionNumber: number;
+    configHash: string;
+  };
+  traceHash: string;
+  reconciliationStatus: string;
+  reconciliation: { ok: boolean; checks: Array<{ code: string; ok: boolean; message: string }> } | null;
+  diagnostics: Record<string, unknown> | null;
+  startedAt: string;
+  completedAt: string | null;
+  playerStats: MatchPlayerStat[];
+  teamStats: MatchTeamStat[];
+}
+
+export interface MatchEventItem {
+  id: string;
+  eventIndex: number;
+  eventType: string;
+  period: number;
+  elapsedSeconds: number;
+  remainingSeconds: number;
+  teamId: string | null;
+  primaryPlayerId: string | null;
+  primaryPlayerName: string | null;
+  visibility: string;
+  event: {
+    type: string;
+    details?: Record<string, unknown>;
+    playerIds?: string[];
+  };
+}
+
+export interface MatchAttemptItem {
+  id: string;
+  attemptNumber: number;
+  status: string;
+  decisionType: MatchDecisionType;
+  homeScore: number;
+  awayScore: number;
+  winnerTeamId: string | null;
+  randomSeed: string;
+  engineVersion: string;
+  simulationMode: string;
+  traceHash: string;
+  reconciliationStatus: string;
+  startedAt: string;
+  completedAt: string | null;
+  supersededAt: string | null;
+  supersededByResultId: string | null;
+}
+
+export async function getMatches(
+  params: Record<string, string | number | undefined | null> = {},
+  signal?: AbortSignal,
+): Promise<Paginated<MatchListItem>> {
+  return getJson(`/api/matches${qs(params)}`, signal);
+}
+
+export async function getMatch(id: string, signal?: AbortSignal): Promise<{ item: MatchDetail }> {
+  return getJson(`/api/matches/${id}`, signal);
+}
+
+export async function createMatch(
+  payload: {
+    homeTeamId: string;
+    awayTeamId: string;
+    competitionEditionId?: string | null;
+  },
+  signal?: AbortSignal,
+): Promise<{ item: MatchListItem }> {
+  return postJson('/api/matches', payload, signal);
+}
+
+export async function simulateMatch(
+  id: string,
+  payload: { seed?: string | number } = {},
+  signal?: AbortSignal,
+): Promise<{ item: MatchSimulateResult }> {
+  return postJson(`/api/matches/${id}/simulate`, payload, signal);
+}
+
+export async function getMatchResult(id: string, signal?: AbortSignal): Promise<{ item: MatchResultDetail }> {
+  return getJson(`/api/matches/${id}/result`, signal);
+}
+
+export async function getMatchEvents(
+  id: string,
+  params: Record<string, string | number | undefined | null> = {},
+  signal?: AbortSignal,
+): Promise<Paginated<MatchEventItem>> {
+  return getJson(`/api/matches/${id}/events${qs(params)}`, signal);
+}
+
+export async function getMatchAttempts(
+  id: string,
+  params: Record<string, string | number | undefined | null> = {},
+  signal?: AbortSignal,
+): Promise<Paginated<MatchAttemptItem> & { currentResultId: string | null }> {
+  return commissionerGetJson(`/api/commissioner/matches/${id}/attempts${qs(params)}`, signal);
+}
+
+export async function resimulateMatch(
+  id: string,
+  payload: {
+    expectedCurrentResultId: string;
+    seed?: string | number;
+    reason: string;
+    inputMode: 'ORIGINAL';
+  },
+): Promise<{ item: { matchId: string; previousResultId: string; resultId: string; seed: string; decisionType: string; homeScore: number; awayScore: number; traceHash: string } }> {
+  return commissionerWrite(`/api/commissioner/matches/${id}/resimulate`, 'POST', payload);
+}
