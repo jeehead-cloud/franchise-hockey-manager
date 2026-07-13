@@ -1,4 +1,5 @@
 import {
+  BookOpen,
   FlaskConical,
   Hexagon,
   LayoutDashboard,
@@ -24,6 +25,7 @@ export interface NavItem {
 export const MAIN_NAV: NavItem[] = [
   { to: '/world', label: 'World', icon: LayoutDashboard },
   { to: '/competitions', label: 'Competitions', icon: Trophy },
+  { to: '/history', label: 'History', icon: BookOpen },
   { to: '/teams', label: 'Teams', icon: Shield },
   { to: '/matches', label: 'Matches', icon: Swords },
   { to: '/players', label: 'Players', icon: Users },

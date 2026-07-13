@@ -203,6 +203,13 @@ export async function loadEditionStructure(
 }
 
 export function assertEditableEdition(status: CompetitionEditionStatus) {
+  if (status === 'ARCHIVED') {
+    throw new CommissionerHttpError(
+      409,
+      'CompetitionEditionArchived',
+      'ARCHIVED editions cannot be structurally edited',
+    );
+  }
   try {
     assertEditionStructurallyEditable(status);
   } catch (err) {

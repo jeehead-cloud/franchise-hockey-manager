@@ -300,8 +300,14 @@ export async function transitionEdition(
       }
     }
 
-    // F17: COMPLETED/ARCHIVED are allowed by lifecycle but require explicit Commissioner intent.
-    // No automatic outcome verification exists yet.
+    // F20: ARCHIVED requires the dedicated archive endpoint (creates immutable snapshot).
+    if (to === 'ARCHIVED') {
+      throw new CommissionerHttpError(
+        409,
+        'ArchiveRequired',
+        'Use POST /api/commissioner/competition-editions/:id/archive to archive a COMPLETED edition',
+      );
+    }
 
     const data: Prisma.CompetitionEditionUpdateInput = { status: to };
     if (to === 'PREPARING' && !row.preparedAt) data.preparedAt = new Date();
@@ -319,7 +325,6 @@ export async function transitionEdition(
       }
       data.completedAt = new Date();
     }
-    if (to === 'ARCHIVED') data.archivedAt = new Date();
 
     const updated = await tx.competitionEdition.update({ where: { id: editionId }, data });
     await writeCompetitionAudit(

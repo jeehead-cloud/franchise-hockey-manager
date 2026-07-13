@@ -471,4 +471,74 @@ export async function registerCommissionerCompetitionRoutes(app: FastifyInstance
       return sendCommissionerError(reply, err);
     }
   });
+
+  app.post('/api/commissioner/competition-editions/:id/archive', async (request, reply) => {
+    try {
+      assertCommissionerAccess(request);
+      const body = z
+        .object({
+          expectedUpdatedAt,
+          reason,
+        })
+        .parse(request.body);
+      const { archiveCompetitionEdition } = await import(
+        '../services/competition-archive-persistence.js'
+      );
+      const result = await archiveCompetitionEdition(
+        (request.params as { id: string }).id,
+        body,
+        sourceFor(request),
+      );
+      return reply.status(result.alreadyArchived ? 200 : 201).send({ item: result });
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return reply.status(400).send({
+          error: 'InvalidArchiveRequest',
+          message: err.message,
+        });
+      }
+      return sendCommissionerError(reply, err);
+    }
+  });
+
+  app.get('/api/commissioner/competition-archives/:id/versions', async (request, reply) => {
+    try {
+      assertCommissionerAccess(request);
+      const { listArchiveVersions } = await import(
+        '../services/competition-archive-persistence.js'
+      );
+      const items = await listArchiveVersions((request.params as { id: string }).id);
+      if (!items) {
+        return reply.status(404).send({
+          error: 'CompetitionArchiveNotFound',
+          message: 'Archive not found',
+        });
+      }
+      return detailResponse(items);
+    } catch (err) {
+      return sendCommissionerError(reply, err);
+    }
+  });
+
+  app.get('/api/commissioner/competition-archives/:id/audit', async (request, reply) => {
+    try {
+      assertCommissionerAccess(request);
+      const archiveId = (request.params as { id: string }).id;
+      const { prisma } = await import('../db/client.js');
+      const archive = await prisma.competitionArchive.findUnique({ where: { id: archiveId } });
+      if (!archive) {
+        return reply.status(404).send({
+          error: 'CompetitionArchiveNotFound',
+          message: 'Archive not found',
+        });
+      }
+      const result = await commissionerCompetitions.listEditionAudit(
+        archive.competitionEditionId,
+        request.query as Record<string, unknown>,
+      );
+      return paginatedResponse(result);
+    } catch (err) {
+      return sendCommissionerError(reply, err);
+    }
+  });
 }

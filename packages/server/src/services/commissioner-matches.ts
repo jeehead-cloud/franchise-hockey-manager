@@ -110,6 +110,20 @@ export async function resimulateMatch(
     throw new MatchHttpError(409, 'MatchNotCompleted', 'Only completed matches can be resimulated');
   }
 
+  if (match.competitionEditionId) {
+    const edition = await prisma.competitionEdition.findUnique({
+      where: { id: match.competitionEditionId },
+      select: { status: true },
+    });
+    if (edition?.status === 'ARCHIVED') {
+      throw new MatchHttpError(
+        409,
+        'CompetitionEditionArchived',
+        'Matches linked to an ARCHIVED competition edition cannot be resimulated',
+      );
+    }
+  }
+
   if (match.competitionStageId) {
     const stage = await prisma.competitionStage.findUnique({
       where: { id: match.competitionStageId },

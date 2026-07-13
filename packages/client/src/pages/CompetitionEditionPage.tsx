@@ -22,6 +22,7 @@ import {
 } from '../lib/api';
 import { RegularSeasonStagePanel } from '../components/competitions/RegularSeasonStagePanel';
 import { PlayoffStagePanel } from '../components/competitions/PlayoffStagePanel';
+import { ArchiveEditionPanel } from '../components/competitions/ArchiveEditionPanel';
 
 type Tab =
   | 'overview'
@@ -58,8 +59,9 @@ function lifecycleBanner(status: string): string {
     case 'ACTIVE':
       return 'Active edition. Regular season (F18) and playoffs (F19) operate on detailed stages.';
     case 'COMPLETED':
+      return 'Completed — ready to archive when Commissioner confirms.';
     case 'ARCHIVED':
-      return 'Historical and read-only.';
+      return 'Archived history — read only. Open the permanent archive for canonical historical data.';
     case 'CANCELLED':
       return 'Cancelled and read-only.';
     default:
@@ -222,26 +224,45 @@ export function CompetitionEditionPage() {
       />
 
       {tab === 'overview' && (
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-            gap: 16,
-          }}
-        >
-          <Panel title="Summary">
-            <Row label="Participants" value={String(item.participantCount)} />
-            <Row label="Stages" value={String(item.stageCount)} />
-            <Row label="Matches" value={String(item.matchCount)} />
-            <Row label="Prepared" value={item.preparedAt ?? '—'} />
-            <Row label="Activated" value={item.activatedAt ?? '—'} />
-          </Panel>
-          <Panel title="Notice">
-            <p style={{ margin: 0, font: 'var(--text-body-sm)', color: 'var(--text-secondary)' }}>
-              Schedules, standings, and simulation arrive in later milestones. Activation in F17 only
-              locks structure.
-            </p>
-          </Panel>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {(item.status === 'COMPLETED' ||
+            item.status === 'ARCHIVED' ||
+            item.status === 'ACTIVE') && (
+            <ArchiveEditionPanel
+              editionId={item.id}
+              editionStatus={item.status}
+              updatedAt={item.updatedAt}
+              reason={reason}
+              commissionerEnabled={commissioner.enabled}
+              onArchived={() => void reload()}
+            />
+          )}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+              gap: 16,
+            }}
+          >
+            <Panel title="Summary">
+              <Row label="Participants" value={String(item.participantCount)} />
+              <Row label="Stages" value={String(item.stageCount)} />
+              <Row label="Matches" value={String(item.matchCount)} />
+              <Row label="Prepared" value={item.preparedAt ?? '—'} />
+              <Row label="Activated" value={item.activatedAt ?? '—'} />
+              <Row label="Completed" value={item.completedAt ?? '—'} />
+              <Row label="Archived" value={item.archivedAt ?? '—'} />
+            </Panel>
+            <Panel title="Notice">
+              <p style={{ margin: 0, font: 'var(--text-body-sm)', color: 'var(--text-secondary)' }}>
+                {item.status === 'ARCHIVED'
+                  ? 'Canonical historical data lives in the competition archive under History.'
+                  : item.status === 'COMPLETED'
+                    ? 'Archive this edition to freeze standings, bracket, awards, and statistics.'
+                    : 'Activation locks structure. Regular season and playoffs run while ACTIVE.'}
+              </p>
+            </Panel>
+          </div>
         </div>
       )}
 

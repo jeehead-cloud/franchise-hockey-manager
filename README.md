@@ -38,7 +38,8 @@ npm run dev:client
 - UI: http://localhost:5173 (Vite proxies `/health` and `/api`)
 - Setup World: http://localhost:5173/setup
 - Settings: `/settings` (Game Balance / Runtime & Debug / Commissioner Mode)
-- **Competitions (F17–F19):** `/competitions`, `/competitions/:competitionId`, `/competitions/:competitionId/editions/:editionId` — definitions, editions, regular-season schedule/standings (F18), and playoff bracket/series/champion (F19). Awards/archive remain future.
+- **Competitions (F17–F20):** `/competitions`, edition pages with regular season (F18) and playoffs (F19), plus immutable archive/history (F20) under `/history`.
+- **History (F20):** `/history`, `/history/competitions/:archiveId`, player/team season history routes.
 - **Technical simulation (F16):** `/simulation-lab` — Batch Lab (1/10/100/1000 unpersisted F14 aggregates) + Single Match Debug (F13 technical); neither creates official Match records
 - **Matches (F15):** `/matches`, `/matches/new`, `/matches/:matchId` — persisted match viewer (overview, public events, stats, lines/usage; Commissioner diagnostics/attempts)
 - Browsers: `/world`, `/teams`, `/players`, `/competitions`, `/coaches` (+ detail routes; Team Lines shows chemistry + active balance meta)

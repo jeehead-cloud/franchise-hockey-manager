@@ -1294,6 +1294,8 @@ Simulate Next Match
 
 Turn completed competitions into persistent history.
 
+**Status: implemented locally (2026-07-13).** Engine history module; Prisma CompetitionArchive + children; Commissioner archive with backup; history APIs/UI; awards/records; ARCHIVED write locks. F21 next-season/aggregated leagues remain deferred.
+
 ## Scope
 
 Archive:

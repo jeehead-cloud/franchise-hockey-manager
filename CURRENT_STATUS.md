@@ -12,33 +12,32 @@
 
 ## 1. Current Development Phase
 
-**F19 — NHL Playoffs: implemented locally (not committed).** BEST_OF_SERIES stages import final F18 qualifiers, generate deterministic brackets, simulate series via F14, advance winners, crown a champion, and expose CompetitionEdition completion readiness. Awards/archive remain deferred.
+**F20 — Competition Archive and History: implemented locally (not committed).** COMPLETED editions can be archived into immutable `CompetitionArchive` snapshots (participants, stages, standings, stats, match summaries, series, awards, hashes). History APIs/pages expose seasons, competitions, champions, records, and player/team season history. ARCHIVED editions and their matches cannot be simulated or structurally edited. Next-season generation remains F21+.
 
-**Next milestone: F20** (do not start until requested — typically awards / archive / season wrap-up per foundation plan).
+**Next milestone: F21** (do not start until requested — typically aggregated league simulation / next season per foundation plan).
 
-F1–F18 remain complete on `main` (F18 at `2022dd6`).
+F1–F19 remain complete on `main` (F19 at `42ca9f8`).
 
 ---
 
 ## 2. Milestone Status
 
-### F1–F18
+### F1–F19
 
 Complete on `main`.
 
-### F19 — NHL Playoffs (Done locally)
+### F20 — Competition Archive and History (Done locally)
 
 Implemented:
-- Engine `packages/engine/src/competitions/playoffs/` — config, seeding, FIXED/RESEED brackets, home pattern, series progression, `verify:playoffs`
-- Power-of-two brackets only (byes not supported in F19)
-- Prisma `PlayoffSeries`, Match `playoffSeriesId`/`playoffGameNumber`, stage champion/bracket fields; migration `20260713190000_f19_playoffs`
-- Commissioner: import qualifiers, preview/generate/regenerate bracket
-- Public: bracket, series, simulate-next/series/all-playoffs, edition completion-readiness
-- Lazy game creation; clinch stops series; interim SQLite backup before first playoff game
-- Client Playoffs tab + series cards
+- Engine `packages/engine/src/competitions/history/` — normalize, archive/source hashes, awards, records, reconciliation, `verify:archive-history`
+- Prisma archive models + migration `20260713200000_f20_competition_archive` (archiveSchemaVersion = 1)
+- Commissioner `POST .../archive` with pre-archive SQLite backup; atomic persistence; COMPLETED → ARCHIVED; idempotent retry
+- Public history APIs under `/api/history/*`; archive readiness on editions
+- Client History nav + archive detail tabs; edition Archive panel; player/team history routes
+- Bounded awards (champion, RS leaders, goalie SV%, playoff points); records derived on read from current archives
 
-Not in F19:
-- Awards, archive UI, trophy history, byes, real NHL conference matrix, F20+ systems
+Not in F20:
+- F21 aggregated leagues / new season; offseason; development; Hall of Fame; subjective awards; archive import; arbitrary archive editing (supersession model fields exist; no UI supersede)
 
 ### M1–M8
 
@@ -50,47 +49,50 @@ Unchanged.
 
 - Scoring rates remain high (~10 goals/game).
 - Playoff templates are simplified (power-of-two only; no byes).
-- Playoff resimulation locked once a later game / completed series / completed stage exists.
-- Manual UI verification for F19 was **NOT RUN**.
-- F19 changes not yet committed/pushed.
+- Archive correction/supersession is modeled but not exposed as a full Commissioner UI workflow.
+- Manual UI verification for F20 was **NOT RUN**.
+- F20 changes not yet committed/pushed.
 - Commissioner header is not security.
 
 ---
 
 ## 4. Nearest Next Steps
 
-1. Commit/push F19 when the owner requests.
-2. Manual UI pass on disposable DB (import → bracket → series → champion → edition complete).
-3. **F20** when requested.
+1. Commit/push F20 when the owner requests.
+2. Manual UI pass on disposable DB (complete → archive → history → rename stability).
+3. **F21** when requested.
 
 ---
 
 ## 5. Recent Changes
 
+### 2026-07-13 — F20 Competition Archive and History
+
+- Work completed: immutable archive models, readiness, atomic archive + awards, history APIs/UI, archived write locks
+- Validation: engine history tests + verifier PASS; F20 server test + migrations PASS; broader suite pending wrap-up; manual UI **NOT RUN**
+- Remaining: F20 uncommitted; F21 deferred
+
 ### 2026-07-13 — F19 NHL Playoffs
 
-- Work completed: playoff engine, PlayoffSeries persistence, lazy games, progression, champion, edition completion readiness, Competition UI Playoffs tab
-- Validation: engine playoff tests + verifier PASS; F19 server test + migrations PASS; broader typecheck/build pending in-session wrap-up; manual UI **NOT RUN**
-- Remaining: F19 uncommitted; F20 deferred
-
-### 2026-07-13 — F18 NHL Regular Season
-
-- Committed/pushed on `main` (`2022dd6`)
+- Committed/pushed on `main` (`42ca9f8`)
 
 ---
 
 ## 6. Significant Changes
 
+### 2026-07-13 — F20 Competition Archive and History (Significant)
+
+- Only COMPLETED editions archive; atomic + idempotent; pre-archive SQLite backup required
+- Archive snapshots never use mutable live names as display source
+- Awards from archived stats; records from current official archives only
+- ARCHIVED editions/matches: no simulation, resimulation, or structural edits
+- Corrections must supersede (new version), never mutate archive rows in place
+- F20 does not create the next WorldSeason
+
 ### 2026-07-13 — F19 NHL Playoffs (Significant)
 
 - Qualifiers import from immutable F18 final standing snapshots only
-- Deterministic bracket hash; regeneration locked after first result
-- Series end at winsRequired; lazy next-game creation; winners advance once
-- Champion persisted on playoff stage; edition COMPLETED is Commissioner-gated via readiness (no auto-archive)
-
-### 2026-07-13 — F18 NHL Regular Season (Significant)
-
-- Scheduled Match rows as schedule; provisional/final standings; stage backup boundary
+- Champion persisted; edition COMPLETED Commissioner-gated (no auto-archive)
 
 ---
 
@@ -99,9 +101,8 @@ Unchanged.
 | Item | Value |
 |---|---|
 | Dataset schemaVersion | 5 |
-| Playoff stage types | BEST_OF_SERIES (primary); KNOCKOUT allowed structurally |
-| Bracket modes | FIXED, RESEED_EACH_ROUND |
-| Participant constraint | Power-of-two only |
-| Migration | `20260713190000_f19_playoffs` |
-| Verifier | `npm run verify:playoffs` |
-| Next | F20 |
+| Archive schemaVersion | 1 |
+| Migration | `20260713200000_f20_competition_archive` |
+| Verifier | `npm run verify:archive-history` |
+| History routes | `/history`, `/history/competitions/:archiveId` |
+| Next | F21 |

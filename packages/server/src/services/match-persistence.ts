@@ -15,6 +15,19 @@ export async function claimMatchForSimulation(matchId: string): Promise<{ attemp
     if (!match) {
       throw new MatchHttpError(404, 'MatchNotFound', 'Match not found');
     }
+    if (match.competitionEditionId) {
+      const edition = await tx.competitionEdition.findUnique({
+        where: { id: match.competitionEditionId },
+        select: { status: true },
+      });
+      if (edition?.status === 'ARCHIVED') {
+        throw new MatchHttpError(
+          409,
+          'CompetitionEditionArchived',
+          'Matches linked to an ARCHIVED competition edition cannot be simulated',
+        );
+      }
+    }
     if (match.status === 'COMPLETED') {
       throw new MatchHttpError(409, 'MatchAlreadyCompleted', 'Match already has a completed result', {
         currentResultId: match.currentResultId,

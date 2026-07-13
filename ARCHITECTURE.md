@@ -27,6 +27,8 @@ F10 adds versioned balance presets (`BalancePreset` / immutable `BalancePresetVe
 
 **F19** adds BEST_OF_SERIES playoffs: qualifier import from final F18 snapshots, deterministic brackets (FIXED / RESEED), PlayoffSeries + lazy F14 games, series progression to champion, and CompetitionEdition completion readiness (no auto-archive).
 
+**F20** adds immutable competition archives: dedicated archive tables (participants/stages/standings/stats/match summaries/series/awards), deterministic source + archive hashes, bounded awards, history APIs/pages, and ARCHIVED edition/match write locks. Live Match rows are retained; archives do not duplicate event feeds.
+
 F9 chemistry remains derived on read and now consumes the active preset chemistry section (with preset/version/hash metadata). Familiarity is still stubbed at 0.
 
 ---
@@ -379,6 +381,29 @@ Client:
 - Competition Edition Playoffs tab (bracket columns / stacked cards)
 
 Verifier: `npm run verify:playoffs`
+
+## 7f. Competition Archive & History (F20)
+
+Pure engine (`packages/engine/src/competitions/history/`):
+- Normalized archive DTO + deterministic `computeArchiveHash` / `computeSourceSnapshotHash`
+- Awards from final archived snapshots (shared ties allowed)
+- Historical records derived across current official archives
+- `reconcileArchive` before persistence
+
+Persistence:
+- `CompetitionArchive` + child archive tables (immutable in normal operation)
+- `archiveSchemaVersion = 1` (independent of dataset schemaVersion)
+- Pre-archive SQLite backup (F18/F19 utility); atomic transaction; edition COMPLETED → ARCHIVED
+- Idempotent retry returns existing current archive
+
+APIs:
+- Commissioner `POST /api/commissioner/competition-editions/:id/archive`
+- Public `/api/history/*` + edition archive-readiness / archive summary
+- ARCHIVED matches reject simulate/resimulate with `CompetitionEditionArchived`
+
+Client: History sidebar entry; archive detail tabs; edition Archive panel.
+
+Verifier: `npm run verify:archive-history`
 
 ---
 

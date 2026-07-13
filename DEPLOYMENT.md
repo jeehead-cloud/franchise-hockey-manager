@@ -67,7 +67,7 @@ npm run setup:status
 
 **F18 regular season (local):**
 
-- `FHM_BACKUP_DIR` — optional override for interim pre-run SQLite safety snapshots (default `.fhm-backups/` at repo root; gitignored)
+- `FHM_BACKUP_DIR` — optional override for interim SQLite safety snapshots used by F18/F19/F20 (default `.fhm-backups/` at repo root; gitignored). F20 creates a pre-archive backup before persisting a CompetitionArchive.
 - Backups use SQLite `VACUUM INTO` before the first match of a full-stage simulation; failure blocks the run
 - Not F32 recovery UI — no restore endpoint
 - Verify: `npm run verify:regular-season`

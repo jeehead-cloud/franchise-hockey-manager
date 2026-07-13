@@ -120,6 +120,18 @@ F19 Playoff invariants:
 - Playoff-linked match resimulation is blocked once a later game, completed series, or completed stage exists.
 - CompetitionEdition is not archived automatically; COMPLETED requires readiness (all required stages done + champion).
 
+F20 Archive & History invariants:
+
+- Only COMPLETED CompetitionEditions may be archived; archiving is explicit and Commissioner-gated.
+- Archive creation is atomic and idempotent; pre-archive SQLite backup is required.
+- Archive data is immutable in normal operation; one current official archive per edition.
+- Archived names/statistics come from snapshots, never mutable live Team/Player display fields.
+- Superseded MatchResults never count; archive references official Matches without duplicating event feeds.
+- Awards derive from archived statistics; records derive only from current official archives.
+- ARCHIVED editions and their matches cannot be simulated, resimulated, or structurally edited.
+- Archive corrections create a new version / supersession — never mutate archive contents in place.
+- F20 does not create a new WorldSeason or simulate matches.
+
 Invariants in force:
 
 - **Line/pairing synergy**: role compatibility is config-driven. Complementary roles can beat redundant higher-rated groups after bounded modifiers. Unknown role pairs use an explicit documented fallback.

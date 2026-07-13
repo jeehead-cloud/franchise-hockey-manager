@@ -32,7 +32,8 @@
     "verify:playable-match-engine": "npm run verify:playable-match-engine --workspace=@fhm/engine",
     "verify:simulation-lab": "npm run verify:simulation-lab --workspace=@fhm/engine",
     "verify:regular-season": "npm run verify:regular-season --workspace=@fhm/engine",
-    "verify:playoffs": "npm run verify:playoffs --workspace=@fhm/engine"
+    "verify:playoffs": "npm run verify:playoffs --workspace=@fhm/engine",
+    "verify:archive-history": "npm run verify:archive-history --workspace=@fhm/engine"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

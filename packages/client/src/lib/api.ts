@@ -2586,3 +2586,191 @@ export async function exportMatchDiagnosticsJson(
     { commissioner: true, signal },
   );
 }
+
+// ---------------------------------------------------------------------------
+// F20 — Competition archive & history
+// ---------------------------------------------------------------------------
+
+export async function getArchiveReadiness(editionId: string, signal?: AbortSignal) {
+  return getJson<{
+    item: {
+      status: 'READY' | 'WARNING' | 'NOT_READY';
+      checks: Array<{ id: string; status: string; message: string }>;
+      blockers: string[];
+      warnings: string[];
+      sourceSnapshotHash: string | null;
+    };
+  }>(`/api/competition-editions/${editionId}/archive-readiness`, signal);
+}
+
+export async function getEditionArchiveSummary(editionId: string, signal?: AbortSignal) {
+  return getJson<{
+    item: {
+      id: string;
+      archiveHash: string;
+      sourceSnapshotHash: string;
+      archivedAt: string;
+      archiveVersion: number;
+      status: string;
+      isCurrent: boolean;
+      historyPath: string;
+    };
+  }>(`/api/competition-editions/${editionId}/archive`, signal);
+}
+
+export async function archiveCompetitionEdition(
+  editionId: string,
+  payload: { expectedUpdatedAt: string; reason: string },
+) {
+  return commissionerWrite<{
+    item: {
+      alreadyArchived: boolean;
+      archive: { id: string; archiveHash: string; sourceSnapshotHash: string };
+      historyPath: string;
+      backup: { relativeDisplayPath: string } | null;
+    };
+  }>(`/api/commissioner/competition-editions/${editionId}/archive`, 'POST', payload);
+}
+
+export async function getHistoryLanding(signal?: AbortSignal) {
+  return getJson<{
+    item: {
+      archiveCount: number;
+      latest: Array<{
+        id: string;
+        competitionNameSnapshot: string;
+        worldSeasonNameSnapshot: string;
+        championNameSnapshot: string | null;
+        archivedAt: string;
+      }>;
+      champions: Array<{
+        id: string;
+        competitionNameSnapshot: string;
+        worldSeasonNameSnapshot: string;
+        championNameSnapshot: string | null;
+      }>;
+    };
+  }>('/api/history', signal);
+}
+
+export async function getHistoryCompetitions(
+  params: Record<string, string | number | undefined | null> = {},
+  signal?: AbortSignal,
+) {
+  return getJson<{
+    items: Array<{
+      id: string;
+      competitionNameSnapshot: string;
+      editionNameSnapshot: string;
+      worldSeasonNameSnapshot: string;
+      championNameSnapshot: string | null;
+      matchCount: number;
+      participantCount: number;
+      archivedAt: string;
+      archiveHash: string;
+    }>;
+    page: number;
+    pageSize: number;
+    total: number;
+  }>(`/api/history/competitions${qs(params)}`, signal);
+}
+
+export async function getHistoryArchive(archiveId: string, signal?: AbortSignal) {
+  return getJson<{ item: Record<string, unknown> }>(
+    `/api/history/competitions/${archiveId}`,
+    signal,
+  );
+}
+
+export async function getHistoryArchiveStandings(archiveId: string, signal?: AbortSignal) {
+  return getJson<{ item: unknown[] }>(
+    `/api/history/competitions/${archiveId}/standings`,
+    signal,
+  );
+}
+
+export async function getHistoryArchiveMatches(
+  archiveId: string,
+  params: Record<string, string | number | undefined | null> = {},
+  signal?: AbortSignal,
+) {
+  return getJson<{ items: unknown[]; total: number }>(
+    `/api/history/competitions/${archiveId}/matches${qs(params)}`,
+    signal,
+  );
+}
+
+export async function getHistoryArchiveBracket(archiveId: string, signal?: AbortSignal) {
+  return getJson<{ item: { series: unknown[]; champion: unknown } }>(
+    `/api/history/competitions/${archiveId}/bracket`,
+    signal,
+  );
+}
+
+export async function getHistoryArchiveAwards(archiveId: string, signal?: AbortSignal) {
+  return getJson<{ item: unknown[] }>(`/api/history/competitions/${archiveId}/awards`, signal);
+}
+
+export async function getHistoryArchivePlayerStats(
+  archiveId: string,
+  params: Record<string, string | number | undefined | null> = {},
+  signal?: AbortSignal,
+) {
+  return getJson<{ items: unknown[]; total: number }>(
+    `/api/history/competitions/${archiveId}/player-stats${qs(params)}`,
+    signal,
+  );
+}
+
+export async function getHistoryArchiveGoalieStats(
+  archiveId: string,
+  params: Record<string, string | number | undefined | null> = {},
+  signal?: AbortSignal,
+) {
+  return getJson<{ items: unknown[]; total: number }>(
+    `/api/history/competitions/${archiveId}/goalie-stats${qs(params)}`,
+    signal,
+  );
+}
+
+export async function getHistoryArchiveTeamStats(archiveId: string, signal?: AbortSignal) {
+  return getJson<{ item: unknown[] }>(
+    `/api/history/competitions/${archiveId}/team-stats`,
+    signal,
+  );
+}
+
+export async function getHistoryArchiveParticipants(archiveId: string, signal?: AbortSignal) {
+  return getJson<{ item: unknown[] }>(
+    `/api/history/competitions/${archiveId}/participants`,
+    signal,
+  );
+}
+
+export async function getHistoryChampions(
+  params: Record<string, string | number | undefined | null> = {},
+  signal?: AbortSignal,
+) {
+  return getJson<{ items: unknown[]; total: number }>(
+    `/api/history/champions${qs(params)}`,
+    signal,
+  );
+}
+
+export async function getHistoryRecords(signal?: AbortSignal) {
+  return getJson<{ item: unknown[] }>('/api/history/records', signal);
+}
+
+export async function getPlayerHistorySeasons(playerId: string, signal?: AbortSignal) {
+  return getJson<{ item: { seasons: unknown[]; awards: unknown[] } }>(
+    `/api/history/players/${playerId}/seasons`,
+    signal,
+  );
+}
+
+export async function getTeamHistorySeasons(teamId: string, signal?: AbortSignal) {
+  return getJson<{ item: { seasons: unknown[] } }>(
+    `/api/history/teams/${teamId}/seasons`,
+    signal,
+  );
+}
