@@ -258,4 +258,38 @@ export type {
   PenaltyEndReason,
 } from './simulation/index.js';
 
+export {
+  deriveGameSeed,
+  deriveGameSeeds,
+  resolveSideOrientation,
+  toLabGameSummary,
+  enrichPlayerNames,
+  reduceGameSummaries,
+  createEmptyAggregate,
+  detectLabAnomalies,
+  compareLabAggregates,
+  computeBatchHash,
+  runLabBatch,
+  SUPPORTED_LAB_COUNTS,
+  DEFAULT_LAB_ANOMALY_GUARDRAILS,
+  COMBINED_GOALS_HISTOGRAM_BUCKETS,
+} from './simulation/index.js';
+
+export type {
+  LabSimulationCount,
+  LabSideMode,
+  LabWinner,
+  LabDecisionType,
+  LabGameSummary,
+  LabAggregate,
+  LabAnomaly,
+  LabBatchResult,
+  LabBatchRunOptions,
+  LabBatchRunOutput,
+  LabComparisonResult,
+  LabAnomalyGuardrails,
+  LabPlayerAggregate,
+  LabUnitAggregate,
+} from './simulation/index.js';
+
 export { buildTestSimulationInput } from './simulation/match/fixture.js';

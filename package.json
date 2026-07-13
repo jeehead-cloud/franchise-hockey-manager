@@ -29,7 +29,8 @@
     "verify:event-engine": "npm run verify:event-engine --workspace=@fhm/engine",
     "verify:scoring-engine": "npm run verify:scoring-engine --workspace=@fhm/engine",
     "verify:special-teams-engine": "npm run verify:special-teams-engine --workspace=@fhm/engine",
-    "verify:playable-match-engine": "npm run verify:playable-match-engine --workspace=@fhm/engine"
+    "verify:playable-match-engine": "npm run verify:playable-match-engine --workspace=@fhm/engine",
+    "verify:simulation-lab": "npm run verify:simulation-lab --workspace=@fhm/engine"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

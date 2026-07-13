@@ -1075,6 +1075,8 @@ Diagnostics:
 
 # 21. F16 — Simulation Lab
 
+**Status: implemented locally (2026-07-13).** Engine batch analysis + in-memory `/api/simulation-lab` runs (1/10/100/1000), ALTERNATE/FIXED sides, paired balance comparison, anomaly guardrails, Batch Lab UI + preserved Single Match Debug. Unpersisted only. F17 Competition Framework remains next.
+
 ## Goal
 
 Enable systematic balance testing.

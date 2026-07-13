@@ -13,11 +13,13 @@ F10 adds versioned balance presets (`BalancePreset` / immutable `BalancePresetVe
 
 **F12** extends the engine with offensive-zone shot opportunities, shot resolution, assists from pass chains, event-derived statistics, reconciliation, and pending-shot pause/resume.
 
-**F13** extends the engine to `f13.1` / `F13_SPECIAL_TEAMS`: one-at-a-time two-minute minors, 5v4 power plays / penalty kills, automatic temporary special-team units, penalty clocks with period carryover, PP-goal cancellation, and PP/PK/PIM statistics. Server read-only debug endpoints under `/api/simulation/debug/*` return strength/penalty diagnostics. Client `/simulation-lab` shows F13 special-teams UI (not batch Simulation Lab).
+**F13** extends the engine to `f13.1` / `F13_SPECIAL_TEAMS`: one-at-a-time two-minute minors, 5v4 power plays / penalty kills, automatic temporary special-team units, penalty clocks with period carryover, PP-goal cancellation, and PP/PK/PIM statistics. Server read-only debug endpoints under `/api/simulation/debug/*` return strength/penalty diagnostics. (F16 reuses `/simulation-lab` for Batch Lab + Single Match Debug.)
 
 **F14** extends the engine to `f14.1` / `F14_PLAYABLE_MATCH`: `simulateCompleteMatch()` runs regulation then optional 3v3 OT (no OT penalties) and shootout. Server persists `Match`, `MatchResult`, `MatchEvent`, `PlayerGameStat`, and `TeamGameStat` atomically via `/api/matches/*`. Commissioner resimulation at `/api/commissioner/matches/:id/resimulate` reuses stored immutable input with a new seed and supersedes the prior result. Client `/matches` is the first persistent match UI.
 
 **F15** adds match-viewer read models (no engine formula changes, no Prisma migration): `GET /api/matches/:id/overview` (period scores derived from GOAL events, scoring/shootout summaries, stats, line usage), public event feed filters (`format=view`), CSV/JSON exports, and Commissioner diagnostics/technical events/attempt inspection. Historical display uses immutable simulation-input snapshots. Polished Match Detail tabs separate public viewing from diagnostics.
+
+**F16** adds Simulation Lab batch analysis in `packages/engine/src/simulation/batch/` (seeds, aggregates, anomalies, comparison, batch hash) and an in-memory server run registry under `/api/simulation-lab/*`. Batches of 1/10/100/1000 unpersisted F14 games; ALTERNATE/FIXED side modes; optional paired balance-version comparison; no official Match persistence. Client `/simulation-lab` is tabbed: Batch Lab + Single Match Debug.
 
 F9 chemistry remains derived on read and now consumes the active preset chemistry section (with preset/version/hash metadata). Familiarity is still stubbed at 0.
 
@@ -45,9 +47,10 @@ There is **no backend-less/client-only mode** — client-server from day one (se
 ```text
 franchise-hockey-manager/
 ├── packages/
-│   ├── engine/                  # pure TS — players, lineups, chemistry, balance (F5–F10)
+│   ├── engine/                  # pure TS — players, lineups, chemistry, balance, match, batch
 │   │   ├── src/chemistry/       # F9 role/personality/coach/tactical fit + EP
-│   │   └── src/balance/         # F10 schema, Standard defaults, canonicalize
+│   │   ├── src/balance/         # F10 schema, Standard defaults, canonicalize
+│   │   └── src/simulation/      # F11–F14 match engine; F16 batch analysis (no DB)
 │   ├── server/                  # Fastify + Prisma + SQLite
 │   │   ├── src/
 │   │   │   ├── app.ts           # Fastify factory (tests + runtime)
@@ -265,6 +268,30 @@ F4 browsers (URL query state for list filters):
 
 Vite proxies `/health` and `/api` to `127.0.0.1:3000`. No client Prisma. F5 Player Profile shows attributes, ratings, role, preferences, and public potential estimate. F6 adds `/players/:playerId/edit` and Commissioner Mode controls under Settings.
 
+F16: `/simulation-lab` — Batch Lab (default) for unpersisted aggregate analysis; Single Match Debug tab preserves F13 technical simulation. Lab runs are in-memory only (lost on server restart).
+
+---
+
+## 7b. Simulation Lab (F16)
+
+Pure engine (`packages/engine/src/simulation/batch/`):
+
+- Seed derivation: `` `${baseSeed}:game:${index}` ``
+- Side modes: `FIXED` | `ALTERNATE` (results normalized Team A / Team B)
+- Aggregate reduction, anomalies, paired comparison, batch hash (browser-safe digest)
+- `runLabBatch` — no Prisma
+
+Server:
+
+- `GET /api/simulation-lab/options`
+- `POST /api/simulation-lab/runs` → `runId`
+- `GET /api/simulation-lab/runs/:runId`
+- `DELETE /api/simulation-lab/runs/:runId` (cancel)
+- Export query on completed runs
+- Gate: `FHM_SIMULATION_LAB_ENABLED`
+- Limits: max 1000 games; max 2 concurrent; retain ~20 / 30 min; chunk size 25
+- Does not create Match/Result/Event/stat/audit rows; does not activate balance presets
+
 ---
 
 ## 8. Why Client-Server From Day One
@@ -282,9 +309,10 @@ Milestone M8 (public deployment) remains an explicit goal. See `DEPLOYMENT.md`.
 - F4 list filters live in the URL; pagination stays on the server.
 - F5 derives ratings/roles in the engine on read; do not duplicate formulas in mappers or UI.
 - F6 Commissioner Mode is a local sandbox header gate — not production auth.
+- F16 Simulation Lab is analytical and unpersisted; do not confuse Lab aggregates with official Match history.
 
 ---
 
 ## Guiding Rule
 
-**Keep the engine pure and the server/client thin around it.** Database models and DTOs live in the server; player-model, lineup, and chemistry formulas live in `@fhm/engine` (`packages/engine/src/players`, `goalies`, `lineups`, `chemistry`, `config`).
+**Keep the engine pure and the server/client thin around it.** Database models and DTOs live in the server; player-model, lineup, chemistry, match, and batch-analysis formulas live in `@fhm/engine`.

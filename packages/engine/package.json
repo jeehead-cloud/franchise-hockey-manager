@@ -19,7 +19,8 @@
     "verify:event-engine": "tsx src/simulation/match/verify-event-engine.ts",
     "verify:scoring-engine": "tsx src/simulation/match/verify-scoring-engine.ts",
     "verify:special-teams-engine": "tsx src/simulation/match/verify-special-teams-engine.ts",
-    "verify:playable-match-engine": "tsx src/simulation/match/verify-playable-match-engine.ts"
+    "verify:playable-match-engine": "tsx src/simulation/match/verify-playable-match-engine.ts",
+    "verify:simulation-lab": "tsx src/simulation/batch/verify-simulation-lab.ts"
   },
   "devDependencies": {
     "typescript": "^5.8.2",

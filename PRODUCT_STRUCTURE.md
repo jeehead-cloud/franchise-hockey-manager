@@ -2074,6 +2074,8 @@ The Simulation Lab is a first-class product area.
 
 **F15 partial implementation (2026-07-13):** `/matches/:matchId` is the polished **Match Viewer** — Overview (scoreboard/period/scoring), public Events feed, Team/Player/Goalie stats, Lines & Usage, exports; Commissioner Diagnostics and Attempts. Simulation Lab remains the technical debug tool.
 
+**F16 partial implementation (2026-07-13):** `/simulation-lab` hosts **Batch Lab** (default) for unpersisted 1/10/100/1000-game balance analysis plus **Single Match Debug** (preserved F13 technical tool). Official Matches are never created by Lab runs.
+
 Inputs:
 
 ```text

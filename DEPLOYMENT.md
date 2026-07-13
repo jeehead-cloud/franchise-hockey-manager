@@ -58,6 +58,13 @@ npm run setup:status
 - `FHM_SIMULATION_DEBUG_ENABLED=true|false` — gates `POST /api/simulation/debug/*` (default enabled in development and test; disabled in production unless explicitly set)
 - Endpoints are read-only; they do not persist matches or mutate world state
 
+**F16 Simulation Lab (local/dev only):**
+
+- `FHM_SIMULATION_LAB_ENABLED=true|false` — gates `/api/simulation-lab/*` (default enabled in development and test; disabled in production unless explicitly set)
+- In-memory runs only (max concurrent 2, retain ~20 runs / 30 minutes); not a production job queue
+- Unpersisted analytical batches — no Match/Result/Event/stat rows
+- Verify: `npm run verify:simulation-lab`
+
 There is no staging environment, no production environment, and no CI/CD pipeline yet.
 
 ---

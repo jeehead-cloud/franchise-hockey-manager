@@ -7,6 +7,7 @@ import { registerSetupRoutes } from './routes/setup.js';
 import { registerCommissionerRoutes } from './routes/commissioner.js';
 import { registerBalanceRoutes } from './routes/balance.js';
 import { registerSimulationDebugRoutes } from './routes/simulation-debug.js';
+import { registerSimulationLabRoutes } from './routes/simulation-lab.js';
 import { registerMatchRoutes } from './routes/matches.js';
 import { registerCommissionerMatchRoutes } from './routes/commissioner-matches.js';
 
@@ -32,6 +33,7 @@ export async function buildApp(options?: { logger?: boolean }) {
   await registerSetupRoutes(app);
   await registerBalanceRoutes(app);
   await registerSimulationDebugRoutes(app);
+  await registerSimulationLabRoutes(app);
   await registerMatchRoutes(app);
   await registerCommissionerMatchRoutes(app);
   await registerCommissionerRoutes(app);

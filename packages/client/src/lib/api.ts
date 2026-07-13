@@ -1322,6 +1322,19 @@ async function postJson<T>(path: string, payload: unknown, signal?: AbortSignal)
   return res.json() as Promise<T>;
 }
 
+async function deleteJson<T>(path: string, signal?: AbortSignal): Promise<T> {
+  const res = await fetch(`${apiBase()}${path}`, { method: 'DELETE', signal });
+  if (!res.ok) {
+    const err = new Error(await readError(res)) as Error & { status?: number };
+    err.status = res.status;
+    throw err;
+  }
+  if (res.status === 204) return undefined as T;
+  const text = await res.text();
+  if (!text) return undefined as T;
+  return JSON.parse(text) as T;
+}
+
 export async function simulateTechnicalRegulation(
   payload: {
     homeTeamId: string;
@@ -1372,6 +1385,164 @@ export async function stepTechnicalSimulation(
   };
 }> {
   return postJson('/api/simulation/debug/step', payload, signal);
+}
+
+/** F16 Simulation Lab — client DTOs aligned with `/api/simulation-lab/*`. */
+export type LabSimulationCount = 1 | 10 | 100 | 1000;
+export type LabSideMode = 'FIXED' | 'ALTERNATE';
+export type LabRunStatus = 'QUEUED' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
+export type LabExportFormat = 'json' | 'games-csv' | 'players-csv' | 'lines-csv' | 'comparison-csv';
+export type LabLoggingLevel = 'MINIMAL' | 'STANDARD' | 'DETAILED' | 'DEBUG';
+
+export type {
+  LabAggregate,
+  LabAnomaly,
+  LabBatchResult,
+  LabComparisonResult,
+  LabGameSummary,
+  LabPlayerAggregate,
+  LabUnitAggregate,
+} from '@fhm/engine';
+
+export type LabHistogramBucket = import('@fhm/engine').LabAggregate['scoring']['combinedGoalsHistogram'][number];
+
+export interface LabTeamOption {
+  id: string;
+  name: string;
+  shortName?: string | null;
+  readiness: 'READY' | 'WARNING' | 'NOT_READY';
+  readinessStatus?: 'READY' | 'WARNING' | 'NOT_READY';
+}
+
+export interface LabBalanceVersionOption {
+  id: string;
+  versionId?: string;
+  versionNumber: number;
+  configHash: string;
+  presetId: string;
+  presetName: string;
+  schemaVersion: number;
+  isActive?: boolean;
+  changeReason?: string;
+  createdAt?: string;
+}
+
+export interface LabActiveBalanceOption {
+  versionId: string;
+  versionNumber: number;
+  configHash: string;
+  presetId: string;
+  presetName: string;
+  schemaVersion?: number;
+  runtimeDefaults?: LabRuntimeSettingsInput & { randomSeed?: number | null };
+}
+
+export interface LabLimits {
+  maxCount: number;
+  maxConcurrent: number;
+  maxRetained: number;
+  retentionMs: number;
+  chunkSize: number;
+}
+
+export interface LabRuntimeSettingsInput {
+  simulationRandomness: number;
+  loggingLevel: LabLoggingLevel;
+}
+
+export interface SimulationLabOptions {
+  enabled: boolean;
+  teams: LabTeamOption[];
+  activeBalance: LabActiveBalanceOption | null;
+  balanceVersions: LabBalanceVersionOption[];
+  supportedCounts: LabSimulationCount[];
+  sideModes: LabSideMode[];
+  limits: LabLimits;
+  /** @deprecated Prefer activeBalance.runtimeDefaults */
+  runtimeDefaults?: LabRuntimeSettingsInput;
+}
+
+export interface CreateLabRunPayload {
+  teamAId: string;
+  teamBId: string;
+  baselineBalanceVersionId?: string;
+  comparisonBalanceVersionId?: string | null;
+  simulationCount: LabSimulationCount;
+  baseSeed: string;
+  sideMode: LabSideMode;
+  runtimeSettings?: Partial<LabRuntimeSettingsInput> & {
+    simulationRandomness?: number;
+    loggingLevel?: LabLoggingLevel;
+    randomSeed?: number | null;
+  };
+  includeGameSummaries?: boolean;
+  includePlayerAggregates?: boolean;
+  includeLineAggregates?: boolean;
+}
+
+export interface LabRunProgress {
+  completed: number;
+  total: number;
+}
+
+export interface LabRunItem {
+  id: string;
+  runId?: string;
+  status: LabRunStatus;
+  progress: LabRunProgress;
+  result?: import('@fhm/engine').LabBatchResult | null;
+  error?: string | null;
+  isPartial?: boolean;
+  startedAt: string | null;
+  completedAt: string | null;
+  createdAt?: string;
+}
+
+export async function getSimulationLabOptions(
+  signal?: AbortSignal,
+): Promise<{ item: SimulationLabOptions }> {
+  return getJson('/api/simulation-lab/options', signal);
+}
+
+export async function createSimulationLabRun(
+  payload: CreateLabRunPayload,
+  signal?: AbortSignal,
+): Promise<{ item: { runId: string; status: LabRunStatus } }> {
+  return postJson('/api/simulation-lab/runs', payload, signal);
+}
+
+export async function getSimulationLabRun(
+  runId: string,
+  signal?: AbortSignal,
+): Promise<{ item: LabRunItem }> {
+  return getJson(`/api/simulation-lab/runs/${runId}`, signal);
+}
+
+export async function cancelSimulationLabRun(
+  runId: string,
+  signal?: AbortSignal,
+): Promise<{ item?: LabRunItem } | void> {
+  return deleteJson(`/api/simulation-lab/runs/${runId}`, signal);
+}
+
+export async function exportSimulationLabRun(
+  runId: string,
+  format: LabExportFormat,
+  signal?: AbortSignal,
+): Promise<void> {
+  const ext =
+    format === 'json'
+      ? 'json'
+      : format === 'games-csv'
+        ? 'games.csv'
+        : format === 'players-csv'
+          ? 'players.csv'
+          : 'comparison.csv';
+  return downloadFromApi(
+    `/api/simulation-lab/runs/${runId}/export${qs({ format })}`,
+    `lab-run-${runId}.${ext}`,
+    { signal },
+  );
 }
 
 export type MatchStatus = 'PREPARED' | 'SIMULATING' | 'COMPLETED' | 'FAILED' | 'SUPERSEDED';

@@ -83,6 +83,14 @@ F15 match-viewer invariants:
 - Superseded result attempts remain inspectable and clearly labeled; normal mode cannot alter results.
 - Commissioner diagnostics may expose technical detail and immutable input summaries but not hidden potential or secrets.
 
+F16 Simulation Lab invariants:
+
+- Lab runs are unpersisted analytical batches — they must not create Match/MatchResult/MatchEvent/game-stat rows or mutate world/balance state.
+- Official match history is unaffected by Lab runs.
+- Paired balance comparison uses identical derived seed sequences for both versions.
+- Anomaly thresholds are development guardrails, not NHL realism claims.
+- Same Lab input (teams, seed, count, side mode, balance versions, runtime overrides) must reproduce the same batch hash and aggregates.
+
 Invariants in force:
 
 - **Line/pairing synergy**: role compatibility is config-driven. Complementary roles can beat redundant higher-rated groups after bounded modifiers. Unknown role pairs use an explicit documented fallback.

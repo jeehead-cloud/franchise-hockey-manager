@@ -9,13 +9,14 @@ import {
   isF13CompatibleBalanceConfig,
   isF14CompatibleBalanceConfig,
   validateSimulationInput,
+  type BalanceConfig,
   type MatchCompletionRules,
   type SimulationInput,
   type SimulationPlayerProfile,
   type SimulationTeamInput,
 } from '@fhm/engine';
 import { prisma } from '../db/client.js';
-import { getActiveBalanceSnapshot } from './balance-config.js';
+import { getActiveBalanceSnapshot, getBalancePresetVersion } from './balance-config.js';
 import { getTeamChemistry } from './chemistry.js';
 import {
   buildValidationForTeam,
@@ -239,6 +240,13 @@ export async function buildSimulationInput(opts: {
   forPlayableMatch?: boolean;
   completionRules?: MatchCompletionRules;
   rules?: { regulationPeriods: number; periodDurationSeconds: number };
+  /** When set, load this balance version instead of the active snapshot. */
+  balanceVersionId?: string;
+  /**
+   * Optional in-memory balance config override (e.g. lab randomness tweak).
+   * Must not be persisted; when omitted, uses the loaded version/active config.
+   */
+  balanceConfig?: BalanceConfig;
 }): Promise<SimulationInput> {
   if (opts.homeTeamId === opts.awayTeamId) {
     throw new SimulationHttpError(400, 'InvalidSimulationRequest', 'Home and away teams must differ');
@@ -251,22 +259,61 @@ export async function buildSimulationInput(opts: {
   await assertTeamSimulationReady(opts.awayTeamId);
 
   const forPlayableMatch = opts.forPlayableMatch === true;
-  const snapshot = await getActiveBalanceSnapshot();
+
+  let balanceMeta: {
+    presetId: string;
+    presetName: string;
+    versionId: string;
+    versionNumber: number;
+    schemaVersion: number;
+    configHash: string;
+    config: BalanceConfig;
+  };
+
+  if (opts.balanceVersionId) {
+    const version = await getBalancePresetVersion(opts.balanceVersionId);
+    if (!version) {
+      throw new SimulationHttpError(404, 'BalanceVersionNotFound', 'Balance preset version not found', {
+        balanceVersionId: opts.balanceVersionId,
+      });
+    }
+    balanceMeta = {
+      presetId: version.presetId,
+      presetName: version.preset?.name ?? 'Unknown',
+      versionId: version.id,
+      versionNumber: version.versionNumber,
+      schemaVersion: version.schemaVersion,
+      configHash: version.configHash,
+      config: opts.balanceConfig ?? version.config,
+    };
+  } else {
+    const snapshot = await getActiveBalanceSnapshot();
+    balanceMeta = {
+      presetId: snapshot.preset.id,
+      presetName: snapshot.preset.name,
+      versionId: snapshot.version.id,
+      versionNumber: snapshot.version.versionNumber,
+      schemaVersion: snapshot.version.schemaVersion,
+      configHash: snapshot.version.configHash,
+      config: opts.balanceConfig ?? snapshot.config,
+    };
+  }
+
   if (forPlayableMatch) {
-    if (!isF14CompatibleBalanceConfig(snapshot.config)) {
+    if (!isF14CompatibleBalanceConfig(balanceMeta.config)) {
       throw new SimulationHttpError(
         409,
         'IncompatibleBalanceConfiguration',
-        'Active balance configuration is not F14-compatible (requires schemaVersion >= 5 with active matchCompletion section)',
-        { schemaVersion: snapshot.version.schemaVersion },
+        'Balance configuration is not F14-compatible (requires schemaVersion >= 5 with active matchCompletion section)',
+        { schemaVersion: balanceMeta.schemaVersion, versionId: balanceMeta.versionId },
       );
     }
-  } else if (!isF13CompatibleBalanceConfig(snapshot.config)) {
+  } else if (!isF13CompatibleBalanceConfig(balanceMeta.config)) {
     throw new SimulationHttpError(
       409,
       'IncompatibleBalanceConfiguration',
-      'Active balance configuration is not F13-compatible (requires schemaVersion >= 4 with active match/shots/goalies/penalties sections)',
-      { schemaVersion: snapshot.version.schemaVersion },
+      'Balance configuration is not F13-compatible (requires schemaVersion >= 4 with active match/shots/goalies/penalties sections)',
+      { schemaVersion: balanceMeta.schemaVersion, versionId: balanceMeta.versionId },
     );
   }
 
@@ -287,13 +334,13 @@ export async function buildSimulationInput(opts: {
     simulationMode: forPlayableMatch ? F14_SIMULATION_MODE : F13_SIMULATION_MODE,
     seed: opts.seed,
     balance: {
-      presetId: snapshot.preset.id,
-      presetName: snapshot.preset.name,
-      versionId: snapshot.version.id,
-      versionNumber: snapshot.version.versionNumber,
-      schemaVersion: snapshot.version.schemaVersion,
-      configHash: snapshot.version.configHash,
-      snapshot: snapshot.config,
+      presetId: balanceMeta.presetId,
+      presetName: balanceMeta.presetName,
+      versionId: balanceMeta.versionId,
+      versionNumber: balanceMeta.versionNumber,
+      schemaVersion: balanceMeta.schemaVersion,
+      configHash: balanceMeta.configHash,
+      snapshot: balanceMeta.config,
     },
     homeTeam,
     awayTeam,
