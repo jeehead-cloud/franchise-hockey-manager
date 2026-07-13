@@ -233,6 +233,9 @@ enum CommissionerAuditEntityType {
   NATIONAL_TEAM_STAFF
   PLAYER_DEVELOPMENT_CONFIG
   PLAYER_DEVELOPMENT_RUN
+  YOUTH_GENERATION_PROFILE
+  COUNTRY_NAME_POOL
+  YOUTH_GENERATION_RUN
 }
 
 enum CommissionerAuditAction {
@@ -308,6 +311,16 @@ enum CommissionerAuditAction {
   DEVELOPMENT_RUN_STARTED
   DEVELOPMENT_RUN_COMPLETED
   DEVELOPMENT_RUN_FAILED
+  YOUTH_PROFILE_SET_CREATED
+  YOUTH_PROFILE_SET_VERSION_CREATED
+  YOUTH_PROFILE_SET_ACTIVATED
+  COUNTRY_NAME_POOL_CREATED
+  COUNTRY_NAME_POOL_VERSION_CREATED
+  YOUTH_GENERATION_PREPARED
+  YOUTH_GENERATION_CANCELLED
+  YOUTH_GENERATION_STARTED
+  YOUTH_GENERATION_COMPLETED
+  YOUTH_GENERATION_FAILED
 }
 
 /// F20 competition archive status.
@@ -398,6 +411,8 @@ model WorldSeason {
   archives            CompetitionArchive[]
   developmentRuns     PlayerDevelopmentRun[]
   playerSnapshots     PlayerSeasonSnapshot[]
+  youthGenerationRuns YouthGenerationRun[]
+  youthCohorts        YouthCohort[]
 }
 
 model Country {
@@ -410,12 +425,16 @@ model Country {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
-  leagues              League[]
-  teams                Team[]
-  players              Player[]              @relation("PlayerNationality")
-  coaches              Coach[]               @relation("CoachNationality")
-  competitions         Competition[]
-  nationalTeamProfiles NationalTeamProfile[]
+  leagues               League[]
+  teams                 Team[]
+  players               Player[]                     @relation("PlayerNationality")
+  coaches               Coach[]                      @relation("CoachNationality")
+  competitions          Competition[]
+  nationalTeamProfiles  NationalTeamProfile[]
+  namePools             CountryNamePool[]
+  youthProfileVersions  CountryYouthProfileVersion[]
+  youthCohorts          YouthCohort[]
+  youthGeneratedPlayers YouthGeneratedPlayer[]
 
   @@unique([sourceDataset, externalId])
 }
@@ -509,19 +528,22 @@ model Player {
   createdAt               DateTime                 @default(now())
   updatedAt               DateTime                 @updatedAt
 
-  nationality        Country                   @relation("PlayerNationality", fields: [nationalityCountryId], references: [id], onDelete: Restrict)
-  currentTeam        Team?                     @relation(fields: [currentTeamId], references: [id], onDelete: SetNull)
-  skaterAttributes   SkaterAttributes?
-  goalieAttributes   GoalieAttributes?
-  secondaryPositions PlayerSecondaryPosition[]
-  lineupAssignments  LineupAssignment[]
-  developmentResults PlayerDevelopmentResult[]
-  seasonSnapshots    PlayerSeasonSnapshot[]
+  nationality          Country                   @relation("PlayerNationality", fields: [nationalityCountryId], references: [id], onDelete: Restrict)
+  currentTeam          Team?                     @relation(fields: [currentTeamId], references: [id], onDelete: SetNull)
+  skaterAttributes     SkaterAttributes?
+  goalieAttributes     GoalieAttributes?
+  secondaryPositions   PlayerSecondaryPosition[]
+  lineupAssignments    LineupAssignment[]
+  developmentResults   PlayerDevelopmentResult[]
+  seasonSnapshots      PlayerSeasonSnapshot[]
+  youthGeneratedPlayer YouthGeneratedPlayer?
 
   @@unique([sourceDataset, externalId])
   @@index([nationalityCountryId])
   @@index([currentTeamId])
   @@index([primaryPosition])
+  @@index([sourceType])
+  @@index([rosterStatus])
 }
 
 /// Skater-only attributes (1–20). Mutual exclusion with GoalieAttributes enforced in services/import.
@@ -2117,4 +2139,219 @@ model PlayerSeasonSnapshot {
   @@unique([playerId, runId, snapshotType])
   @@index([playerId, worldSeasonId])
   @@index([runId, snapshotType])
+}
+
+// ---------------------------------------------------------------------------
+// F25 — Youth generation profiles, name pools, runs, cohorts, provenance
+// ---------------------------------------------------------------------------
+
+enum YouthGenerationRunStatus {
+  PREPARED
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+  SUPERSEDED
+}
+
+enum YouthQualityTier {
+  ELITE
+  HIGH
+  AVERAGE
+  LOW
+  LONG_SHOT
+}
+
+model YouthGenerationProfileSet {
+  id          String                             @id @default(cuid())
+  name        String                             @unique
+  description String?
+  isSystem    Boolean                            @default(false)
+  createdAt   DateTime                           @default(now())
+  updatedAt   DateTime                           @updatedAt
+  versions    YouthGenerationProfileSetVersion[]
+}
+
+model YouthGenerationProfileSetVersion {
+  id              String                              @id @default(cuid())
+  profileSetId    String
+  versionNumber   Int
+  schemaVersion   Int
+  configHash      String
+  changeReason    String
+  createdAt       DateTime                            @default(now())
+  createdBySource CommissionerAuditSource?
+  profileSet      YouthGenerationProfileSet           @relation(fields: [profileSetId], references: [id], onDelete: Restrict)
+  countryProfiles CountryYouthProfileVersion[]
+  activeFor       ActiveYouthGenerationConfiguration?
+  runs            YouthGenerationRun[]
+
+  @@unique([profileSetId, versionNumber])
+  @@index([configHash])
+  @@index([profileSetId, createdAt])
+}
+
+model ActiveYouthGenerationConfiguration {
+  id                        String                           @id @default("default")
+  activeProfileSetVersionId String                           @unique
+  updatedAt                 DateTime                         @updatedAt
+  activeVersion             YouthGenerationProfileSetVersion @relation(fields: [activeProfileSetVersionId], references: [id], onDelete: Restrict)
+}
+
+model CountryYouthProfileVersion {
+  id                  String                           @id @default(cuid())
+  profileSetVersionId String
+  countryId           String
+  profileText         String
+  profileHash         String
+  namePoolVersionId   String
+  createdAt           DateTime                         @default(now())
+  profileSetVersion   YouthGenerationProfileSetVersion @relation(fields: [profileSetVersionId], references: [id], onDelete: Restrict)
+  country             Country                          @relation(fields: [countryId], references: [id], onDelete: Restrict)
+  namePoolVersion     CountryNamePoolVersion           @relation(fields: [namePoolVersionId], references: [id], onDelete: Restrict)
+
+  @@unique([profileSetVersionId, countryId])
+  @@index([countryId])
+  @@index([profileHash])
+  @@index([namePoolVersionId])
+}
+
+model CountryNamePool {
+  id        String                   @id @default(cuid())
+  countryId String
+  name      String
+  isSystem  Boolean                  @default(false)
+  createdAt DateTime                 @default(now())
+  updatedAt DateTime                 @updatedAt
+  country   Country                  @relation(fields: [countryId], references: [id], onDelete: Restrict)
+  versions  CountryNamePoolVersion[]
+
+  @@unique([countryId, name])
+  @@index([countryId])
+}
+
+model CountryNamePoolVersion {
+  id                 String                       @id @default(cuid())
+  namePoolId         String
+  versionNumber      Int
+  maleFirstNamesText String
+  lastNamesText      String
+  firstNameCount     Int
+  lastNameCount      Int
+  poolHash           String
+  changeReason       String
+  createdAt          DateTime                     @default(now())
+  createdBySource    CommissionerAuditSource?
+  namePool           CountryNamePool              @relation(fields: [namePoolId], references: [id], onDelete: Restrict)
+  countryProfiles    CountryYouthProfileVersion[]
+  cohorts            YouthCohort[]
+
+  @@unique([namePoolId, versionNumber])
+  @@index([poolHash])
+  @@index([namePoolId, createdAt])
+}
+
+model YouthGenerationRun {
+  id                    String                   @id @default(cuid())
+  worldSeasonId         String
+  status                YouthGenerationRunStatus @default(PREPARED)
+  runVersion            Int                      @default(1)
+  referenceDate         String
+  baseSeed              String
+  profileSetVersionId   String
+  profileSetHash        String
+  inputHash             String
+  resultHash            String?
+  countryCount          Int                      @default(0)
+  enabledCountryCount   Int                      @default(0)
+  totalPlannedPlayers   Int                      @default(0)
+  totalGeneratedPlayers Int                      @default(0)
+  warningCount          Int                      @default(0)
+  isCurrent             Boolean                  @default(false)
+  backupPath            String?
+  failureReason         String?
+  plannedInputText      String?
+  startedAt             DateTime?
+  completedAt           DateTime?
+  failedAt              DateTime?
+  cancelledAt           DateTime?
+  createdAt             DateTime                 @default(now())
+  updatedAt             DateTime                 @updatedAt
+
+  worldSeason       WorldSeason                      @relation(fields: [worldSeasonId], references: [id], onDelete: Restrict)
+  profileSetVersion YouthGenerationProfileSetVersion @relation(fields: [profileSetVersionId], references: [id], onDelete: Restrict)
+  cohorts           YouthCohort[]
+  generatedPlayers  YouthGeneratedPlayer[]
+
+  @@index([worldSeasonId, status])
+  @@index([worldSeasonId, isCurrent])
+  @@index([status])
+}
+
+model YouthCohort {
+  id                   String   @id @default(cuid())
+  youthGenerationRunId String
+  worldSeasonId        String
+  countryId            String
+  countryNameSnapshot  String
+  referenceDate        String
+  cohortOrder          Int
+  profileHash          String
+  namePoolVersionId    String
+  namePoolHash         String
+  plannedSize          Int
+  generatedSize        Int
+  age15Count           Int
+  age16Count           Int
+  age17Count           Int
+  skaterCount          Int
+  goalieCount          Int
+  cohortHash           String
+  createdAt            DateTime @default(now())
+
+  run             YouthGenerationRun     @relation(fields: [youthGenerationRunId], references: [id], onDelete: Restrict)
+  worldSeason     WorldSeason            @relation(fields: [worldSeasonId], references: [id], onDelete: Restrict)
+  country         Country                @relation(fields: [countryId], references: [id], onDelete: Restrict)
+  namePoolVersion CountryNamePoolVersion @relation(fields: [namePoolVersionId], references: [id], onDelete: Restrict)
+  players         YouthGeneratedPlayer[]
+
+  @@unique([youthGenerationRunId, countryId])
+  @@index([worldSeasonId])
+  @@index([countryId])
+  @@index([youthGenerationRunId, cohortOrder])
+}
+
+model YouthGeneratedPlayer {
+  id                      String           @id @default(cuid())
+  youthGenerationRunId    String
+  youthCohortId           String
+  playerId                String           @unique
+  generationIndex         Int
+  countryId               String
+  playerNameSnapshot      String
+  dateOfBirthSnapshot     String
+  ageOnReferenceDate      Int
+  positionSnapshot        String
+  qualityTier             YouthQualityTier
+  currentAbilitySnapshot  Float
+  potentialSnapshot       Int
+  developmentRateSnapshot Float
+  roleSnapshot            String
+  heightCmSnapshot        Int?
+  weightKgSnapshot        Int?
+  shootsSnapshot          String?
+  generationHash          String
+  diagnosticsText         String?
+  createdAt               DateTime         @default(now())
+
+  run     YouthGenerationRun @relation(fields: [youthGenerationRunId], references: [id], onDelete: Restrict)
+  cohort  YouthCohort        @relation(fields: [youthCohortId], references: [id], onDelete: Restrict)
+  player  Player             @relation(fields: [playerId], references: [id], onDelete: Restrict)
+  country Country            @relation(fields: [countryId], references: [id], onDelete: Restrict)
+
+  @@unique([youthGenerationRunId, playerId])
+  @@unique([youthCohortId, generationIndex])
+  @@index([youthGenerationRunId])
+  @@index([countryId])
+  @@index([generationHash])
 }

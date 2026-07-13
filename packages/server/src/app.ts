@@ -19,6 +19,8 @@ import { registerNationalTeamRoutes } from './routes/national-teams.js';
 import { registerInternationalTournamentRoutes } from './routes/international-tournaments.js';
 import { registerPlayerDevelopmentRoutes } from './routes/player-development.js';
 import { registerCommissionerPlayerDevelopmentRoutes } from './routes/commissioner-player-development.js';
+import { registerYouthGenerationRoutes } from './routes/youth-generation.js';
+import { registerCommissionerYouthGenerationRoutes } from './routes/commissioner-youth-generation.js';
 
 export async function buildApp(options?: { logger?: boolean }) {
   const app = Fastify({ logger: options?.logger ?? true });
@@ -54,6 +56,8 @@ export async function buildApp(options?: { logger?: boolean }) {
   await registerInternationalTournamentRoutes(app);
   await registerPlayerDevelopmentRoutes(app);
   await registerCommissionerPlayerDevelopmentRoutes(app);
+  await registerYouthGenerationRoutes(app);
+  await registerCommissionerYouthGenerationRoutes(app);
   await registerCommissionerRoutes(app);
 
   return app;
@@ -71,4 +75,8 @@ export async function ensureAppMeta() {
     './services/player-development-config.js'
   );
   await bootstrapPlayerDevelopmentConfiguration(prisma);
+  const { bootstrapYouthGenerationConfiguration } = await import(
+    './services/youth-generation-config.js'
+  );
+  await bootstrapYouthGenerationConfiguration(prisma);
 }

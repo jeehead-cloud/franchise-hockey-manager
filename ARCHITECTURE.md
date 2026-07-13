@@ -525,6 +525,37 @@ Client: `/development`, `/development/runs/:runId`, player Development tab
 
 Verifier: `npm run verify:player-development`
 
+## 7k. Youth Generation (F25)
+
+Versioned country youth profiles (separate from F10 balance and F24 development):
+
+- `YouthGenerationProfileSet` / immutable `YouthGenerationProfileSetVersion` / `ActiveYouthGenerationConfiguration`
+- Per-country `CountryYouthProfileVersion` + versioned fictional `CountryNamePool` / `CountryNamePoolVersion`
+- Default bootstrap: **Youth Profiles Default v1** for fixture countries NAV + SGL (idempotent; fictional names only)
+
+Engine (`packages/engine/src/youth-generation/`):
+- Explicit `referenceDate` ages exactly 15–17 (configurable mix; default emphasizes 17)
+- Deterministic name/position/handedness/physical/quality/attribute generation
+- F5 CA + role derivation after attributes; potential floor/ceiling generated separately (0–100)
+- Development rate within existing 0.1–3 bounds; form starts at 0
+- Cohort + run hashes exclude DB IDs/timestamps
+
+Persistence:
+- `YouthGenerationRun` / `YouthCohort` / `YouthGeneratedPlayer` provenance
+- Live `Player`: `sourceType=GENERATED_YOUTH`, `rosterStatus=PROSPECT`, `currentTeamId=null`
+- Height/weight/shoots stored on provenance snapshots only (not Player columns)
+- One current completed official run per WorldSeason
+
+Workflow: preview (no writes) → prepare (freeze inputs) → execute (backup + regenerate + reconcile + atomic publish)
+
+Invariants: existing players/lineups/NT/archives unchanged; no scouting/draft/club assignment; completed provenance immutable
+
+APIs: `/api/youth-generation/*`, `/api/commissioner/youth-generation/*`, `/api/players/:id/youth-provenance`
+
+Client: `/youth-generation`, `/youth-generation/runs/:runId`
+
+Verifier: `npm run verify:youth-generation`
+
 ---
 
 ## 8. Why Client-Server From Day One

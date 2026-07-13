@@ -42,6 +42,7 @@ npm run dev:client
 - **National Teams (F22):** `/national-teams`, `/national-teams/:id` — senior/U20 profiles, tournament-edition roster preparation (candidates, roster, staff, tactics, lines, readiness/lock). No tournament matches yet (F23).
 - **International Tournaments (F23):** `/international-tournaments` and CompetitionEdition **Tournament** tab — templates, groups, schedule, simulate, medals (simplified formats).
 - **Player Development (F24):** `/development`, `/development/runs/:runId` — annual development overview/preview/runs (Commissioner prepare/execute); player detail Development tab. Does not create youth or advance WorldSeason.
+- **Youth Generation (F25):** `/youth-generation`, `/youth-generation/runs/:runId` — annual youth cohorts (Commissioner preview/prepare/execute); prospects are unsigned PROSPECT / GENERATED_YOUTH. No scouting or draft.
 - **History (F20):** `/history`, `/history/competitions/:archiveId`, player/team season history routes. Aggregated archives are labeled distinctly from detailed seasons.
 - **Technical simulation (F16):** `/simulation-lab` — Batch Lab (1/10/100/1000 unpersisted F14 aggregates) + Single Match Debug (F13 technical); neither creates official Match records
 - **Matches (F15):** `/matches`, `/matches/new`, `/matches/:matchId` — persisted match viewer (overview, public events, stats, lines/usage; Commissioner diagnostics/attempts)
@@ -89,6 +90,7 @@ npm run verify:aggregated-league
 npm run verify:national-teams
 npm run verify:international-tournaments
 npm run verify:player-development
+npm run verify:youth-generation
 ```
 
 Vitest uses isolated temporary SQLite databases for server tests (does not mutate the normal `dev.db` except when you run migrate yourself).

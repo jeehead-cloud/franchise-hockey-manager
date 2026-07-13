@@ -1435,32 +1435,7 @@ Use:
 
 # 30. F25 — Youth Generation
 
-## Goal
-
-Generate annual youth cohorts.
-
-## Scope
-
-Country profiles:
-
-- name pools;
-- position distribution;
-- quality distribution;
-- attribute tendencies;
-- cohort size.
-
-Generate players aged 15–17.
-
-Initial version may emphasize age 17.
-
-## Acceptance Criteria
-
-- names match country pool;
-- generated players use valid position-specific models;
-- cohorts are persisted;
-- players enter `PROSPECT`;
-- source type is `GENERATED_YOUTH`;
-- tests pass.
+**Status: implemented locally (2026-07-13).** Deterministic annual youth cohorts: versioned country profiles + fictional name pools; reference-date ages 15–17; skater/goalie F5 models; PROSPECT/GENERATED_YOUTH unsigned players; preview/prepare/atomic execute; provenance; verifier `verify:youth-generation`. No scouting, draft, or club assignment.
 
 ---
 

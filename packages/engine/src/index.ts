@@ -596,3 +596,41 @@ export type {
   DevelopmentReadinessResult,
   ReconciliationIssue,
 } from './development/index.js';
+
+export {
+  YOUTH_GENERATION_SCHEMA_VERSION,
+  YouthGenerationError,
+  buildDefaultCountryYouthProfile,
+  validateCountryYouthProfile,
+  canonicalizeCountryYouthProfile,
+  validateAndNormalizeNamePool,
+  generateYouthRun,
+  generateYouthCohort,
+  generateYouthPlayer,
+  planCohortSize,
+  hashCountryYouthProfile,
+  hashYouthNamePool,
+  hashGeneratedYouthPlayer,
+  hashYouthCohort,
+  hashYouthGenerationInput,
+  hashYouthGenerationResult,
+  reconcileYouthGeneration,
+  assertYouthReconciliation,
+  evaluateYouthGenerationReadiness,
+} from './youth-generation/index.js';
+
+export type {
+  CountryYouthProfile,
+  YouthGenerationCountryInput,
+  GeneratedYouthPlayer,
+  GeneratedYouthCohort,
+  YouthGenerationRunResult,
+  YouthQualityTier,
+  YouthPosition,
+  YouthHandedness,
+  YouthReadinessStatus,
+  YouthReadinessCheck,
+  YouthReadinessResult,
+  YouthReconciliationIssue,
+  YouthAge,
+} from './youth-generation/index.js';

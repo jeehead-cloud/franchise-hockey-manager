@@ -8,7 +8,7 @@ Version-controlled **input snapshots** for world initialization (F3+). Mutable r
 |---|---|
 | `data/world/` | Intended location for the owner-prepared real initial-world snapshot |
 | `data/fixtures/f3-minimal-world/` | Fictional development/test fixture (**schemaVersion 5**, F17 competition rules + F8 secondary positions; Frostbite has full main-lineup depth) |
-| `data/names/`, `data/nhl-teams.json` | Legacy leftover name/team lists — **not** F3 import format |
+| `data/names/`, `data/nhl-teams.json` | Legacy leftover name/team lists — **not** F3 import format; **not** used by F25 youth generation (F25 seeds fictional DB name pools for fixture countries during bootstrap) |
 
 ## Manifest schema (schemaVersion 5)
 

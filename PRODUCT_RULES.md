@@ -175,6 +175,17 @@ F24 Player Development invariants:
 - Club ownership, club lineups, locked national-team snapshots, and F20 archives remain unchanged.
 - F24 creates no new players and does not create or advance a WorldSeason.
 
+F25 Youth Generation invariants:
+
+- Youth generation uses an explicit `referenceDate` (never the wall clock).
+- Official youth-generation runs are deterministic for the same frozen inputs, profile/name-pool versions, and seed.
+- One completed official youth-generation run per WorldSeason; preview never writes; publication is atomic.
+- Generated players are aged 15–17 on the reference date and use valid position-specific F5 models.
+- Generated players start as `PROSPECT` with source `GENERATED_YOUTH` and no club ownership.
+- Current ability and role are derived after attribute generation; potential is generated but not grown in F25.
+- Completed generation provenance is immutable; F6 edits may change live Player values without rewriting provenance.
+- F25 creates no scouting estimates, draft eligibility, club assignment, or next WorldSeason.
+
 Invariants in force:
 
 - **Line/pairing synergy**: role compatibility is config-driven. Complementary roles can beat redundant higher-rated groups after bounded modifiers. Unknown role pairs use an explicit documented fallback.

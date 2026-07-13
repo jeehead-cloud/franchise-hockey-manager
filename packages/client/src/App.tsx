@@ -30,6 +30,8 @@ import { NationalTeamDetailPage } from './pages/NationalTeamDetailPage';
 import { InternationalTournamentsPage } from './pages/InternationalTournamentsPage';
 import { DevelopmentPage } from './pages/DevelopmentPage';
 import { DevelopmentRunDetailPage } from './pages/DevelopmentRunDetailPage';
+import { YouthGenerationPage } from './pages/YouthGenerationPage';
+import { YouthGenerationRunDetailPage } from './pages/YouthGenerationRunDetailPage';
 import { CommissionerProvider } from './lib/commissioner';
 
 export function App() {
@@ -74,6 +76,8 @@ export function App() {
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/development" element={<DevelopmentPage />} />
             <Route path="/development/runs/:runId" element={<DevelopmentRunDetailPage />} />
+            <Route path="/youth-generation" element={<YouthGenerationPage />} />
+            <Route path="/youth-generation/runs/:runId" element={<YouthGenerationRunDetailPage />} />
             <Route path="/simulation-lab" element={<SimulationLabPage />} />
             <Route path="*" element={<NotFoundPage />} />
           </Route>

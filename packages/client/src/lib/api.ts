@@ -3577,3 +3577,432 @@ export async function activateDevelopmentConfigurationVersion(
     payload,
   );
 }
+
+// ——— F25 Youth Generation ———
+
+export type YouthGenerationRunStatus =
+  | 'PREPARED'
+  | 'RUNNING'
+  | 'COMPLETED'
+  | 'FAILED'
+  | 'CANCELLED';
+
+export interface YouthRunSummaryDto {
+  countryCount: number;
+  enabledCountryCount: number;
+  totalPlannedPlayers: number;
+  totalGeneratedPlayers: number;
+  age15Count: number;
+  age16Count: number;
+  age17Count: number;
+  skaterCount: number;
+  goalieCount: number;
+  warningCount: number;
+  duplicateNameCount: number;
+  inputHash: string;
+  resultHash: string;
+}
+
+export interface YouthRunDto {
+  id: string;
+  worldSeasonId: string;
+  status: YouthGenerationRunStatus;
+  runVersion: number;
+  referenceDate: string;
+  baseSeed: string;
+  profileSetVersionId: string;
+  profileSetHash: string;
+  inputHash: string;
+  resultHash: string | null;
+  countryCount: number;
+  enabledCountryCount: number;
+  totalPlannedPlayers: number;
+  totalGeneratedPlayers: number;
+  warningCount: number;
+  isCurrent: boolean;
+  backupPath: string | null;
+  failureReason: string | null;
+  startedAt: string | null;
+  completedAt: string | null;
+  failedAt: string | null;
+  cancelledAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface YouthCohortDto {
+  id?: string;
+  countryId: string;
+  countryKey?: string;
+  countryName: string;
+  cohortOrder: number;
+  profileHash: string;
+  namePoolVersionId: string;
+  namePoolHash: string;
+  plannedSize: number;
+  generatedSize: number;
+  age15Count: number;
+  age16Count: number;
+  age17Count: number;
+  skaterCount: number;
+  goalieCount: number;
+  cohortHash: string;
+  warnings?: string[];
+  createdAt?: string;
+}
+
+export interface YouthGeneratedPlayerDto {
+  generationIndex: number;
+  countryId: string;
+  countryKey?: string;
+  firstName?: string;
+  lastName?: string;
+  displayName?: string;
+  playerName?: string;
+  dateOfBirth: string;
+  ageOnReferenceDate: number;
+  position: string;
+  shoots?: string;
+  heightCm?: number;
+  weightKg?: number;
+  currentAbility: number;
+  developmentRate: number;
+  role: string;
+  form?: number;
+  lifecycleStatus?: string;
+  sourceType?: string;
+  currentTeamId?: null;
+  generationHash: string;
+  warnings?: string[];
+  playerId?: string;
+  id?: string;
+  potentialFloor?: number;
+  potentialCeiling?: number;
+  qualityTier?: string;
+}
+
+export interface YouthGenerationStatus {
+  worldSeason: {
+    id: string;
+    label: string;
+    status: string;
+    phase: string;
+    updatedAt: string;
+  };
+  activeConfig: {
+    profileSetName: string;
+    versionId: string;
+    versionNumber: number;
+    configHash: string;
+  } | null;
+  currentCompletedRun: YouthRunDto | null;
+  activeRun: YouthRunDto | null;
+  youthGenerationApplied: boolean;
+  generatedProspectCount: number;
+}
+
+export interface YouthGenerationReadiness {
+  worldSeasonId: string;
+  referenceDate: string | null;
+  status: 'READY' | 'WARNING' | 'NOT_READY';
+  checks: Array<{ code: string; status: 'PASS' | 'WARN' | 'FAIL'; message: string }>;
+  blockers: string[];
+  warnings: string[];
+  enabledCountryCount: number;
+  plannedPlayersEstimate: number;
+}
+
+export interface YouthPreviewResponse {
+  preview: true;
+  worldSeasonId: string;
+  referenceDate: string;
+  baseSeed: string;
+  profileSetVersionId: string;
+  profileSetHash: string;
+  summary: YouthRunSummaryDto;
+  cohorts: YouthCohortDto[];
+  items: YouthGeneratedPlayerDto[];
+  page: number;
+  pageSize: number;
+  total: number;
+}
+
+export interface YouthCountryProfileRow {
+  countryId: string;
+  countryCode: string;
+  countryName: string;
+  enabled: boolean;
+  cohortBaseSize: number;
+  namePoolVersionId: string;
+  profileHash: string;
+}
+
+export interface YouthProfileSetSummary {
+  id: string;
+  name: string;
+  description: string | null;
+  isSystem: boolean;
+  createdAt: string;
+  updatedAt: string;
+  latestVersion: {
+    id: string;
+    versionNumber: number;
+    schemaVersion: number;
+    configHash: string;
+    changeReason: string;
+    createdAt: string;
+    isActive: boolean;
+  } | null;
+  isActive: boolean;
+}
+
+export interface YouthGenerationRunDiagnostics {
+  run: YouthRunDto;
+  config: {
+    profileSetName: string;
+    versionNumber: number;
+    configHash: string;
+  };
+  cohortSample: Array<{
+    countryName: string;
+    generatedSize: number;
+    age15Count: number;
+    age16Count: number;
+    age17Count: number;
+    goalieCount: number;
+    cohortHash: string;
+  }>;
+  topProspects: Array<{
+    playerId: string;
+    playerName: string;
+    position: string;
+    ageOnReferenceDate: number;
+    currentAbility: number;
+    potentialCeiling: number;
+    qualityTier: string;
+    role: string;
+    diagnostics: unknown;
+  }>;
+  plannedInput: unknown;
+}
+
+export interface YouthPlayerProvenance {
+  id: string;
+  runId: string;
+  cohortId: string;
+  playerId: string;
+  generationIndex: number;
+  countryId: string;
+  playerName: string;
+  dateOfBirth: string;
+  ageOnReferenceDate: number;
+  position: string;
+  currentAbility: number;
+  developmentRate: number;
+  role: string;
+  heightCm: number | null;
+  weightKg: number | null;
+  shoots: string | null;
+  generationHash: string;
+  diagnostics: unknown;
+  createdAt: string;
+  potentialCeiling?: number;
+  qualityTier?: string;
+  run?: {
+    id: string;
+    worldSeasonId: string;
+    referenceDate: string;
+    status: YouthGenerationRunStatus;
+    profileSetVersionId: string;
+    completedAt: string | null;
+  };
+  cohort?: {
+    id: string;
+    countryName: string;
+    profileHash: string;
+    namePoolVersionId: string;
+    cohortHash: string;
+  };
+}
+
+export async function getYouthGenerationStatus(
+  worldSeasonId?: string,
+  signal?: AbortSignal,
+): Promise<{ item: YouthGenerationStatus }> {
+  return getJson(`/api/youth-generation/status${qs({ worldSeasonId })}`, signal);
+}
+
+export async function getYouthGenerationReadiness(
+  params: {
+    worldSeasonId: string;
+    referenceDate?: string;
+    profileSetVersionId?: string;
+  },
+  signal?: AbortSignal,
+): Promise<{ item: YouthGenerationReadiness }> {
+  return getJson(`/api/youth-generation/readiness${qs(params)}`, signal);
+}
+
+export async function listYouthGenerationRuns(
+  worldSeasonId: string,
+  signal?: AbortSignal,
+): Promise<{ items: YouthRunDto[] }> {
+  return getJson(`/api/youth-generation/runs${qs({ worldSeasonId })}`, signal);
+}
+
+export async function getYouthGenerationRun(
+  runId: string,
+  signal?: AbortSignal,
+): Promise<{ item: YouthRunDto }> {
+  return getJson(`/api/youth-generation/runs/${runId}`, signal);
+}
+
+export async function listYouthCohorts(
+  runId: string,
+  params: { page?: number; pageSize?: number } = {},
+  signal?: AbortSignal,
+): Promise<Paginated<YouthCohortDto>> {
+  return getJson(`/api/youth-generation/runs/${runId}/cohorts${qs(params)}`, signal);
+}
+
+export async function listYouthGeneratedPlayers(
+  runId: string,
+  params: { page?: number; pageSize?: number; countryId?: string } = {},
+  signal?: AbortSignal,
+): Promise<Paginated<YouthGeneratedPlayerDto>> {
+  return getJson(`/api/youth-generation/runs/${runId}/players${qs(params)}`, signal);
+}
+
+export async function getYouthCountries(
+  signal?: AbortSignal,
+): Promise<{ item: { items: YouthCountryProfileRow[]; activeProfileSetVersionId: string } }> {
+  return getJson('/api/youth-generation/countries', signal);
+}
+
+export async function listYouthProfileSets(
+  signal?: AbortSignal,
+): Promise<{ items: YouthProfileSetSummary[] }> {
+  return getJson('/api/youth-generation/profile-sets', signal);
+}
+
+export async function getPlayerYouthProvenance(
+  playerId: string,
+  signal?: AbortSignal,
+): Promise<{ item: YouthPlayerProvenance }> {
+  return getJson(`/api/players/${playerId}/youth-provenance`, signal);
+}
+
+export async function previewYouthGeneration(payload: {
+  worldSeasonId: string;
+  referenceDate: string;
+  baseSeed: string;
+  profileSetVersionId?: string;
+  filters?: {
+    countryIds?: string[];
+    age?: number | null;
+    position?: string | null;
+    qualityTier?: string | null;
+  };
+  page?: number;
+  pageSize?: number;
+}): Promise<{ item: YouthPreviewResponse }> {
+  return commissionerWrite('/api/commissioner/youth-generation/preview', 'POST', payload);
+}
+
+export async function prepareYouthGenerationRun(payload: {
+  worldSeasonId: string;
+  expectedWorldSeasonUpdatedAt: string;
+  referenceDate: string;
+  baseSeed: string;
+  profileSetVersionId?: string;
+  reason: string;
+}): Promise<{ item: YouthRunDto }> {
+  return commissionerWrite('/api/commissioner/youth-generation/prepare', 'POST', payload);
+}
+
+export async function executeYouthGenerationRun(
+  runId: string,
+  payload: { confirmation: true; reason: string },
+): Promise<{ item: YouthRunDto }> {
+  return commissionerWrite(
+    `/api/commissioner/youth-generation/runs/${runId}/execute`,
+    'POST',
+    payload,
+  );
+}
+
+export async function discardYouthGenerationRun(
+  runId: string,
+  payload: { reason: string },
+): Promise<{ item: YouthRunDto }> {
+  return commissionerDelete(`/api/commissioner/youth-generation/runs/${runId}`, payload);
+}
+
+export async function getYouthGenerationRunDiagnostics(
+  runId: string,
+  signal?: AbortSignal,
+): Promise<{ item: YouthGenerationRunDiagnostics }> {
+  return commissionerGetJson(
+    `/api/commissioner/youth-generation/runs/${runId}/diagnostics`,
+    signal,
+  );
+}
+
+export async function createYouthProfileSet(payload: {
+  name: string;
+  description?: string | null;
+  reason: string;
+}): Promise<{ item: YouthProfileSetSummary }> {
+  return commissionerWrite('/api/commissioner/youth-generation/profile-sets', 'POST', payload);
+}
+
+export async function createYouthProfileSetVersion(
+  profileSetId: string,
+  payload: {
+    expectedLatestVersionId: string;
+    profiles: Array<{ countryId: string; profile: unknown; namePoolVersionId: string }>;
+    reason: string;
+    activate?: boolean;
+  },
+): Promise<{ item: YouthProfileSetSummary }> {
+  return commissionerWrite(
+    `/api/commissioner/youth-generation/profile-sets/${profileSetId}/versions`,
+    'POST',
+    payload,
+  );
+}
+
+export async function activateYouthProfileSetVersion(
+  versionId: string,
+  payload: { reason: string; expectedActiveVersionId?: string },
+): Promise<{ item: YouthProfileSetSummary }> {
+  return commissionerWrite(
+    `/api/commissioner/youth-generation/profile-set-versions/${versionId}/activate`,
+    'POST',
+    payload,
+  );
+}
+
+export async function createCountryNamePool(
+  countryId: string,
+  payload: {
+    name: string;
+    firstNames: string[];
+    lastNames: string[];
+    reason: string;
+  },
+): Promise<{ item: { id: string; name: string; countryId: string } }> {
+  return commissionerWrite(`/api/commissioner/countries/${countryId}/name-pools`, 'POST', payload);
+}
+
+export async function createCountryNamePoolVersion(
+  namePoolId: string,
+  payload: {
+    firstNames: string[];
+    lastNames: string[];
+    reason: string;
+    expectedLatestVersionId?: string;
+  },
+): Promise<{ item: { id: string; versionNumber: number } }> {
+  return commissionerWrite(`/api/commissioner/country-name-pools/${namePoolId}/versions`, 'POST', payload);
+}

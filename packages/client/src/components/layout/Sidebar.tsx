@@ -12,6 +12,7 @@ import {
   Trophy,
   Users,
   UserRound,
+  UsersRound,
   type LucideIcon,
 } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
@@ -36,6 +37,7 @@ export const MAIN_NAV: NavItem[] = [
   { to: '/players', label: 'Players', icon: Users },
   { to: '/coaches', label: 'Coaches', icon: UserRound },
   { to: '/development', label: 'Development', icon: Sprout },
+  { to: '/youth-generation', label: 'Youth Generation', icon: UsersRound },
   { to: '/settings', label: 'Settings', icon: Settings },
   { to: '/simulation-lab', label: 'Simulation Lab', icon: FlaskConical },
 ];

@@ -11,9 +11,11 @@ import {
   getPlayer,
   getPlayerAuditLog,
   getPlayerDevelopmentHistory,
+  getPlayerYouthProvenance,
   type PlayerAuditItem,
   type PlayerDetail,
   type PlayerDevelopmentHistory,
+  type YouthPlayerProvenance,
 } from '../lib/api';
 import { useCommissioner } from '../lib/commissioner';
 import { playerLabel } from '../lib/listQuery';
@@ -33,6 +35,8 @@ export function PlayerDetailPage() {
   const [auditError, setAuditError] = useState<string | null>(null);
   const [devHistory, setDevHistory] = useState<PlayerDevelopmentHistory | null>(null);
   const [devHistoryError, setDevHistoryError] = useState<string | null>(null);
+  const [youthProvenance, setYouthProvenance] = useState<YouthPlayerProvenance | null>(null);
+  const [youthProvenanceLoaded, setYouthProvenanceLoaded] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -54,6 +58,26 @@ export function PlayerDetailPage() {
       });
     return () => controller.abort();
   }, [playerId]);
+
+  useEffect(() => {
+    if (tab !== 'profile') return;
+    const controller = new AbortController();
+    setYouthProvenanceLoaded(false);
+    getPlayerYouthProvenance(playerId, controller.signal)
+      .then((res) => {
+        setYouthProvenance(res.item);
+        setYouthProvenanceLoaded(true);
+      })
+      .catch((err: unknown) => {
+        if (controller.signal.aborted) return;
+        const status = (err as { status?: number }).status;
+        if (status === 404) {
+          setYouthProvenance(null);
+          setYouthProvenanceLoaded(true);
+        }
+      });
+    return () => controller.abort();
+  }, [tab, playerId]);
 
   useEffect(() => {
     if (tab !== 'development') return;
@@ -232,6 +256,47 @@ export function PlayerDetailPage() {
             <Row label="Dataset" value={player.sourceDataset ?? '—'} />
             <Row label="Source updated" value={player.sourceUpdatedAt ?? '—'} />
           </Panel>
+          {player.sourceType === 'GENERATED_YOUTH' || youthProvenance ? (
+            <Panel title="Origin / Youth provenance">
+              {!youthProvenanceLoaded ? (
+                <LoadingState label="Loading youth provenance…" />
+              ) : !youthProvenance ? (
+                <EmptyState
+                  title="No provenance record"
+                  description="This player is not linked to a youth generation run."
+                />
+              ) : (
+                <>
+                  <Row label="Generation run" value={
+                    youthProvenance.run ? (
+                      <Link to={`/youth-generation/runs/${youthProvenance.run.id}`}>
+                        v{youthProvenance.run.referenceDate} · {youthProvenance.run.status}
+                      </Link>
+                    ) : (
+                      youthProvenance.runId.slice(0, 8)
+                    )
+                  } />
+                  <Row label="Cohort country" value={youthProvenance.cohort?.countryName ?? '—'} />
+                  <Row label="Generation index" value={String(youthProvenance.generationIndex)} />
+                  <Row label="Age on reference date" value={String(youthProvenance.ageOnReferenceDate)} />
+                  <Row label="Snapshot CA" value={String(youthProvenance.currentAbility)} />
+                  <Row label="Snapshot role" value={youthProvenance.role} />
+                  <Row label="Development rate" value={String(youthProvenance.developmentRate)} />
+                  {youthProvenance.potentialCeiling != null ? (
+                    <Row label="Potential ceiling" value={String(youthProvenance.potentialCeiling)} />
+                  ) : null}
+                  {youthProvenance.qualityTier ? (
+                    <Row label="Quality tier" value={youthProvenance.qualityTier} />
+                  ) : null}
+                  {!enabled && youthProvenance.potentialCeiling == null && !youthProvenance.qualityTier ? (
+                    <p style={{ margin: '8px 0 0', font: 'var(--text-body-sm)', color: 'var(--text-tertiary)' }}>
+                      Hidden potential and quality tier are not shown in normal mode.
+                    </p>
+                  ) : null}
+                </>
+              )}
+            </Panel>
+          ) : null}
         </div>
       ) : null}
 

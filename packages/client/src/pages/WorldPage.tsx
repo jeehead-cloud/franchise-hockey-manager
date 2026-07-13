@@ -5,11 +5,13 @@ import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
 import { EmptyState, ErrorState, LoadingState } from '../components/ui/EmptyState';
 import { Panel } from '../components/ui/Panel';
-import { getWorldSummary, getDevelopmentStatus, type WorldSummary } from '../lib/api';
+import { getWorldSummary, getDevelopmentStatus, getYouthGenerationStatus, type WorldSummary } from '../lib/api';
 
 export function WorldPage() {
   const [data, setData] = useState<WorldSummary | null>(null);
   const [devApplied, setDevApplied] = useState<boolean | null>(null);
+  const [youthApplied, setYouthApplied] = useState<boolean | null>(null);
+  const [youthProspectCount, setYouthProspectCount] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -22,13 +24,22 @@ export function WorldPage() {
         setError(null);
         if (summary.season?.id) {
           try {
-            const dev = await getDevelopmentStatus(summary.season.id, controller.signal);
+            const [dev, youth] = await Promise.all([
+              getDevelopmentStatus(summary.season.id, controller.signal),
+              getYouthGenerationStatus(summary.season.id, controller.signal),
+            ]);
             setDevApplied(dev.item.developmentApplied);
+            setYouthApplied(youth.item.youthGenerationApplied);
+            setYouthProspectCount(youth.item.generatedProspectCount);
           } catch {
             setDevApplied(null);
+            setYouthApplied(null);
+            setYouthProspectCount(null);
           }
         } else {
           setDevApplied(null);
+          setYouthApplied(null);
+          setYouthProspectCount(null);
         }
       })
       .catch((err: unknown) => {
@@ -278,6 +289,26 @@ export function WorldPage() {
               </div>
               <Link to="/development" style={{ font: 'var(--text-body-sm)', color: 'var(--text-link)' }}>
                 Open Development
+              </Link>
+            </div>
+          </Panel>
+        ) : null}
+
+        {youthApplied !== null ? (
+          <Panel title="Youth generation">
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center' }}>
+              <div>
+                <div style={{ font: 'var(--text-body-sm)', color: 'var(--text-primary)' }}>
+                  {youthApplied ? 'Youth prospects generated' : 'Youth generation pending'}
+                </div>
+                <div style={{ font: 'var(--text-body-sm)', color: 'var(--text-tertiary)', marginTop: 4 }}>
+                  {youthApplied && youthProspectCount != null
+                    ? `${youthProspectCount} generated prospects in the active run.`
+                    : 'F25 official runs create age 15–17 prospect cohorts per country.'}
+                </div>
+              </div>
+              <Link to="/youth-generation" style={{ font: 'var(--text-body-sm)', color: 'var(--text-link)' }}>
+                Open Youth Generation
               </Link>
             </div>
           </Panel>

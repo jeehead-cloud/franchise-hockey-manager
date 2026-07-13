@@ -90,7 +90,11 @@ export function PlayersPage() {
     <div style={{ padding: 20 }}>
       <PageHeader
         title="Players"
-        subtitle={data ? `${data.total} players` : 'Browse structural player records'}
+        subtitle={
+          data
+            ? `${data.total} players · filter PROSPECT + GENERATED_YOUTH for youth cohorts`
+            : 'Browse structural player records'
+        }
         badge="Browser"
       />
 

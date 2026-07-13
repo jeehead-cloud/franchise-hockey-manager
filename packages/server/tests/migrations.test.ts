@@ -56,6 +56,15 @@ describe('Migrations', () => {
       expect(names).toContain('PlayerDevelopmentRun');
       expect(names).toContain('PlayerDevelopmentResult');
       expect(names).toContain('PlayerSeasonSnapshot');
+      expect(names).toContain('YouthGenerationProfileSet');
+      expect(names).toContain('YouthGenerationProfileSetVersion');
+      expect(names).toContain('ActiveYouthGenerationConfiguration');
+      expect(names).toContain('CountryNamePool');
+      expect(names).toContain('CountryNamePoolVersion');
+      expect(names).toContain('CountryYouthProfileVersion');
+      expect(names).toContain('YouthGenerationRun');
+      expect(names).toContain('YouthCohort');
+      expect(names).toContain('YouthGeneratedPlayer');
       const cols = await prisma.$queryRaw<Array<{ name: string }>>`
         PRAGMA table_info('AppMeta')
       `;
@@ -81,7 +90,7 @@ describe('Migrations', () => {
     }
   });
 
-  it('records F1–F24 migrations in history', async () => {
+  it('records F1–F25 migrations in history', async () => {
     const { url, dir } = createTempDatabaseUrl();
     try {
       migrateTempDatabase(url);
@@ -101,7 +110,8 @@ describe('Migrations', () => {
       expect(names.some((n) => n.includes('f22_national_teams'))).toBe(true);
       expect(names.some((n) => n.includes('f23_international_tournaments'))).toBe(true);
       expect(names.some((n) => n.includes('f24_player_development'))).toBe(true);
-      expect(names).toHaveLength(18);
+      expect(names.some((n) => n.includes('f25_youth_generation'))).toBe(true);
+      expect(names).toHaveLength(19);
       expect(names.some((n) => n.includes('f1_bootstrap'))).toBe(true);
       expect(names.some((n) => n.includes('f2_core_domain'))).toBe(true);
       expect(names.some((n) => n.includes('f3_source_metadata_and_init'))).toBe(true);

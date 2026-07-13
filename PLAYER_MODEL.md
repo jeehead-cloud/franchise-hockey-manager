@@ -90,7 +90,7 @@ If no public estimate is imported, show `UNKNOWN` — do not derive public bands
 - Face-offs column (never populated in prototype)
 - Goalie placeholder (50/50 + all attrs = 10)
 
-Annual development (F24): see §0.5. Youth generation, draft, injuries remain deferred (F25+).
+Annual development (F24): see §0.5. Youth generation (F25): see §0.6. Draft/scouting remain deferred (F26+).
 
 ### 0.5 Annual development (F24)
 
@@ -101,6 +101,16 @@ Annual development (F24): see §0.5. Youth generation, draft, injuries remain de
 - **Form:** annual regression toward 0 within configured bounds.
 - **Retirement:** `RETIRED` status; player retained; history/snapshots remain; club ownership unchanged in F24.
 - **History:** immutable `PlayerSeasonSnapshot` PRE/POST per official run; `PlayerDevelopmentResult` rows for reports.
+
+### 0.6 Youth generation (F25)
+
+- **Reference date:** generated ages are exactly 15, 16, or 17 on `referenceDate` (birth dates derived; no wall clock). Default mix emphasizes age 17.
+- **Source/lifecycle:** `GENERATED_YOUTH` + `PROSPECT`; `currentTeamId` null; not auto-lined or drafted.
+- **Profiles:** versioned country youth profiles drive cohort size, positions, quality tiers, attribute tendencies, and potential/development distributions.
+- **Names:** versioned fictional country name pools; deterministic selection with bounded duplicate-name handling.
+- **Models:** skaters and goalies use separate attribute paths; CA and role derived via F5; potential floor/ceiling generated within rating bounds and generally above derived CA.
+- **Provenance:** immutable `YouthGeneratedPlayer` / `YouthCohort` snapshots; later F6 edits do not rewrite them.
+- **Physical:** height/weight/shoots may be recorded on generation provenance; not required Player columns in F25.
 
 ### F12–F13 simulation consumption (2026-07-13)
 
