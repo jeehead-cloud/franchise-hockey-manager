@@ -65,6 +65,16 @@ describe('Migrations', () => {
       expect(names).toContain('YouthGenerationRun');
       expect(names).toContain('YouthCohort');
       expect(names).toContain('YouthGeneratedPlayer');
+      expect(names).toContain('ScoutingPreset');
+      expect(names).toContain('ScoutingPresetVersion');
+      expect(names).toContain('ActiveScoutingConfiguration');
+      expect(names).toContain('Scout');
+      expect(names).toContain('ScoutingDepartment');
+      expect(names).toContain('TeamProspectKnowledge');
+      expect(names).toContain('ScoutingAssignment');
+      expect(names).toContain('ScoutingObservation');
+      expect(names).toContain('TeamScoutingReport');
+      expect(names).toContain('TeamProspectWatchlistEntry');
       const cols = await prisma.$queryRaw<Array<{ name: string }>>`
         PRAGMA table_info('AppMeta')
       `;
@@ -90,7 +100,7 @@ describe('Migrations', () => {
     }
   });
 
-  it('records F1–F25 migrations in history', async () => {
+  it('records F1–F26 migrations in history', async () => {
     const { url, dir } = createTempDatabaseUrl();
     try {
       migrateTempDatabase(url);
@@ -111,7 +121,9 @@ describe('Migrations', () => {
       expect(names.some((n) => n.includes('f23_international_tournaments'))).toBe(true);
       expect(names.some((n) => n.includes('f24_player_development'))).toBe(true);
       expect(names.some((n) => n.includes('f25_youth_generation'))).toBe(true);
-      expect(names).toHaveLength(19);
+      expect(names.some((n) => n.includes('f26_scouting'))).toBe(true);
+      expect(names.some((n) => n.includes('f26_scouting_audit'))).toBe(true);
+      expect(names).toHaveLength(21);
       expect(names.some((n) => n.includes('f1_bootstrap'))).toBe(true);
       expect(names.some((n) => n.includes('f2_core_domain'))).toBe(true);
       expect(names.some((n) => n.includes('f3_source_metadata_and_init'))).toBe(true);

@@ -96,6 +96,7 @@ export async function registerYouthGenerationRoutes(app: FastifyInstance) {
       countryId: q.countryId,
       includePotential: false,
       includeQualityTier: false,
+      redactProspectTruth: true,
     });
     if (!result) return reply.status(404).send(notFound('YouthGenerationRun'));
     return {
@@ -128,6 +129,7 @@ export async function registerYouthGenerationRoutes(app: FastifyInstance) {
     const item = await getPlayerYouthProvenance(playerId, {
       includePotential: false,
       includeQualityTier: false,
+      redactProspectTruth: true,
     });
     if (!item) return reply.status(404).send(notFound('YouthGeneratedPlayer'));
     return detailResponse(item);

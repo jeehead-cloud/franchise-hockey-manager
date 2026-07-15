@@ -21,6 +21,8 @@ import { registerPlayerDevelopmentRoutes } from './routes/player-development.js'
 import { registerCommissionerPlayerDevelopmentRoutes } from './routes/commissioner-player-development.js';
 import { registerYouthGenerationRoutes } from './routes/youth-generation.js';
 import { registerCommissionerYouthGenerationRoutes } from './routes/commissioner-youth-generation.js';
+import { registerScoutingRoutes } from './routes/scouting.js';
+import { registerCommissionerScoutingRoutes } from './routes/commissioner-scouting.js';
 
 export async function buildApp(options?: { logger?: boolean }) {
   const app = Fastify({ logger: options?.logger ?? true });
@@ -58,6 +60,8 @@ export async function buildApp(options?: { logger?: boolean }) {
   await registerCommissionerPlayerDevelopmentRoutes(app);
   await registerYouthGenerationRoutes(app);
   await registerCommissionerYouthGenerationRoutes(app);
+  await registerScoutingRoutes(app);
+  await registerCommissionerScoutingRoutes(app);
   await registerCommissionerRoutes(app);
 
   return app;
@@ -79,4 +83,6 @@ export async function ensureAppMeta() {
     './services/youth-generation-config.js'
   );
   await bootstrapYouthGenerationConfiguration(prisma);
+  const { bootstrapScoutingConfiguration } = await import('./services/scouting-config.js');
+  await bootstrapScoutingConfiguration(prisma);
 }

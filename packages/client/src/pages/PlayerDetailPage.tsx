@@ -11,6 +11,7 @@ import {
   getPlayer,
   getPlayerAuditLog,
   getPlayerDevelopmentHistory,
+  getCommissionerPlayerYouthProvenance,
   getPlayerYouthProvenance,
   type PlayerAuditItem,
   type PlayerDetail,
@@ -63,7 +64,10 @@ export function PlayerDetailPage() {
     if (tab !== 'profile') return;
     const controller = new AbortController();
     setYouthProvenanceLoaded(false);
-    getPlayerYouthProvenance(playerId, controller.signal)
+    (enabled
+      ? getCommissionerPlayerYouthProvenance(playerId, controller.signal)
+      : getPlayerYouthProvenance(playerId, controller.signal)
+    )
       .then((res) => {
         setYouthProvenance(res.item);
         setYouthProvenanceLoaded(true);
@@ -77,7 +81,7 @@ export function PlayerDetailPage() {
         }
       });
     return () => controller.abort();
-  }, [tab, playerId]);
+  }, [tab, playerId, enabled]);
 
   useEffect(() => {
     if (tab !== 'development') return;

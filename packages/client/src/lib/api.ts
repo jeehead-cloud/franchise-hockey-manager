@@ -1767,6 +1767,21 @@ async function postJson<T>(path: string, payload: unknown, signal?: AbortSignal)
   return res.json() as Promise<T>;
 }
 
+async function putJson<T>(path: string, payload: unknown, signal?: AbortSignal): Promise<T> {
+  const res = await fetch(`${apiBase()}${path}`, {
+    method: 'PUT',
+    signal,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const err = new Error(await readError(res)) as Error & { status?: number };
+    err.status = res.status;
+    throw err;
+  }
+  return res.json() as Promise<T>;
+}
+
 async function deleteJson<T>(path: string, signal?: AbortSignal): Promise<T> {
   const res = await fetch(`${apiBase()}${path}`, { method: 'DELETE', signal });
   if (!res.ok) {
@@ -3891,6 +3906,314 @@ export async function getPlayerYouthProvenance(
 ): Promise<{ item: YouthPlayerProvenance }> {
   return getJson(`/api/players/${playerId}/youth-provenance`, signal);
 }
+
+export async function getCommissionerPlayerYouthProvenance(
+  playerId: string,
+  signal?: AbortSignal,
+): Promise<{ item: YouthPlayerProvenance }> {
+  return commissionerGetJson(
+    `/api/commissioner/players/${playerId}/youth-provenance`,
+    signal,
+  );
+}
+
+// F26 Scouting — these views deliberately contain only team-visible estimates. Do not
+// add true potential, quality tier, or hidden-rating fields to these public contracts.
+export interface ScoutingEstimate {
+  estimate: number | null;
+  low: number | null;
+  high: number | null;
+  confidence: number;
+}
+
+export interface ScoutingProspect {
+  playerId: string;
+  playerName: string;
+  position?: string | null;
+  age?: number | null;
+  teamName?: string | null;
+  nationality?: string | null;
+  report?: {
+    currentAbility?: ScoutingEstimate | null;
+    potential?: ScoutingEstimate | null;
+    confidence: number;
+    strengths?: string[];
+    weaknesses?: string[];
+    observedAt?: string | null;
+    stale?: boolean;
+  } | null;
+  watchlist?: { priority: number; notes?: string | null } | null;
+  suggestedRank?: number | null;
+  rankingScore?: number | null;
+  rankingReason?: string | null;
+}
+
+export interface ScoutingAssignment {
+  id: string;
+  name?: string | null;
+  status: string;
+  targetType?: 'PLAYER' | 'COUNTRY' | 'WATCHLIST' | string;
+  target?: { playerIds?: string[]; countryId?: string | null };
+  scouts?: Array<{ id: string; name: string }>;
+  targetCount?: number;
+  observedOn?: string;
+  durationDays?: number;
+  seed?: string;
+  createdAt?: string;
+  completedAt?: string | null;
+}
+
+export interface ScoutingDepartment {
+  id?: string;
+  teamId?: string;
+  name?: string | null;
+  scouts?: Array<{ id: string; name: string; role?: string | null }>;
+}
+
+export interface ScoutProfile {
+  id: string;
+  name: string;
+  firstName: string;
+  lastName: string;
+  evaluatingRating: number;
+  potentialRating: number;
+  skaterRating: number;
+  goalieRating: number;
+  specialties: string[];
+  countryFamiliarity: Record<string, number>;
+  positionFamiliarity: Record<string, number>;
+  persistentBias: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface ScoutingOverview {
+  team: { id: string; name: string };
+  department?: ScoutingDepartment | null;
+  preparedAssignments: number;
+  watchlistCount?: number;
+  reportCount: number;
+}
+
+export interface ScoutingAssignmentDetail extends ScoutingAssignment {
+  targetCount: number;
+}
+
+export interface ScoutingReport {
+  id: string;
+  playerId: string;
+  playerName?: string | null;
+  report: {
+    versionNumber: number;
+    createdAt: string;
+    currentAbility: ScoutingEstimate;
+    potential: ScoutingEstimate;
+    confidence: number;
+    strengths: string[];
+    weaknesses: string[];
+  };
+}
+
+export interface ScoutingDiagnostics {
+  active: {
+    preset: { id: string; name: string };
+    version: { id: string; versionNumber: number; schemaVersion: number; configHash: string };
+  };
+  assignments: number;
+  observations: number;
+  reports: number;
+}
+
+export interface ScoutingPreset {
+  id: string;
+  name: string;
+  description?: string | null;
+  isSystem?: boolean;
+  versions?: Array<{ id: string; versionNumber: number; schemaVersion: number; configHash: string; createdAt: string }>;
+}
+
+export interface CommissionerScoutingDepartment {
+  id: string;
+  teamId: string;
+  name: string;
+  team: { id: string; name: string };
+  scouts: Array<{ scoutId: string; role: string; scout: RawScoutProfile }>;
+}
+
+interface RawScoutProfile {
+  id: string;
+  firstName: string;
+  lastName: string;
+  evaluatingRating: number;
+  potentialRating: number;
+  skaterRating: number;
+  goalieRating: number;
+  specialtiesJson: string;
+  countryFamiliarityJson: string;
+  positionFamiliarityJson: string;
+  persistentBias: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface ScoutPayload {
+  firstName: string;
+  lastName: string;
+  evaluatingRating: number;
+  potentialRating: number;
+  skaterRating: number;
+  goalieRating: number;
+  specialties: Array<'GENERAL' | 'SKATER' | 'GOALIE' | 'POTENTIAL'>;
+  countryFamiliarity: Record<string, number>;
+  positionFamiliarity: Record<string, number>;
+  persistentBias: number;
+}
+
+function parseScoutingRecord(value: string): Record<string, number> {
+  try { return JSON.parse(value) as Record<string, number>; } catch { return {}; }
+}
+
+function normalizeScout(row: RawScoutProfile): ScoutProfile {
+  let specialties: string[] = [];
+  try { specialties = JSON.parse(row.specialtiesJson) as string[]; } catch { /* malformed legacy data */ }
+  return {
+    ...row,
+    name: `${row.firstName} ${row.lastName}`,
+    specialties,
+    countryFamiliarity: parseScoutingRecord(row.countryFamiliarityJson),
+    positionFamiliarity: parseScoutingRecord(row.positionFamiliarityJson),
+  };
+}
+
+export async function getScoutingOverview(teamId: string, signal?: AbortSignal): Promise<{ item: ScoutingOverview }> {
+  return getJson(`/api/teams/${teamId}/scouting`, signal);
+}
+export async function listScoutingProspects(
+  teamId: string, params: Record<string, string | number | undefined | null> = {}, signal?: AbortSignal,
+): Promise<Paginated<ScoutingProspect>> {
+  return getJson(`/api/teams/${teamId}/scouting/prospects${qs(params)}`, signal);
+}
+export async function listScoutingWatchlist(teamId: string, signal?: AbortSignal): Promise<{ items: ScoutingProspect[] }> {
+  const [watchlist, prospects] = await Promise.all([
+    getJson<{ items: Array<{ playerId: string; manualPriority: number; note: string | null; player: { id: string; firstName: string; lastName: string; primaryPosition: string } }> }>(`/api/teams/${teamId}/scouting/watchlist`, signal),
+    listScoutingProspects(teamId, {}, signal),
+  ]);
+  const prospectById = new Map(prospects.items.map((item) => [item.playerId, item]));
+  return {
+    items: watchlist.items.map((entry) => ({
+      ...(prospectById.get(entry.playerId) ?? {
+        playerId: entry.playerId,
+        playerName: `${entry.player.firstName} ${entry.player.lastName}`,
+        position: entry.player.primaryPosition,
+      }),
+      watchlist: { priority: entry.manualPriority, notes: entry.note },
+    })),
+  };
+}
+export async function listScoutingAssignments(teamId: string, signal?: AbortSignal): Promise<{ items: ScoutingAssignment[] }> {
+  return getJson(`/api/teams/${teamId}/scouting/assignments`, signal);
+}
+export async function getScoutingAssignment(
+  teamId: string, assignmentId: string, signal?: AbortSignal,
+): Promise<{ item: ScoutingAssignmentDetail }> {
+  return getJson(`/api/teams/${teamId}/scouting/assignments/${assignmentId}`, signal);
+}
+export async function getScoutingProspect(
+  teamId: string, playerId: string, signal?: AbortSignal,
+): Promise<{ item: ScoutingProspect }> {
+  return getJson(`/api/teams/${teamId}/scouting/prospects/${playerId}`, signal);
+}
+export async function listScoutingRankings(teamId: string, signal?: AbortSignal): Promise<{ items: ScoutingProspect[] }> {
+  const [rankings, prospects] = await Promise.all([
+    getJson<{ items: Array<{ playerId: string; score: number; reason: string }> }>(`/api/teams/${teamId}/scouting/rankings`, signal),
+    listScoutingProspects(teamId, {}, signal),
+  ]);
+  const prospectById = new Map(prospects.items.map((item) => [item.playerId, item]));
+  return {
+    items: rankings.items.map((ranking, index) => ({
+      ...(prospectById.get(ranking.playerId) ?? { playerId: ranking.playerId, playerName: 'Unknown prospect' }),
+      suggestedRank: index + 1,
+      rankingScore: ranking.score,
+      rankingReason: ranking.reason,
+    })),
+  };
+}
+export async function listScoutingReports(teamId: string, signal?: AbortSignal): Promise<{ items: ScoutingReport[] }> {
+  return getJson(`/api/teams/${teamId}/scouting/reports`, signal);
+}
+export async function upsertScoutingWatchlistEntry(
+  teamId: string, playerId: string, payload: { manualPriority?: number; note?: string | null },
+): Promise<{ item: unknown }> {
+  return putJson(`/api/teams/${teamId}/scouting/watchlist/${playerId}`, payload);
+}
+export async function deleteScoutingWatchlistEntry(teamId: string, playerId: string): Promise<void> {
+  const res = await fetch(`${apiBase()}/api/teams/${teamId}/scouting/watchlist/${playerId}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error(await readError(res));
+}
+export async function previewScoutingAssignment(
+  teamId: string,
+  payload: {
+    targetType: 'PLAYER' | 'COUNTRY' | 'WATCHLIST';
+    playerIds?: string[];
+    countryId?: string;
+    scoutIds: string[];
+    observedOn: string;
+    durationDays: number;
+    seed: string;
+  },
+): Promise<{ item: ScoutingAssignmentDetail }> {
+  return postJson(`/api/teams/${teamId}/scouting/assignments/preview`, payload);
+}
+export async function createScoutingAssignment(
+  teamId: string,
+  payload: {
+    targetType: 'PLAYER' | 'COUNTRY' | 'WATCHLIST';
+    playerIds?: string[];
+    countryId?: string;
+    scoutIds: string[];
+    observedOn: string;
+    durationDays: number;
+    seed: string;
+  },
+): Promise<{ item: ScoutingAssignment }> {
+  return postJson(`/api/teams/${teamId}/scouting/assignments`, payload);
+}
+export async function executeScoutingAssignment(teamId: string, assignmentId: string): Promise<{ item: ScoutingAssignment }> {
+  return postJson(`/api/teams/${teamId}/scouting/assignments/${assignmentId}/execute`, {});
+}
+export async function listCommissionerScouts(signal?: AbortSignal): Promise<{ items: ScoutProfile[] }> {
+  const response = await commissionerGetJson<{ items: RawScoutProfile[] }>('/api/commissioner/scouting/scouts', signal);
+  return { items: response.items.map(normalizeScout) };
+}
+export async function getCommissionerScout(id: string, signal?: AbortSignal): Promise<{ item: ScoutProfile }> {
+  const response = await listCommissionerScouts(signal);
+  const item = response.items.find((scout) => scout.id === id);
+  if (!item) throw new Error('Scout not found');
+  return { item };
+}
+export async function listCommissionerScoutingDepartments(signal?: AbortSignal): Promise<{ items: CommissionerScoutingDepartment[] }> {
+  return commissionerGetJson('/api/commissioner/scouting/departments', signal);
+}
+export async function getCommissionerScoutingDepartment(teamId: string, signal?: AbortSignal): Promise<{ item: CommissionerScoutingDepartment | null }> {
+  const response = await listCommissionerScoutingDepartments(signal);
+  return { item: response.items.find((department) => department.teamId === teamId) ?? null };
+}
+export async function getCommissionerScoutingConfiguration(signal?: AbortSignal): Promise<{ items: ScoutingPreset[] }> {
+  return commissionerGetJson('/api/commissioner/scouting/configurations', signal);
+}
+export async function getCommissionerScoutingDiagnostics(signal?: AbortSignal): Promise<{ item: ScoutingDiagnostics }> {
+  return commissionerGetJson('/api/commissioner/scouting/diagnostics', signal);
+}
+export const createCommissionerScout = (payload: ScoutPayload) =>
+  commissionerWrite<{ item: RawScoutProfile }>('/api/commissioner/scouting/scouts', 'POST', payload);
+export const updateCommissionerScout = (id: string, payload: Partial<ScoutPayload>) =>
+  commissionerWrite<{ item: RawScoutProfile }>(`/api/commissioner/scouting/scouts/${id}`, 'PATCH', payload);
+export const deleteCommissionerScout = (id: string) =>
+  commissionerDelete<void>(`/api/commissioner/scouting/scouts/${id}`);
+export const createCommissionerScoutingDepartment = (payload: { teamId: string; name: string; scoutIds: string[] }) =>
+  commissionerWrite<{ item: CommissionerScoutingDepartment }>('/api/commissioner/scouting/departments', 'POST', payload);
+export const updateCommissionerScoutingDepartment = (id: string, payload: { name?: string; scoutIds?: string[] }) =>
+  commissionerWrite<{ item: CommissionerScoutingDepartment }>(`/api/commissioner/scouting/departments/${id}`, 'PATCH', payload);
 
 export async function previewYouthGeneration(payload: {
   worldSeasonId: string;

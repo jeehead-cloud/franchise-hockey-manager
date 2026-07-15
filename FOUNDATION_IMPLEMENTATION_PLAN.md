@@ -1445,12 +1445,16 @@ Use:
 
 Hide true prospect quality behind estimated values.
 
+## Status
+
+**Implemented locally (2026-07-15)** — see `CURRENT_STATUS.md`, `ARCHITECTURE.md` §7l, and `PRODUCT_RULES.md` (F26 invariants). Not committed until the owner requests.
+
 ## Scope
 
 Store:
 
-- true hidden values;
-- scouting estimate;
+- true hidden values (never on normal APIs);
+- team-private scouting estimate ranges;
 - confidence;
 - last scouting action.
 
@@ -1459,17 +1463,18 @@ Actions:
 ```text
 Scout Player
 Scout Country
-Scout Tournament
+Scout Watchlist
 ```
 
-Use limited scouting actions.
+Use Commissioner-managed Scouts and one-per-club ScoutingDepartments with versioned immutable calibration.
 
 ## Acceptance Criteria
 
 - low-confidence estimates are wider/noisier;
 - higher confidence narrows estimates;
-- Commissioner Mode reveals true values;
-- AI uses its own estimates;
+- Commissioner Mode reveals true values (diagnostics only);
+- AI uses its own estimates (suggested ranking built from estimates only);
+- reports become stale after Player changes and refresh via rescout;
 - tests pass.
 
 ---

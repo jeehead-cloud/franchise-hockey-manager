@@ -938,6 +938,7 @@ export async function listYouthGeneratedPlayers(
     countryId?: string;
     includePotential?: boolean;
     includeQualityTier?: boolean;
+    redactProspectTruth?: boolean;
   },
 ) {
   const run = await prisma.youthGenerationRun.findUnique({ where: { id: runId } });
@@ -960,8 +961,24 @@ export async function listYouthGeneratedPlayers(
     }),
   ]);
 
+  // F26 visibility: when the public path requests it, redact true generation values
+  // (currentAbility, developmentRate, role) for players still in PROSPECT status so
+  // that only scouting estimates reveal prospect quality. Commissioner diagnostics
+  // keep the full snapshot.
+  const redact = query?.redactProspectTruth === true;
+  const prospectIds = redact
+    ? (
+        await prisma.player.findMany({
+          where: { id: { in: rows.map((r) => r.playerId).filter((id): id is string => id !== null) }, rosterStatus: 'PROSPECT' },
+          select: { id: true },
+        })
+      ).map((p) => p.id)
+    : [];
+  const prospectSet = new Set(prospectIds);
+
   return {
     items: rows.map((r) => {
+      const hidden = redact && r.playerId !== null && prospectSet.has(r.playerId);
       const base = {
         id: r.id,
         playerId: r.playerId,
@@ -971,9 +988,9 @@ export async function listYouthGeneratedPlayers(
         dateOfBirth: r.dateOfBirthSnapshot,
         ageOnReferenceDate: r.ageOnReferenceDate,
         position: r.positionSnapshot,
-        currentAbility: r.currentAbilitySnapshot,
-        developmentRate: r.developmentRateSnapshot,
-        role: r.roleSnapshot,
+        currentAbility: hidden ? null : r.currentAbilitySnapshot,
+        developmentRate: hidden ? null : r.developmentRateSnapshot,
+        role: hidden ? null : r.roleSnapshot,
         generationHash: r.generationHash,
       };
       if (query?.includePotential) {
@@ -992,7 +1009,7 @@ export async function listYouthGeneratedPlayers(
 
 export async function getPlayerYouthProvenance(
   playerId: string,
-  opts?: { includePotential?: boolean; includeQualityTier?: boolean },
+  opts?: { includePotential?: boolean; includeQualityTier?: boolean; redactProspectTruth?: boolean },
 ) {
   const row = await prisma.youthGeneratedPlayer.findUnique({
     where: { playerId },
@@ -1002,7 +1019,16 @@ export async function getPlayerYouthProvenance(
     },
   });
   if (!row) return null;
-  return mapProvenanceRow(row, opts);
+  const item = mapProvenanceRow(row, opts);
+  // F26 visibility: redact true generation values for players still in PROSPECT status
+  // on the public path. Commissioner diagnostics keep the full snapshot.
+  if (opts?.redactProspectTruth) {
+    const live = await prisma.player.findUnique({ where: { id: playerId }, select: { rosterStatus: true } });
+    if (live?.rosterStatus === 'PROSPECT') {
+      return { ...item, currentAbility: null, developmentRate: null, role: null };
+    }
+  }
+  return item;
 }
 
 export async function getYouthGenerationRunDiagnostics(runId: string) {

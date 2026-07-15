@@ -33,6 +33,7 @@ import { DevelopmentRunDetailPage } from './pages/DevelopmentRunDetailPage';
 import { YouthGenerationPage } from './pages/YouthGenerationPage';
 import { YouthGenerationRunDetailPage } from './pages/YouthGenerationRunDetailPage';
 import { CommissionerProvider } from './lib/commissioner';
+import { ScoutDetailPage, ScoutsPage, ScoutingAssignmentPage, ScoutingLandingPage, ScoutingPage, ScoutingProspectPage } from './pages/ScoutingPage';
 
 export function App() {
   return (
@@ -60,6 +61,12 @@ export function App() {
             <Route path="/teams/:teamId" element={<TeamDetailPage />} />
             <Route path="/teams/:teamId/history" element={<TeamHistoryPage />} />
             <Route path="/teams/:teamId/lines/edit" element={<TeamLinesEditPage />} />
+            <Route path="/teams/:teamId/scouting" element={<ScoutingPage />} />
+            <Route path="/teams/:teamId/scouting/assignments/:assignmentId" element={<ScoutingAssignmentPage />} />
+            <Route path="/teams/:teamId/scouting/prospects/:playerId" element={<ScoutingProspectPage />} />
+            <Route path="/scouting" element={<ScoutingLandingPage />} />
+            <Route path="/scouts" element={<ScoutsPage />} />
+            <Route path="/scouts/:id" element={<ScoutDetailPage />} />
             <Route path="/national-teams" element={<NationalTeamsPage />} />
             <Route path="/national-teams/:nationalTeamId" element={<NationalTeamDetailPage />} />
             <Route path="/coaches" element={<CoachesPage />} />

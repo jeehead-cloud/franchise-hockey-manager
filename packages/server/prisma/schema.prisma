@@ -236,6 +236,11 @@ enum CommissionerAuditEntityType {
   YOUTH_GENERATION_PROFILE
   COUNTRY_NAME_POOL
   YOUTH_GENERATION_RUN
+  SCOUT
+  SCOUTING_DEPARTMENT
+  SCOUTING_CONFIG
+  SCOUTING_CONFIG_VERSION
+  SCOUTING_ASSIGNMENT
 }
 
 enum CommissionerAuditAction {
@@ -321,6 +326,19 @@ enum CommissionerAuditAction {
   YOUTH_GENERATION_STARTED
   YOUTH_GENERATION_COMPLETED
   YOUTH_GENERATION_FAILED
+  SCOUT_CREATED
+  SCOUT_UPDATED
+  SCOUT_DELETED
+  SCOUT_INACTIVATED
+  SCOUTING_DEPARTMENT_CREATED
+  SCOUTING_DEPARTMENT_UPDATED
+  SCOUTING_DEPARTMENT_DELETED
+  SCOUTING_CONFIG_CREATED
+  SCOUTING_CONFIG_VERSION_CREATED
+  SCOUTING_CONFIG_ACTIVATED
+  SCOUTING_ASSIGNMENT_CREATED
+  SCOUTING_ASSIGNMENT_EXECUTED
+  SCOUTING_ASSIGNMENT_CANCELLED
 }
 
 /// F20 competition archive status.
@@ -483,10 +501,16 @@ model Team {
   /// At most one current head coach (unique on Coach.currentTeamId).
   coach                   Coach?
   lineup                  TeamLineup?
-  homeMatches             Match[]                  @relation("MatchHomeTeam")
-  awayMatches             Match[]                  @relation("MatchAwayTeam")
+  homeMatches             Match[]                      @relation("MatchHomeTeam")
+  awayMatches             Match[]                      @relation("MatchAwayTeam")
   competitionParticipants CompetitionParticipant[]
   nationalTeamProfile     NationalTeamProfile?
+  scoutingDepartment      ScoutingDepartment?
+  prospectKnowledge       TeamProspectKnowledge[]
+  scoutingAssignments     ScoutingAssignment[]
+  scoutingObservations    ScoutingObservation[]
+  scoutingReports         TeamScoutingReport[]
+  scoutingWatchlist       TeamProspectWatchlistEntry[]
 
   @@unique([leagueId, name])
   @@unique([sourceDataset, externalId])
@@ -528,8 +552,8 @@ model Player {
   createdAt               DateTime                 @default(now())
   updatedAt               DateTime                 @updatedAt
 
-  nationality          Country                   @relation("PlayerNationality", fields: [nationalityCountryId], references: [id], onDelete: Restrict)
-  currentTeam          Team?                     @relation(fields: [currentTeamId], references: [id], onDelete: SetNull)
+  nationality          Country                      @relation("PlayerNationality", fields: [nationalityCountryId], references: [id], onDelete: Restrict)
+  currentTeam          Team?                        @relation(fields: [currentTeamId], references: [id], onDelete: SetNull)
   skaterAttributes     SkaterAttributes?
   goalieAttributes     GoalieAttributes?
   secondaryPositions   PlayerSecondaryPosition[]
@@ -537,6 +561,10 @@ model Player {
   developmentResults   PlayerDevelopmentResult[]
   seasonSnapshots      PlayerSeasonSnapshot[]
   youthGeneratedPlayer YouthGeneratedPlayer?
+  scoutingKnowledge    TeamProspectKnowledge[]
+  scoutingObservations ScoutingObservation[]
+  scoutingReports      TeamScoutingReport[]
+  scoutingWatchlist    TeamProspectWatchlistEntry[]
 
   @@unique([sourceDataset, externalId])
   @@index([nationalityCountryId])
@@ -2354,4 +2382,232 @@ model YouthGeneratedPlayer {
   @@index([youthGenerationRunId])
   @@index([countryId])
   @@index([generationHash])
+}
+
+// ---------------------------------------------------------------------------
+// F26 — Team scouting
+// ---------------------------------------------------------------------------
+
+enum ScoutingAssignmentTargetType {
+  PLAYER
+  COUNTRY
+  WATCHLIST
+}
+
+enum ScoutingAssignmentStatus {
+  PREPARED
+  COMPLETED
+  CANCELLED
+}
+
+enum ScoutingDepartmentScoutRole {
+  PRIMARY
+  ASSISTANT
+}
+
+enum ScoutStatus {
+  ACTIVE
+  INACTIVE
+  RETIRED
+}
+
+enum ScoutSourceType {
+  COMMISSIONER
+  IMPORTED
+}
+
+/// Named, versioned calibration for deterministic scouting observations.
+model ScoutingPreset {
+  id          String                  @id @default(cuid())
+  name        String                  @unique
+  description String?
+  isSystem    Boolean                 @default(false)
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
+  versions    ScoutingPresetVersion[]
+}
+
+model ScoutingPresetVersion {
+  id              String                       @id @default(cuid())
+  presetId        String
+  versionNumber   Int
+  schemaVersion   Int
+  configJson      String
+  configHash      String
+  changeReason    String
+  createdAt       DateTime                     @default(now())
+  createdBySource CommissionerAuditSource?
+  preset          ScoutingPreset               @relation(fields: [presetId], references: [id], onDelete: Restrict)
+  activeFor       ActiveScoutingConfiguration?
+  assignments     ScoutingAssignment[]
+
+  @@unique([presetId, versionNumber])
+  @@index([configHash])
+}
+
+model ActiveScoutingConfiguration {
+  id                    String                @id @default("default")
+  activePresetVersionId String                @unique
+  updatedAt             DateTime              @updatedAt
+  activeVersion         ScoutingPresetVersion @relation(fields: [activePresetVersionId], references: [id], onDelete: Restrict)
+}
+
+/// Commissioner-managed scout; never automatically generated by bootstrap.
+model Scout {
+  id                      String                    @id @default(cuid())
+  firstName               String
+  lastName                String
+  status                  ScoutStatus               @default(ACTIVE)
+  sourceType              ScoutSourceType           @default(COMMISSIONER)
+  createdBySource         CommissionerAuditSource?
+  evaluatingRating        Int
+  potentialRating         Int
+  skaterRating            Int
+  goalieRating            Int
+  specialtiesJson         String                    @default("[]")
+  countryFamiliarityJson  String                    @default("{}")
+  positionFamiliarityJson String                    @default("{}")
+  persistentBias          Float                     @default(0)
+  createdAt               DateTime                  @default(now())
+  updatedAt               DateTime                  @updatedAt
+  departmentAssignments   ScoutingDepartmentScout[]
+  assignmentScouts        ScoutingAssignmentScout[]
+  observations            ScoutingObservation[]
+
+  @@index([status])
+}
+
+/// One optional scouting department per club team.
+model ScoutingDepartment {
+  id        String                    @id @default(cuid())
+  teamId    String                    @unique
+  name      String
+  createdAt DateTime                  @default(now())
+  updatedAt DateTime                  @updatedAt
+  team      Team                      @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  scouts    ScoutingDepartmentScout[]
+}
+
+model ScoutingDepartmentScout {
+  id           String                      @id @default(cuid())
+  departmentId String
+  scoutId      String
+  role         ScoutingDepartmentScoutRole @default(ASSISTANT)
+  createdAt    DateTime                    @default(now())
+  department   ScoutingDepartment          @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  scout        Scout                       @relation(fields: [scoutId], references: [id], onDelete: Restrict)
+
+  @@unique([departmentId, scoutId])
+  @@index([scoutId])
+}
+
+/// Team-private index for a prospect's immutable scouting history.
+model TeamProspectKnowledge {
+  id              String               @id @default(cuid())
+  teamId          String
+  playerId        String
+  currentReportId String?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+  team            Team                 @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  player          Player               @relation(fields: [playerId], references: [id], onDelete: Restrict)
+  reports         TeamScoutingReport[]
+
+  @@unique([teamId, playerId])
+  @@index([playerId])
+}
+
+/// Prepared assignment freezes target player IDs and active calibration version.
+model ScoutingAssignment {
+  id              String                       @id @default(cuid())
+  teamId          String
+  targetType      ScoutingAssignmentTargetType
+  targetJson      String
+  observedOn      String
+  durationDays    Int
+  seed            String
+  status          ScoutingAssignmentStatus     @default(PREPARED)
+  configVersionId String
+  configHash      String
+  completedAt     DateTime?
+  cancelledAt     DateTime?
+  createdAt       DateTime                     @default(now())
+  updatedAt       DateTime                     @updatedAt
+  team            Team                         @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  configVersion   ScoutingPresetVersion        @relation(fields: [configVersionId], references: [id], onDelete: Restrict)
+  scouts          ScoutingAssignmentScout[]
+  observations    ScoutingObservation[]
+
+  @@index([teamId, status])
+  @@index([configVersionId])
+}
+
+model ScoutingAssignmentScout {
+  id           String             @id @default(cuid())
+  assignmentId String
+  scoutId      String
+  createdAt    DateTime           @default(now())
+  assignment   ScoutingAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  scout        Scout              @relation(fields: [scoutId], references: [id], onDelete: Restrict)
+
+  @@unique([assignmentId, scoutId])
+  @@index([scoutId])
+}
+
+/// Immutable engine output. JSON contains estimates only, never player truth.
+model ScoutingObservation {
+  id                    String             @id @default(cuid())
+  teamId                String
+  playerId              String
+  scoutId               String
+  assignmentId          String
+  observationId         String             @unique
+  observationJson       String
+  sourcePlayerStateHash String
+  observedOn            String
+  durationDays          Int
+  createdAt             DateTime           @default(now())
+  team                  Team               @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  player                Player             @relation(fields: [playerId], references: [id], onDelete: Restrict)
+  scout                 Scout              @relation(fields: [scoutId], references: [id], onDelete: Restrict)
+  assignment            ScoutingAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+
+  @@unique([assignmentId, scoutId, playerId])
+  @@index([teamId, playerId])
+  @@index([assignmentId])
+}
+
+/// Append-only consolidated report. Current report is derived by highest version.
+model TeamScoutingReport {
+  id                    String                @id @default(cuid())
+  knowledgeId           String
+  teamId                String
+  playerId              String
+  versionNumber         Int
+  reportJson            String
+  reportHash            String
+  sourcePlayerStateHash String
+  createdAt             DateTime              @default(now())
+  knowledge             TeamProspectKnowledge @relation(fields: [knowledgeId], references: [id], onDelete: Cascade)
+  team                  Team                  @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  player                Player                @relation(fields: [playerId], references: [id], onDelete: Restrict)
+
+  @@unique([knowledgeId, versionNumber])
+  @@index([teamId, playerId, createdAt])
+  @@index([reportHash])
+}
+
+model TeamProspectWatchlistEntry {
+  id             String   @id @default(cuid())
+  teamId         String
+  playerId       String
+  manualPriority Int      @default(0)
+  note           String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  team           Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  player         Player   @relation(fields: [playerId], references: [id], onDelete: Restrict)
+
+  @@unique([teamId, playerId])
+  @@index([teamId, manualPriority])
 }

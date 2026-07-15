@@ -4,6 +4,7 @@ import { mapPlayer } from '../mappers.js';
 import {
   compactPlayerModelFields,
   publicPlayerModelDetail,
+  resolveModelStatus,
 } from './player-model.js';
 import {
   deriveAgeYears,
@@ -41,6 +42,22 @@ async function activeSeasonStartYear() {
     orderBy: { startYear: 'desc' },
   });
   return season?.startYear ?? null;
+}
+
+/**
+ * F26 boundary: ordinary public APIs cannot expose derived true ratings,
+ * attributes, development rate, or public potential hints for prospects.
+ * Team-scoped scouting endpoints supply estimates instead.
+ */
+function publicProspectModelFields() {
+  return {
+    modelStatus: 'SCOUTING_REQUIRED' as const,
+    currentAbility: null,
+    role: null,
+    roleLabel: null,
+    roleRating: null,
+    publicPotentialEstimate: 'UNKNOWN' as const,
+  };
 }
 
 function stripAttrIds<T extends { playerId?: string; createdAt?: Date; updatedAt?: Date }>(
@@ -111,22 +128,27 @@ export async function listPlayers(query: Record<string, unknown> = {}) {
   ]);
 
   return {
-    items: rows.map((row) => ({
-      ...mapPlayer(row),
-      age: deriveAgeYears(row.dateOfBirth, seasonStartYear),
-      currentTeam: row.currentTeam
-        ? {
-            id: row.currentTeam.id,
-            name: row.currentTeam.name,
-            shortName: row.currentTeam.shortName,
-          }
-        : null,
-      ...compactPlayerModelFields({
+    items: rows.map((row) => {
+      const modelRow = {
         ...row,
         skaterAttributes: stripAttrIds(row.skaterAttributes) ?? undefined,
         goalieAttributes: stripAttrIds(row.goalieAttributes) ?? undefined,
-      }),
-    })),
+      };
+      return {
+        ...mapPlayer(row),
+        age: deriveAgeYears(row.dateOfBirth, seasonStartYear),
+        currentTeam: row.currentTeam
+          ? {
+              id: row.currentTeam.id,
+              name: row.currentTeam.name,
+              shortName: row.currentTeam.shortName,
+            }
+          : null,
+        ...(row.rosterStatus === 'PROSPECT' && resolveModelStatus(modelRow) === 'COMPLETE'
+          ? publicProspectModelFields()
+          : compactPlayerModelFields(modelRow)),
+      };
+    }),
     page: pagination.page,
     pageSize: pagination.pageSize,
     total,
@@ -173,7 +195,14 @@ export async function getPlayerById(id: string) {
           league: row.currentTeam.league,
         }
       : null,
-    playerModel: publicPlayerModelDetail(modelRow),
+    playerModel:
+      row.rosterStatus === 'PROSPECT' && resolveModelStatus(modelRow) === 'COMPLETE'
+        ? {
+            modelStatus: 'SCOUTING_REQUIRED' as const,
+            message: 'Select a club scouting department to view estimated prospect ratings.',
+            publicPotentialEstimate: 'UNKNOWN' as const,
+          }
+        : publicPlayerModelDetail(modelRow),
     // Never expose hidden potential fields on the public detail envelope.
   };
 }

@@ -1,7 +1,7 @@
 # Franchise Hockey Manager — Architecture
 
 **Status:** Active
-**Last updated:** 2026-07-13
+**Last updated:** 2026-07-15
 **Repository:** `https://github.com/jeehead-cloud/franchise-hockey-manager`
 
 > Technical source of truth for stack, monorepo structure, data flow, and config-driven balance.
@@ -555,6 +555,41 @@ APIs: `/api/youth-generation/*`, `/api/commissioner/youth-generation/*`, `/api/p
 Client: `/youth-generation`, `/youth-generation/runs/:runId`
 
 Verifier: `npm run verify:youth-generation`
+
+## 7l. Scouting (F26)
+
+Pure engine (`packages/engine/src/scouting/`):
+- Versioned, strictly-validated `ScoutingConfig` (schemaVersion 1): observation bounds/noise, confidence (duration cap, repeat diminishing, diversity bonus), reporting thresholds
+- Deterministic observations: seeded estimate ranges for attributes/current ability/potential, confidence per Scout skill + duration, potential uncertainty wider than current ability, persistent Scout bias + assignment noise, immutable with content hash
+- Consolidation: weighted estimate ranges, strengths/weaknesses, consolidated confidence (diversity bonus across Scouts); observations must share one team/player/player-state snapshot
+- Estimate-only suggested ranking (CA/potential/confidence + manual priority) — no player-truth parameter
+- Staleness via player-state hash; reconciliation validates hashes, bounds, and truth invariance
+
+Persistence:
+- `ScoutingPreset` / immutable `ScoutingPresetVersion` / singleton `ActiveScoutingConfiguration` (separate from F10 match balance and F24/F25 presets); default bootstrap **Scouting Default v1** (idempotent, fictional)
+- `Scout` (Commissioner-managed, status/source, ratings, specialties, country/position familiarity, persistent bias), `ScoutingDepartment` (one per club), `ScoutingDepartmentScout` (PRIMARY/ASSISTANT)
+- `TeamProspectKnowledge` (team+player index), `ScoutingAssignment`/`ScoutingAssignmentScout` (PREPARED/COMPLETED/CANCELLED; frozen target IDs + config version), `ScoutingObservation` (immutable, unique by assignment+scout+player), `TeamScoutingReport` (append-only versions; current = highest version), `TeamProspectWatchlistEntry`
+
+Visibility boundary (highest-priority invariant):
+- Normal/public Player list+detail return `SCOUTING_REQUIRED` (Unknown) for **complete** prospects — never true ratings, role, or potential; incomplete legacy prospects still report `INCOMPLETE`
+- Team-scoped `/api/teams/:teamId/scouting/*` return only that club's estimates; reports/observations/watchlist/rankings are team-private (another club sees `report: null`, empty observations, no watchlist/ranking entries)
+- Commissioner `/api/commissioner/...scouting.../diagnostics` reveal the true-vs-estimate comparison (exact potential, CA, role, state hash) behind the header gate
+- Public F25 youth provenance/run-players redact true `currentAbility`/`developmentRate`/`role` for PROSPECTs; Commissioner provenance keeps the full snapshot (split preserved, not recombined)
+- Suggested ranking never sees true potential, hidden attributes, or F25 quality tier
+
+Rescout & staleness:
+- Reports become stale when the current Player state hash differs from the report's source hash (F24 development, Commissioner attribute edits)
+- Executing an assignment consolidates **only** observations matching the newest state hash for each player, so a developed/edited player can be rescouted without mixing incompatible snapshots; old observations remain immutable history; a new report version is appended (manual rank/watchlist survive)
+
+Invariants:
+- Scouting never mutates Player truth, F25 provenance, F24 development, club lineups, NT snapshots, or F20 archives; no draft records created
+- Completed assignments are immutable (only PREPARED can execute/cancel); observations append-only
+
+APIs: `/api/teams/:teamId/scouting/*` (overview/readiness/assignments/prospects/watchlist/rankings/reports), `/api/commissioner/scouting/*` (scouts/departments/configurations/versions/activate/diagnostics), `/api/commissioner/teams/:teamId/scouting/prospects/:playerId/diagnostics`
+
+Client: `/scouting` landing (club selection required), `/teams/:teamId/scouting` (tabs: Overview, Prospects, Watchlist, Assignments, Rankings, Reports, Department*, Configuration*, Diagnostics* — last three Commissioner-only), `/scouts`, `/scouts/:id`, prospect/assignment detail pages; sidebar Scouting entry
+
+Verifier: `npm run verify:scouting`
 
 ---
 

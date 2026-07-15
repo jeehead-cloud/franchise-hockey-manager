@@ -1,7 +1,7 @@
 # Franchise Hockey Manager — Player Model
 
 **Status:** Active — **F5 foundation implemented** in `@fhm/engine` (prototype transcription retained below for history)
-**Last updated:** 2026-07-13
+**Last updated:** 2026-07-15
 **Repository:** `https://github.com/jeehead-cloud/franchise-hockey-manager`
 **Source:** `Player_template.xlsx` (owner-provided prototype) + F5 implementation decisions
 
@@ -90,7 +90,7 @@ If no public estimate is imported, show `UNKNOWN` — do not derive public bands
 - Face-offs column (never populated in prototype)
 - Goalie placeholder (50/50 + all attrs = 10)
 
-Annual development (F24): see §0.5. Youth generation (F25): see §0.6. Draft/scouting remain deferred (F26+).
+Annual development (F24): see §0.5. Youth generation (F25): see §0.6. Scouting visibility (F26): see §0.7. Draft remains deferred (F27).
 
 ### 0.5 Annual development (F24)
 
@@ -111,6 +111,13 @@ Annual development (F24): see §0.5. Youth generation (F25): see §0.6. Draft/sc
 - **Models:** skaters and goalies use separate attribute paths; CA and role derived via F5; potential floor/ceiling generated within rating bounds and generally above derived CA.
 - **Provenance:** immutable `YouthGeneratedPlayer` / `YouthCohort` snapshots; later F6 edits do not rewrite them.
 - **Physical:** height/weight/shoots may be recorded on generation provenance; not required Player columns in F25.
+
+### 0.7 Scouting visibility (F26)
+
+- Prospects (`rosterStatus = PROSPECT`) with a complete F5 model are **not** exposed via normal public Player APIs: the list/detail envelopes return `modelStatus = SCOUTING_REQUIRED` with null ratings/role and `publicPotentialEstimate = UNKNOWN` — never the derived true values.
+- Team-scoped scouting (`/api/teams/:teamId/scouting/*`) returns noisy, confidence-bounded estimate ranges for current ability, potential, and attributes, plus projected role, strengths/weaknesses, and confidence — never true potential/CA/attributes.
+- Public F25 youth provenance/run-players redact true `currentAbility`/`developmentRate`/`role` for players still in PROSPECT status; Commissioner provenance keeps the full snapshot.
+- Commissioner diagnostics reveal the true-vs-estimate comparison behind the header gate. Scouting never mutates Player truth, provenance, development, lineups, NT snapshots, or archives.
 
 ### F12–F13 simulation consumption (2026-07-13)
 

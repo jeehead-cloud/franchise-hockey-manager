@@ -1613,6 +1613,8 @@ PlayerSeasonSnapshot
 
 ## 63. Scouting
 
+**F26 implementation note (2026-07-15):** Scouting displays **estimates** rather than true hidden values. Team-private deterministic observations produce noisy, confidence-bounded estimate ranges; one current report per Team/Player with append-only versions; reports go stale after Player changes and refresh via rescouting. Public APIs return Unknown for unscouted/complete prospects; Commissioner diagnostics reveal the true comparison. See `ARCHITECTURE.md` §7l.
+
 Scouting displays estimates rather than true hidden values.
 
 Prospect information:
@@ -1635,12 +1637,12 @@ Scouting actions:
 ```text
 Scout Player
 Scout Country
-Scout Tournament
+Scout Watchlist
 ```
 
-Scouting actions are limited by a balance setting.
+Scouting actions are limited by active calibration and Commissioner-managed Scout/department staffing.
 
-Commissioner Mode may reveal all true values.
+Commissioner Mode may reveal all true values (diagnostics only).
 
 ---
 
@@ -2085,6 +2087,8 @@ The Simulation Lab is a first-class product area.
 **F16 partial implementation (2026-07-13):** `/simulation-lab` hosts **Batch Lab** (default) for unpersisted 1/10/100/1000-game balance analysis plus **Single Match Debug** (preserved F13 technical tool). Official Matches are never created by Lab runs.
 
 **F17–F25 (2026-07-13):** Competitions host structural editions with participants/stages/rules. F18 enables DETAILED regular-season schedules and standings. F19 enables BEST_OF_SERIES playoffs through champion determination and edition completion readiness. F20 archives COMPLETED editions into immutable historical records with awards, records, and History UI. F21 enables AGGREGATED domestic leagues via fast deterministic season simulation without MatchEvent persistence. F22 adds persistent national teams and CompetitionEdition-scoped roster preparation. F23 runs international tournaments from locked national-team snapshots through groups, knockout, medals, and archive readiness (simplified templates). F24 applies one deterministic annual player-development cycle per WorldSeason (preview/prepare/execute) without youth generation or season advancement. F25 generates deterministic annual youth cohorts as unsigned PROSPECT / GENERATED_YOUTH players with immutable provenance (no scouting or draft).
+
+**F26 (2026-07-15):** `/scouting` (pick a club) and `/teams/:teamId/scouting` host **Team-Private Scouting Estimates** — Commissioner-managed Scouts/departments, versioned immutable calibration, PLAYER/COUNTRY/WATCHLIST assignments, deterministic observations, confidence-bounded estimate ranges, append-only versioned reports, staleness after Player changes + rescouting, team-private watchlists and manual rankings, estimate-only suggested rankings, and Commissioner true-comparison diagnostics. Normal APIs never expose true prospect values; no draft.
 
 Inputs:
 

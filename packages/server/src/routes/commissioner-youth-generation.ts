@@ -21,6 +21,7 @@ import {
   discardPreparedYouthGenerationRun,
   executeYouthGenerationRun,
   getYouthGenerationRunDiagnostics,
+  getPlayerYouthProvenance,
   prepareYouthGenerationRun,
   previewYouthGeneration,
 } from '../services/youth-generation.js';
@@ -152,6 +153,29 @@ const createNamePoolVersionSchema = z.object({
 });
 
 export async function registerCommissionerYouthGenerationRoutes(app: FastifyInstance) {
+  app.get(
+    '/api/commissioner/players/:playerId/youth-provenance',
+    async (request, reply) => {
+      try {
+        assertCommissionerAccess(request);
+        const { playerId } = request.params as { playerId: string };
+        const item = await getPlayerYouthProvenance(playerId, {
+          includePotential: true,
+          includeQualityTier: true,
+        });
+        if (!item) {
+          return reply.status(404).send({
+            error: 'YouthGeneratedPlayerNotFound',
+            message: 'Youth-generation provenance not found',
+          });
+        }
+        return detailResponse(item);
+      } catch (err) {
+        return sendError(reply, err);
+      }
+    },
+  );
+
   app.post('/api/commissioner/youth-generation/preview', async (request, reply) => {
     try {
       assertCommissionerAccess(request);

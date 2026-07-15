@@ -38,7 +38,8 @@
     "verify:national-teams": "npm run verify:national-teams --workspace=@fhm/engine",
     "verify:international-tournaments": "npm run verify:international-tournaments --workspace=@fhm/engine",
     "verify:player-development": "npm run verify:player-development --workspace=@fhm/engine",
-    "verify:youth-generation": "npm run verify:youth-generation --workspace=@fhm/engine"
+    "verify:youth-generation": "npm run verify:youth-generation --workspace=@fhm/engine",
+    "verify:scouting": "npm run verify:scouting --workspace=@fhm/engine"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

@@ -10,6 +10,8 @@ export function getEngineInfo(): { name: typeof ENGINE_NAME; version: typeof ENG
   return { name: ENGINE_NAME, version: ENGINE_VERSION };
 }
 
+export * from './scouting/index.js';
+
 export {
   derivePlayerModel,
   deriveSkaterModel,
