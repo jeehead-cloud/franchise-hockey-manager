@@ -408,18 +408,20 @@ describe('F26 scouting visibility and invariants', () => {
     expect(after.skaterAttributes?.shooting).toBe(before.skaterAttributes?.shooting);
   });
 
-  it('does not persist any F27 draft records as a side effect of scouting', async () => {
+  it('does not persist any F27 draft event/pick/right records as a side effect of scouting', async () => {
     const team = await createClub('NoDraft Club');
     const scout = await createScout('NoDraft');
     await staffDepartment(team.id, scout.id, 'NoDraft Dept');
     const prospect = await makeProspect('NoDraft');
     await runAssignment(team.id, scout.id, prospect.id, 'no-draft');
 
-    // No Draft* tables exist in F26.
-    const rows = await prisma.$queryRawUnsafe<{ count: bigint }[]>(
-      "SELECT count(*) as count FROM sqlite_master WHERE type='table' AND name LIKE 'Draft%'",
-    );
-    expect(Number(rows[0].count)).toBe(0);
+    // F27 added Draft tables via migration; scouting must not populate events/picks/rights.
+    const events = await prisma.draftEvent.count();
+    const picks = await prisma.draftPick.count();
+    const rights = await prisma.playerDraftRight.count();
+    expect(events).toBe(0);
+    expect(picks).toBe(0);
+    expect(rights).toBe(0);
     expect(prospect.rosterStatus).toBe('PROSPECT');
   });
 

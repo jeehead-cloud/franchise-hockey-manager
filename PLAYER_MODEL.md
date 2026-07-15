@@ -90,7 +90,7 @@ If no public estimate is imported, show `UNKNOWN` — do not derive public bands
 - Face-offs column (never populated in prototype)
 - Goalie placeholder (50/50 + all attrs = 10)
 
-Annual development (F24): see §0.5. Youth generation (F25): see §0.6. Scouting visibility (F26): see §0.7. Draft remains deferred (F27).
+Annual development (F24): see §0.5. Youth generation (F25): see §0.6. Scouting visibility (F26): see §0.7. Draft eligibility & rights (F27): see §0.8.
 
 ### 0.5 Annual development (F24)
 
@@ -118,6 +118,14 @@ Annual development (F24): see §0.5. Youth generation (F25): see §0.6. Scouting
 - Team-scoped scouting (`/api/teams/:teamId/scouting/*`) returns noisy, confidence-bounded estimate ranges for current ability, potential, and attributes, plus projected role, strengths/weaknesses, and confidence — never true potential/CA/attributes.
 - Public F25 youth provenance/run-players redact true `currentAbility`/`developmentRate`/`role` for players still in PROSPECT status; Commissioner provenance keeps the full snapshot.
 - Commissioner diagnostics reveal the true-vs-estimate comparison behind the header gate. Scouting never mutates Player truth, provenance, development, lineups, NT snapshots, or archives.
+
+### 0.8 Draft eligibility & rights (F27)
+
+- Draft eligibility is decided structurally from `dateOfBirth` against an explicit `cutoffDate` (never wall clock), lifecycle (`PROSPECT`), source type, unsigned/no-club status, and prior draft rights — **never** from true ability or potential. Eligible prospects are frozen as `DraftEligiblePlayer` snapshots when the DraftEvent is prepared; later Player edits do not silently add/remove prospects once the event starts.
+- A draft selection creates an **ACTIVE `PlayerDraftRight`** owned by exactly one Team per drafted Player. The Player's **lifecycle remains `PROSPECT`** (no new lifecycle status is introduced); **`currentTeamId` stays `null`**; **no contract is created**. Draft rights are separate from current team, contract ownership, and national-team eligibility.
+- Draft rights history is immutable; one active right per Player for the relevant draft outcome; one right per completed `DraftPick`. F27 only creates ACTIVE rights — renunciation/expiration/conversion arrive with later milestones.
+- Player draft provenance (season/round/overall pick/drafting Team snapshot/rights status) is exposed via `/api/players/:id/draft-history`; the unsigned state is explicit. Commissioner diagnostics may reveal order/lottery/result hashes; normal APIs never expose true potential/current ability/role/quality tier.
+- Draft never mutates Player truth, F25 provenance, F24 development, F26 scouting reports, club lineups, NT snapshots, or F20 archives.
 
 ### F12–F13 simulation consumption (2026-07-13)
 

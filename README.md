@@ -43,7 +43,8 @@ npm run dev:client
 - **International Tournaments (F23):** `/international-tournaments` and CompetitionEdition **Tournament** tab — templates, groups, schedule, simulate, medals (simplified formats).
 - **Player Development (F24):** `/development`, `/development/runs/:runId` — annual development overview/preview/runs (Commissioner prepare/execute); player detail Development tab. Does not create youth or advance WorldSeason.
 - **Youth Generation (F25):** `/youth-generation`, `/youth-generation/runs/:runId` — annual youth cohorts (Commissioner preview/prepare/execute); prospects are unsigned PROSPECT / GENERATED_YOUTH. No scouting or draft.
-- **Scouting (F26):** `/scouting` (pick a club), `/teams/:teamId/scouting` (Overview/Prospects/Watchlist/Assignments/Rankings/Reports + Commissioner-only Department/Configuration/Diagnostics), `/scouts`, `/scouts/:id` — deterministic team-private estimate ranges, confidence, staleness/rescout, watchlists, estimate-only suggested rankings. Commissioner diagnostics reveal the true-vs-estimate comparison. No draft.
+- **Scouting (F26):** `/scouting` (pick a club), `/teams/:teamId/scouting` (Overview/Prospects/Watchlist/Assignments/Rankings/Reports + Commissioner-only Department/Configuration/Diagnostics), `/scouts`, `/scouts/:id` — deterministic team-private estimate ranges, confidence, staleness/rescout, watchlists, estimate-only suggested rankings. Commissioner diagnostics reveal the true-vs-estimate comparison.
+- **Draft (F27):** `/drafts` (current-season status + latest selections), `/drafts/:draftEventId` (Overview/Eligible Prospects/Draft Order/Lottery/Draft Room/Results/Team Board/Diagnostics) — Commissioner create → generate eligibility → generate order → run lottery → mark ready → start → manual + auto picks → completion. Eligibility uses an explicit cutoff date; order and lottery are deterministic; auto-pick uses only that team's scouting estimates; a selection creates ACTIVE draft rights (no contract; Player remains unsigned `PROSPECT` with no club). No trades, pick transfers, or club assignment.
 - **History (F20):** `/history`, `/history/competitions/:archiveId`, player/team season history routes. Aggregated archives are labeled distinctly from detailed seasons.
 - **Technical simulation (F16):** `/simulation-lab` — Batch Lab (1/10/100/1000 unpersisted F14 aggregates) + Single Match Debug (F13 technical); neither creates official Match records
 - **Matches (F15):** `/matches`, `/matches/new`, `/matches/:matchId` — persisted match viewer (overview, public events, stats, lines/usage; Commissioner diagnostics/attempts)
@@ -93,6 +94,7 @@ npm run verify:international-tournaments
 npm run verify:player-development
 npm run verify:youth-generation
 npm run verify:scouting
+npm run verify:draft
 ```
 
 Vitest uses isolated temporary SQLite databases for server tests (does not mutate the normal `dev.db` except when you run migrate yourself).

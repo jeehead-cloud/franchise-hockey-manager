@@ -241,6 +241,13 @@ enum CommissionerAuditEntityType {
   SCOUTING_CONFIG
   SCOUTING_CONFIG_VERSION
   SCOUTING_ASSIGNMENT
+  DRAFT_CONFIG
+  DRAFT_CONFIG_VERSION
+  DRAFT_EVENT
+  DRAFT_ORDER
+  DRAFT_LOTTERY
+  DRAFT_PICK
+  PLAYER_DRAFT_RIGHT
 }
 
 enum CommissionerAuditAction {
@@ -339,6 +346,17 @@ enum CommissionerAuditAction {
   SCOUTING_ASSIGNMENT_CREATED
   SCOUTING_ASSIGNMENT_EXECUTED
   SCOUTING_ASSIGNMENT_CANCELLED
+  DRAFT_CONFIG_CREATED
+  DRAFT_CONFIG_VERSION_CREATED
+  DRAFT_CONFIG_ACTIVATED
+  DRAFT_EVENT_CREATED
+  DRAFT_ELIGIBILITY_GENERATED
+  DRAFT_ORDER_GENERATED
+  DRAFT_LOTTERY_RUN
+  DRAFT_EVENT_STARTED
+  DRAFT_PICK_MADE
+  DRAFT_EVENT_COMPLETED
+  DRAFT_EVENT_CANCELLED
 }
 
 /// F20 competition archive status.
@@ -431,6 +449,7 @@ model WorldSeason {
   playerSnapshots     PlayerSeasonSnapshot[]
   youthGenerationRuns YouthGenerationRun[]
   youthCohorts        YouthCohort[]
+  draftEvents         DraftEvent[]
 }
 
 model Country {
@@ -511,6 +530,11 @@ model Team {
   scoutingObservations    ScoutingObservation[]
   scoutingReports         TeamScoutingReport[]
   scoutingWatchlist       TeamProspectWatchlistEntry[]
+  draftTeamEntries        DraftTeamEntry[]
+  draftPicksAsOriginal    DraftPick[]                  @relation("DraftPickOriginalTeam")
+  draftPicksAsCurrent     DraftPick[]                  @relation("DraftPickCurrentTeam")
+  draftRights             PlayerDraftRight[]
+  draftBoardSnapshots     DraftTeamBoardSnapshot[]
 
   @@unique([leagueId, name])
   @@unique([sourceDataset, externalId])
@@ -565,6 +589,8 @@ model Player {
   scoutingObservations ScoutingObservation[]
   scoutingReports      TeamScoutingReport[]
   scoutingWatchlist    TeamProspectWatchlistEntry[]
+  draftEligibleRecords DraftEligiblePlayer[]
+  draftRights          PlayerDraftRight[]
 
   @@unique([sourceDataset, externalId])
   @@index([nationalityCountryId])
@@ -2610,4 +2636,259 @@ model TeamProspectWatchlistEntry {
 
   @@unique([teamId, playerId])
   @@index([teamId, manualPriority])
+}
+
+// ---------------------------------------------------------------------------
+// F27 — NHL Draft
+// ---------------------------------------------------------------------------
+
+enum DraftEventStatus {
+  PLANNED
+  PREPARING
+  READY
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum DraftEligibleStatus {
+  AVAILABLE
+  DRAFTED
+  WITHDRAWN
+  INELIGIBLE_AFTER_REVIEW
+}
+
+enum DraftPickStatus {
+  PENDING
+  ON_THE_CLOCK
+  COMPLETED
+  PASSED
+  CANCELLED
+}
+
+enum DraftSelectionSource {
+  MANUAL
+  AUTO
+  COMMISSIONER_CORRECTION
+}
+
+enum PlayerDraftRightStatus {
+  ACTIVE
+  RENOUNCED
+  EXPIRED
+  CONVERTED_TO_CONTRACT
+}
+
+/// Named, versioned draft configuration preset (separate from F10/F24/F25/F26 presets).
+model DraftPreset {
+  id          String               @id @default(cuid())
+  name        String               @unique
+  description String?
+  isSystem    Boolean              @default(false)
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  versions    DraftPresetVersion[]
+}
+
+model DraftPresetVersion {
+  id              String                    @id @default(cuid())
+  presetId        String
+  versionNumber   Int
+  schemaVersion   Int
+  configJson      String
+  configHash      String
+  changeReason    String
+  createdAt       DateTime                  @default(now())
+  createdBySource CommissionerAuditSource?
+  preset          DraftPreset               @relation(fields: [presetId], references: [id], onDelete: Restrict)
+  activeFor       ActiveDraftConfiguration?
+  draftEvents     DraftEvent[]
+
+  @@unique([presetId, versionNumber])
+  @@index([configHash])
+}
+
+model ActiveDraftConfiguration {
+  id                    String             @id @default("default")
+  activePresetVersionId String             @unique
+  updatedAt             DateTime           @updatedAt
+  activeVersion         DraftPresetVersion @relation(fields: [activePresetVersionId], references: [id], onDelete: Restrict)
+}
+
+/// One annual amateur draft for a WorldSeason.
+model DraftEvent {
+  id                 String           @id @default(cuid())
+  worldSeasonId      String
+  name               String
+  status             DraftEventStatus @default(PLANNED)
+  presetVersionId    String
+  configHash         String
+  cutoffDate         String
+  baseSeed           String
+  eligibilityHash    String?
+  initialOrderHash   String?
+  lotteryHash        String?
+  finalOrderHash     String?
+  currentOverallPick Int              @default(0)
+  totalRounds        Int
+  totalPicks         Int              @default(0)
+  startedAt          DateTime?
+  completedAt        DateTime?
+  resultHash         String?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  worldSeason       WorldSeason              @relation(fields: [worldSeasonId], references: [id], onDelete: Restrict)
+  presetVersion     DraftPresetVersion       @relation(fields: [presetVersionId], references: [id], onDelete: Restrict)
+  eligiblePlayers   DraftEligiblePlayer[]
+  teamEntries       DraftTeamEntry[]
+  lotteryDraws      DraftLotteryDraw[]
+  picks             DraftPick[]
+  boardSnapshots    DraftTeamBoardSnapshot[]
+  playerDraftRights PlayerDraftRight[]
+
+  @@unique([worldSeasonId, name])
+  @@index([worldSeasonId, status])
+  @@index([status])
+}
+
+/// Frozen eligibility snapshot. No true potential stored.
+model DraftEligiblePlayer {
+  id                 String              @id @default(cuid())
+  draftEventId       String
+  playerId           String
+  playerNameSnapshot String
+  birthDateSnapshot  String
+  ageOnCutoffDate    Int
+  countrySnapshot    String?
+  positionSnapshot   String?
+  lifecycleSnapshot  String
+  sourceTypeSnapshot String
+  eligibilityHash    String
+  status             DraftEligibleStatus @default(AVAILABLE)
+  createdAt          DateTime            @default(now())
+
+  draftEvent DraftEvent  @relation(fields: [draftEventId], references: [id], onDelete: Cascade)
+  player     Player      @relation(fields: [playerId], references: [id], onDelete: Restrict)
+  picks      DraftPick[]
+
+  @@unique([draftEventId, playerId])
+  @@index([draftEventId, status])
+  @@index([playerId])
+}
+
+/// Participating team entry (order snapshots). currentTeamId == originalTeamId in F27 (no pick trades).
+model DraftTeamEntry {
+  id                    String   @id @default(cuid())
+  draftEventId          String
+  teamId                String
+  teamNameSnapshot      String
+  originalOrderPosition Int
+  lotteryOrderPosition  Int?
+  finalOrderPosition    Int?
+  sourceStandingRank    Int?
+  createdAt             DateTime @default(now())
+
+  draftEvent DraftEvent @relation(fields: [draftEventId], references: [id], onDelete: Cascade)
+  team       Team       @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([draftEventId, teamId])
+  @@index([draftEventId, finalOrderPosition])
+  @@index([teamId])
+}
+
+/// Persisted lottery draw (deterministic, seeded).
+model DraftLotteryDraw {
+  id               String   @id @default(cuid())
+  draftEventId     String
+  drawNumber       Int
+  winningTeamId    String
+  originalPosition Int
+  newPosition      Int
+  weightSnapshot   Float
+  seedFragment     String
+  drawHash         String
+  createdAt        DateTime @default(now())
+
+  draftEvent DraftEvent @relation(fields: [draftEventId], references: [id], onDelete: Cascade)
+
+  @@unique([draftEventId, drawNumber])
+  @@index([draftEventId])
+}
+
+/// One draft slot per (event, overall pick). `currentTeamId` equals `originalTeamId` in F27.
+model DraftPick {
+  id                         String                @id @default(cuid())
+  draftEventId               String
+  roundNumber                Int
+  pickInRound                Int
+  overallPick                Int
+  originalTeamId             String
+  currentTeamId              String
+  teamNameSnapshot           String
+  status                     DraftPickStatus       @default(PENDING)
+  selectedPlayerId           String?
+  selectedPlayerNameSnapshot String?
+  selectedAt                 DateTime?
+  selectionSource            DraftSelectionSource?
+  scoutingReportId           String?
+  teamBoardSnapshotText      String?
+  pickHash                   String?
+  createdAt                  DateTime              @default(now())
+  updatedAt                  DateTime              @updatedAt
+
+  draftEvent     DraftEvent           @relation(fields: [draftEventId], references: [id], onDelete: Cascade)
+  originalTeam   Team                 @relation("DraftPickOriginalTeam", fields: [originalTeamId], references: [id], onDelete: Restrict)
+  currentTeam    Team                 @relation("DraftPickCurrentTeam", fields: [currentTeamId], references: [id], onDelete: Restrict)
+  selectedPlayer DraftEligiblePlayer? @relation(fields: [selectedPlayerId], references: [id], onDelete: SetNull)
+  draftRight     PlayerDraftRight?
+
+  @@unique([draftEventId, overallPick])
+  @@unique([draftEventId, roundNumber, pickInRound])
+  @@unique([draftEventId, selectedPlayerId])
+  @@index([draftEventId, currentTeamId, status])
+  @@index([draftEventId, status])
+  @@index([currentTeamId])
+}
+
+/// Draft rights — created ACTIVE only in F27. No contract; no club assignment.
+model PlayerDraftRight {
+  id                 String                 @id @default(cuid())
+  playerId           String
+  teamId             String
+  draftEventId       String
+  draftPickId        String                 @unique
+  status             PlayerDraftRightStatus @default(ACTIVE)
+  acquiredAt         DateTime               @default(now())
+  expiresAt          DateTime?
+  playerNameSnapshot String
+  teamNameSnapshot   String
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+
+  player     Player     @relation(fields: [playerId], references: [id], onDelete: Restrict)
+  team       Team       @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  draftEvent DraftEvent @relation(fields: [draftEventId], references: [id], onDelete: Restrict)
+  draftPick  DraftPick  @relation(fields: [draftPickId], references: [id], onDelete: Restrict)
+
+  @@unique([playerId, status])
+  @@index([playerId, status])
+  @@index([teamId, status])
+  @@index([draftEventId])
+}
+
+/// Frozen team board snapshot at draft start (estimates only — no truth).
+model DraftTeamBoardSnapshot {
+  id           String   @id @default(cuid())
+  draftEventId String
+  teamId       String
+  boardText    String
+  boardHash    String
+  createdAt    DateTime @default(now())
+
+  draftEvent DraftEvent @relation(fields: [draftEventId], references: [id], onDelete: Cascade)
+  team       Team       @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([draftEventId, teamId])
+  @@index([teamId])
 }

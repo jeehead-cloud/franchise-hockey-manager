@@ -4329,3 +4329,190 @@ export async function createCountryNamePoolVersion(
 ): Promise<{ item: { id: string; versionNumber: number } }> {
   return commissionerWrite(`/api/commissioner/country-name-pools/${namePoolId}/versions`, 'POST', payload);
 }
+
+// ---------------------------------------------------------------------------
+// F27 — NHL Draft
+// ---------------------------------------------------------------------------
+
+export type DraftEventStatus = 'PLANNED' | 'PREPARING' | 'READY' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+export type DraftPickStatus = 'PENDING' | 'ON_THE_CLOCK' | 'COMPLETED' | 'PASSED' | 'CANCELLED';
+export type DraftSelectionSource = 'MANUAL' | 'AUTO' | 'COMMISSIONER_CORRECTION';
+export type PlayerDraftRightStatus = 'ACTIVE' | 'RENOUNCED' | 'EXPIRED' | 'CONVERTED_TO_CONTRACT';
+
+export interface DraftEventItem {
+  id: string;
+  worldSeasonId: string;
+  seasonLabel: string | null;
+  name: string;
+  status: DraftEventStatus;
+  presetName: string | null;
+  presetVersionId: string | null;
+  configHash: string;
+  cutoffDate: string;
+  eligibilityHash: string | null;
+  initialOrderHash: string | null;
+  lotteryHash: string | null;
+  finalOrderHash: string | null;
+  currentOverallPick: number;
+  totalRounds: number;
+  totalPicks: number;
+  startedAt: string | null;
+  completedAt: string | null;
+  resultHash: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DraftEligiblePlayerItem {
+  id: string;
+  playerId: string;
+  playerName: string;
+  birthDate: string;
+  ageOnCutoffDate: number;
+  country: string | null;
+  position: string | null;
+  lifecycle: string;
+  sourceType: string;
+  eligibilityHash: string;
+  status: string;
+  createdAt: string;
+}
+
+export interface DraftOrderPickItem {
+  id?: string;
+  overallPick: number;
+  roundNumber: number;
+  pickInRound: number;
+  teamId: string;
+  teamName: string;
+  status: DraftPickStatus;
+  selectedPlayerId: string | null;
+  selectedPlayerName: string | null;
+  selectionSource: DraftSelectionSource | null;
+}
+
+export interface DraftOrderDto {
+  teams: Array<{
+    teamId: string;
+    teamName: string;
+    originalOrderPosition: number;
+    lotteryOrderPosition: number | null;
+    finalOrderPosition: number | null;
+    sourceStandingRank: number | null;
+  }>;
+  picks: DraftOrderPickItem[];
+}
+
+export interface DraftBoardEntryDto {
+  playerId: string;
+  estimatedCurrentAbility: number | null;
+  estimatedPotential: number | null;
+  projectedRole: string | null;
+  confidence: number;
+  stale: boolean;
+  risk: number;
+  watchlistPriority: number;
+  manualRank: number | null;
+  suggestedRank: number | null;
+  drafted: boolean;
+}
+
+export interface DraftTeamBoardDto {
+  teamId: string;
+  draftEventId: string;
+  entries: DraftBoardEntryDto[];
+  boardHash: string;
+  frozenBoardHash: string | null;
+  frozenAt: string | null;
+}
+
+export interface DraftStatusDto {
+  worldSeason: { id: string; label: string; phase: string; status: string };
+  draftEvent: {
+    id: string;
+    name: string;
+    status: DraftEventStatus;
+    rounds: number;
+    totalPicks: number;
+    currentOverallPick: number;
+    completedPicks: number;
+    presetName: string;
+  } | null;
+  latestSelections: Array<{ overallPick: number; teamName: string; playerName: string | null }>;
+}
+
+export async function getDrafts(worldSeasonId?: string, signal?: AbortSignal): Promise<{ items: DraftEventItem[] }> {
+  return getJson(`/api/drafts${worldSeasonId ? `?worldSeasonId=${encodeURIComponent(worldSeasonId)}` : ''}`, signal);
+}
+export async function getDraftStatus(signal?: AbortSignal): Promise<{ item: DraftStatusDto }> {
+  return getJson('/api/drafts/status', signal);
+}
+export async function getDraft(id: string, signal?: AbortSignal): Promise<{ item: DraftEventItem }> {
+  return getJson(`/api/drafts/${id}`, signal);
+}
+export async function getDraftEligibility(id: string, signal?: AbortSignal): Promise<{ items: DraftEligiblePlayerItem[] }> {
+  return getJson(`/api/drafts/${id}/eligibility`, signal);
+}
+export async function getDraftOrder(id: string, signal?: AbortSignal): Promise<{ item: DraftOrderDto }> {
+  return getJson(`/api/drafts/${id}/order`, signal);
+}
+export async function getDraftPicks(id: string, signal?: AbortSignal): Promise<{ items: DraftOrderPickItem[] }> {
+  return getJson(`/api/drafts/${id}/picks`, signal);
+}
+export async function getDraftLottery(id: string, signal?: AbortSignal): Promise<{ item: { enabled: boolean; lotteryHash: string | null; draws: unknown[] } }> {
+  return getJson(`/api/drafts/${id}/lottery`, signal);
+}
+export async function getDraftResults(id: string, signal?: AbortSignal): Promise<{ item: { items: DraftOrderPickItem[]; summary: { totalSelections: number; resultHash: string | null; completedAt: string | null } } }> {
+  return getJson(`/api/drafts/${id}/results`, signal);
+}
+export async function getTeamDraftBoard(draftEventId: string, teamId: string, signal?: AbortSignal): Promise<{ item: DraftTeamBoardDto }> {
+  return getJson(`/api/drafts/${draftEventId}/teams/${teamId}/board`, signal);
+}
+export async function getTeamDraftResults(draftEventId: string, teamId: string, signal?: AbortSignal): Promise<{ item: { picks: unknown[]; rights: unknown[] } }> {
+  return getJson(`/api/drafts/${draftEventId}/teams/${teamId}/results`, signal);
+}
+export async function getPlayerDraftHistory(playerId: string, signal?: AbortSignal): Promise<{ items: Array<{ draftEventId: string; seasonLabel: string; roundNumber: number; overallPick: number; teamId: string; teamName: string; rightsStatus: string; unsigned: boolean }> }> {
+  return getJson(`/api/players/${playerId}/draft-history`, signal);
+}
+export async function getTeamDraftRights(teamId: string, signal?: AbortSignal): Promise<{ items: Array<{ id: string; playerId: string; playerName: string; draftEventId: string; seasonLabel: string; status: string; acquiredAt: string | null }> }> {
+  return getJson(`/api/teams/${teamId}/draft-rights`, signal);
+}
+
+export async function selectDraftPick(draftEventId: string, pickId: string, playerId: string, reason?: string): Promise<{ item: { pickId: string; overallPick: number; selectedPlayerId: string; selectedPlayerName: string; teamId: string; rightId: string } }> {
+  return postJson(`/api/drafts/${draftEventId}/picks/${pickId}/select`, { playerId, reason });
+}
+export async function autoSelectDraftPick(draftEventId: string, pickId: string, reason?: string): Promise<{ item: { pickId: string; overallPick: number; selectedPlayerId: string; selectedPlayerName: string; teamId: string; rightId: string } }> {
+  return postJson(`/api/drafts/${draftEventId}/picks/${pickId}/auto-select`, { reason });
+}
+
+// Commissioner draft lifecycle
+export async function commissionerCreateDraft(payload: { worldSeasonId: string; name: string; presetVersionId?: string; baseSeed: string; reason: string }): Promise<{ item: DraftEventItem }> {
+  return commissionerWrite('/api/commissioner/drafts', 'POST', payload);
+}
+export async function commissionerGenerateEligibility(id: string, reason: string): Promise<{ item: { eligibleCount: number; rejectedCount: number; eligibilityHash: string } }> {
+  return commissionerWrite(`/api/commissioner/drafts/${id}/generate-eligibility`, 'POST', { reason });
+}
+export async function commissionerGenerateOrder(id: string, payload: { source?: 'REVERSE_STANDINGS' | 'MANUAL'; sourceCompetitionStageId?: string; participatingTeamIds?: string[]; manualOrder?: string[]; reason: string }): Promise<{ item: { orderHash: string; teamCount: number; totalPicks: number } }> {
+  return commissionerWrite(`/api/commissioner/drafts/${id}/generate-order`, 'POST', payload);
+}
+export async function commissionerRunLottery(id: string, reason: string): Promise<{ item: { lotteryHash: string; draws: number; finalOrderHash: string } }> {
+  return commissionerWrite(`/api/commissioner/drafts/${id}/run-lottery`, 'POST', { reason });
+}
+export async function commissionerMarkDraftReady(id: string, reason: string): Promise<{ item: DraftEventItem }> {
+  return commissionerWrite(`/api/commissioner/drafts/${id}/mark-ready`, 'POST', { reason });
+}
+export async function commissionerStartDraft(id: string, reason: string): Promise<{ event: DraftEventItem; backupPath: string | null }> {
+  return commissionerWrite(`/api/commissioner/drafts/${id}/start`, 'POST', { reason });
+}
+export async function commissionerCancelDraft(id: string, reason: string): Promise<{ item: DraftEventItem }> {
+  return commissionerWrite(`/api/commissioner/drafts/${id}/cancel`, 'POST', { reason });
+}
+export async function commissionerSelectPick(draftEventId: string, pickId: string, playerId: string, reason?: string): Promise<{ item: { pickId: string; overallPick: number; selectedPlayerId: string; selectedPlayerName: string; teamId: string; rightId: string } }> {
+  return commissionerWrite(`/api/commissioner/drafts/${draftEventId}/picks/${pickId}/select`, 'POST', { playerId, reason });
+}
+export async function getCommissionerDraftDiagnostics(id: string, signal?: AbortSignal): Promise<{ item: Record<string, unknown> }> {
+  return commissionerGetJson(`/api/commissioner/drafts/${id}/diagnostics`, signal);
+}
+export async function listDraftConfigurations(signal?: AbortSignal): Promise<{ items: Array<{ id: string; name: string; description: string | null; isSystem: boolean; latestVersion: { id: string; versionNumber: number; configHash: string; isActive: boolean } | null }> }> {
+  return commissionerGetJson('/api/commissioner/draft/configurations', signal);
+}

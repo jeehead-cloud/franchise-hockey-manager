@@ -34,6 +34,7 @@ import { YouthGenerationPage } from './pages/YouthGenerationPage';
 import { YouthGenerationRunDetailPage } from './pages/YouthGenerationRunDetailPage';
 import { CommissionerProvider } from './lib/commissioner';
 import { ScoutDetailPage, ScoutsPage, ScoutingAssignmentPage, ScoutingLandingPage, ScoutingPage, ScoutingProspectPage } from './pages/ScoutingPage';
+import { DraftDetailPage, DraftsLandingPage } from './pages/DraftsPage';
 
 export function App() {
   return (
@@ -85,6 +86,10 @@ export function App() {
             <Route path="/development/runs/:runId" element={<DevelopmentRunDetailPage />} />
             <Route path="/youth-generation" element={<YouthGenerationPage />} />
             <Route path="/youth-generation/runs/:runId" element={<YouthGenerationRunDetailPage />} />
+            <Route path="/drafts" element={<DraftsLandingPage />} />
+            <Route path="/drafts/:draftEventId" element={<DraftDetailPage />} />
+            <Route path="/drafts/:draftEventId/room" element={<DraftDetailPage />} />
+            <Route path="/drafts/:draftEventId/teams/:teamId/board" element={<DraftDetailPage />} />
             <Route path="/simulation-lab" element={<SimulationLabPage />} />
             <Route path="*" element={<NotFoundPage />} />
           </Route>

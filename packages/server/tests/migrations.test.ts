@@ -100,7 +100,7 @@ describe('Migrations', () => {
     }
   });
 
-  it('records F1–F26 migrations in history', async () => {
+  it('records F1–F27 migrations in history', async () => {
     const { url, dir } = createTempDatabaseUrl();
     try {
       migrateTempDatabase(url);
@@ -123,7 +123,8 @@ describe('Migrations', () => {
       expect(names.some((n) => n.includes('f25_youth_generation'))).toBe(true);
       expect(names.some((n) => n.includes('f26_scouting'))).toBe(true);
       expect(names.some((n) => n.includes('f26_scouting_audit'))).toBe(true);
-      expect(names).toHaveLength(21);
+      expect(names.some((n) => n.includes('f27_draft'))).toBe(true);
+      expect(names).toHaveLength(22);
       expect(names.some((n) => n.includes('f1_bootstrap'))).toBe(true);
       expect(names.some((n) => n.includes('f2_core_domain'))).toBe(true);
       expect(names.some((n) => n.includes('f3_source_metadata_and_init'))).toBe(true);

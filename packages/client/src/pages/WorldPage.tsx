@@ -5,13 +5,14 @@ import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
 import { EmptyState, ErrorState, LoadingState } from '../components/ui/EmptyState';
 import { Panel } from '../components/ui/Panel';
-import { getWorldSummary, getDevelopmentStatus, getYouthGenerationStatus, type WorldSummary } from '../lib/api';
+import { getWorldSummary, getDevelopmentStatus, getYouthGenerationStatus, getDraftStatus, type DraftStatusDto, type WorldSummary } from '../lib/api';
 
 export function WorldPage() {
   const [data, setData] = useState<WorldSummary | null>(null);
   const [devApplied, setDevApplied] = useState<boolean | null>(null);
   const [youthApplied, setYouthApplied] = useState<boolean | null>(null);
   const [youthProspectCount, setYouthProspectCount] = useState<number | null>(null);
+  const [draftStatus, setDraftStatus] = useState<DraftStatusDto | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -24,22 +25,26 @@ export function WorldPage() {
         setError(null);
         if (summary.season?.id) {
           try {
-            const [dev, youth] = await Promise.all([
+            const [dev, youth, draft] = await Promise.all([
               getDevelopmentStatus(summary.season.id, controller.signal),
               getYouthGenerationStatus(summary.season.id, controller.signal),
+              getDraftStatus(controller.signal),
             ]);
             setDevApplied(dev.item.developmentApplied);
             setYouthApplied(youth.item.youthGenerationApplied);
             setYouthProspectCount(youth.item.generatedProspectCount);
+            setDraftStatus(draft.item);
           } catch {
             setDevApplied(null);
             setYouthApplied(null);
             setYouthProspectCount(null);
+            setDraftStatus(null);
           }
         } else {
           setDevApplied(null);
           setYouthApplied(null);
           setYouthProspectCount(null);
+          setDraftStatus(null);
         }
       })
       .catch((err: unknown) => {
@@ -243,6 +248,30 @@ export function WorldPage() {
                 </Link>
               ))}
             </div>
+          )}
+        </Panel>
+
+        <Panel title="Draft">
+          {draftStatus?.draftEvent ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, font: 'var(--text-body-sm)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: 'var(--text-primary)' }}>{draftStatus.draftEvent.name}</span>
+                <Badge tone={draftStatus.draftEvent.status === 'COMPLETED' ? 'success' : draftStatus.draftEvent.status === 'IN_PROGRESS' ? 'info' : 'warning'}>
+                  {draftStatus.draftEvent.status}
+                </Badge>
+              </div>
+              <div style={{ color: 'var(--text-secondary)' }}>
+                Pick {draftStatus.draftEvent.currentOverallPick} / {draftStatus.draftEvent.totalPicks} · {draftStatus.draftEvent.rounds} rounds
+              </div>
+              {draftStatus.latestSelections.slice(0, 3).map((s, i) => (
+                <div key={i} style={{ color: 'var(--text-tertiary)', font: 'var(--text-data-sm)' }}>
+                  #{s.overallPick} {s.teamName} → {s.playerName ?? '—'}
+                </div>
+              ))}
+              <Link to={`/drafts/${draftStatus.draftEvent.id}`}><Button>Open Draft Room</Button></Link>
+            </div>
+          ) : (
+            <EmptyState title="No draft" description="No draft event for the current season." />
           )}
         </Panel>
 

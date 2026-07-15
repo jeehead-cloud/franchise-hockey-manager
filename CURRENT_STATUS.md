@@ -12,11 +12,11 @@
 
 ## 1. Current Development Phase
 
-**F26 — Scouting: implemented locally (not committed).** Deterministic team-private scouting estimates that hide true prospect quality behind noisy, confidence-bounded ranges. Persistent Commissioner-managed Scouts and one-per-club ScoutingDepartments; versioned immutable scouting calibration; PLAYER/COUNTRY/WATCHLIST assignments with frozen snapshots; immutable observations; versioned consolidated reports; staleness after Player changes and rescouting under the new state; team-private watchlists and manual rankings; suggested rankings built only from estimates; public/Commissioner visibility split for scouting and F25 provenance. No draft, contracts, or club assignment.
+**F27 — NHL Draft: implemented locally (not committed).** Deterministic annual amateur draft consuming F25 prospects and F26 team-specific scouting knowledge. Versioned draft configuration (`DraftPreset`/`DraftPresetVersion`/`ActiveDraftConfiguration`); explicit-cutoff eligibility snapshots (`DraftEligiblePlayer`); reverse-standings or MANUAL order (`DraftTeamEntry`); bounded deterministic lottery (`DraftLotteryDraw`); multi-round pick slots (`DraftPick`) with original==current ownership (no pick trading); `PlayerDraftRight` (ACTIVE only in F27 — no contract, no club assignment); frozen team board snapshots at draft start (estimates only); estimate-only deterministic auto-pick; Commissioner lifecycle (create → eligibility → order → lottery → ready → start → picks → complete); pre-start SQLite backup; public draft UI (`/drafts`, `/drafts/:id` with Overview/Eligibility/Order/Lottery/Draft Room/Results/Team Board/Diagnostics tabs), team-scoped draft room with manual + auto-pick, sidebar Draft entry, and World Dashboard draft card. Player remains PROSPECT/unsigned/`currentTeamId=null`; no contracts, trades, pick transfers, club assignment, lineup mutation, or next-WorldSeason creation.
 
-**Next milestone: F27** (NHL Draft — do not start until requested).
+**Next milestone: F28** (Contracts and Free Agency — do not start until requested).
 
-F1–F25 remain complete on `main` (F25 at `49d5298`; F25 changes also present uncommitted in this tree).
+F1–F26 remain complete on `main`. F25 + F26 + F27 changes are uncommitted in this tree.
 
 ---
 
@@ -53,6 +53,19 @@ Implemented:
 Not in F26:
 - F27 draft; contracts/FA/trades; club assignment; Scout salaries/contracts/travel/budgets; pro opposition scouting; AI general managers; authentication; deployment
 
+### F27 — NHL Draft (Done locally)
+
+Implemented:
+- Engine `packages/engine/src/draft/` — strict versioned `DraftConfig` (schemaVersion 1), explicit-cutoff eligibility (`draftAgeOnCutoffDate`, never wall clock), reverse-standings/MANUAL order with optional snaking, bounded deterministic seeded lottery (maximumMoveUp, no repeat winners, weighted), frozen team board normalization (estimates only), estimate-only deterministic auto-pick (weighted potential/CA/confidence/role/risk + watchlist bonus + stable player-id fallback; unknown-prospect bounded fallback), progression, reconciliation (unique picks/players, one ACTIVE right per completed pick), hashing; `verify:draft` (20 checks incl. 200-prospect × 7-round benchmark)
+- Prisma: `DraftPreset`/`DraftPresetVersion`/`ActiveDraftConfiguration`, `DraftEvent`, `DraftEligiblePlayer`, `DraftTeamEntry`, `DraftLotteryDraw`, `DraftPick`, `PlayerDraftRight`, `DraftTeamBoardSnapshot`; migration `20260716020000_f27_draft` (F26 audit migration back-fills previously-undeclared indexes so a from-scratch `migrate deploy` reproduces the live schema); audit enums `DRAFT_*`
+- Server: bootstrap Amateur Draft Default (idempotent); Commissioner lifecycle APIs (`/api/commissioner/drafts/*`: create/generate-eligibility/generate-order/run-lottery/mark-ready/start/cancel/select/diagnostics/configurations); public APIs (`/api/drafts/*`, `/api/drafts/:id/teams/:teamId/board`, `/api/players/:id/draft-history`, `/api/teams/:id/draft-rights`); team pick actions (`/api/drafts/:id/picks/:pickId/select|auto-select`); pre-start SQLite backup; atomic pick transaction (pick + right + eligible-status + next-pick + completion); audit coverage
+- Client: `/drafts` landing (current-season draft status + latest selections), `/drafts/:id` detail (tabs: Overview, Eligible Prospects, Draft Order, Lottery, Draft Room, Results, Team Board, Diagnostics), sidebar Draft entry, World Dashboard draft card; Draft Room shows pick history, on-clock team, team board estimates, manual Select + Auto-Pick + Commissioner Select
+- Visibility: team board uses F26 scouting estimates only — never true potential/current ability/role/quality tier; cross-team privacy (team A's board shows Unknown for prospects scouted only by team B); Commissioner diagnostics reveal hashes/order/truth behind the header gate
+- Invariants: drafted Player remains PROSPECT/unsigned/`currentTeamId=null`; one ACTIVE right per completed pick; no contracts/trades/pick transfers/club assignment/lineup mutation; completed events immutable with deterministic result hash; scouting/provenance/development/NT/archive invariance preserved
+
+Not in F27:
+- F28 contracts/FA; F29 trades/pick transfers; F30 offseason orchestration; next WorldSeason creation; AI general-manager strategy beyond bounded deterministic auto-pick; real-time multiplayer; authentication
+
 ### M1–M8
 
 Unchanged.
@@ -65,22 +78,31 @@ Unchanged.
 - International templates and youth profiles are simplified hobby presets — **not real-world calibrated**.
 - Default youth name pools are fictional development examples for fixture countries only.
 - Scouting calibration (Scouting Default v1) is a simplified fictional preset — not tuned to any real scouting model.
-- Team-scoped scouting APIs use local sandbox team context (`/teams/:teamId/scouting`); there is **no authentication** — any caller passing a teamId reads that club's estimates. Commissioner header is not security.
-- Manual UI verification for F25 and F26 was **NOT RUN**.
-- F25 + F26 changes not yet committed/pushed.
+- The F27 draft lottery is a simplified fictional development lottery — **not exact NHL lottery fidelity**.
+- Team-scoped scouting/draft-board APIs use local sandbox team context (`/teams/:teamId/scouting`, `/drafts/:id/teams/:teamId/board`); there is **no authentication** — any caller passing a teamId reads that club's estimates. Commissioner header is not security.
+- Manual UI verification for F25, F26, and F27 was **NOT RUN**.
+- F25 + F26 + F27 changes not yet committed/pushed.
 - Retired players may still appear on team roster lists until offseason cleanup (F30).
 
 ---
 
 ## 4. Nearest Next Steps
 
-1. Commit/push F25 + F26 when the owner requests.
-2. Manual UI pass on disposable DB (scouting: staff department → create scout → assignment preview/create/execute → prospects/watchlist/rankings/reports; Commissioner diagnostics true-comparison).
-3. **F27** (NHL Draft) when requested.
+1. Commit/push F25 + F26 + F27 when the owner requests.
+2. Manual UI pass on disposable DB (draft: Commissioner create draft → generate eligibility → generate order → run lottery → mark ready → start → manual + auto picks → completion → results/history; scouting: staff department → create scout → assignment preview/create/execute → prospects/watchlist/rankings/reports; Commissioner diagnostics true-comparison).
+3. **F28** (Contracts and Free Agency) when requested.
 
 ---
 
 ## 5. Recent Changes
+
+### 2026-07-15 — F27 NHL Draft
+
+- Work completed: pure deterministic draft engine (config/eligibility/order/lottery/board/autopick/progression/reconciliation/hashing); Prisma preset/event/eligible/team-entry/lottery/pick/right/board-snapshot models + `20260716020000_f27_draft` migration (F26 audit back-fill of previously-undeclared indexes); bootstrap Amateur Draft Default (idempotent); Commissioner lifecycle APIs (create/eligibility/order/lottery/ready/start/cancel/select/diagnostics/configurations); public draft/team-board/player-history/team-rights APIs; team pick actions; pre-start SQLite backup; atomic pick transaction; audit coverage; `/drafts` + `/drafts/:id` (8 tabs incl. Draft Room with manual + auto-pick) UI; sidebar entry; World Dashboard draft card
+- Invariants: drafted Player remains PROSPECT/unsigned/`currentTeamId=null`; one ACTIVE right per completed pick; team board uses F26 estimates only (no true potential/CA/role/quality tier); cross-team board privacy; completed events immutable with deterministic result hash; no contracts/trades/pick transfers/club assignment/lineup mutation; scouting/provenance/development/NT/archive invariance preserved
+- Bugs fixed during recovery: (a) migration drift — several F2/F26 `@@index` declarations were absent from their migration SQL; the F26 audit migration now back-fills them so a from-scratch `migrate deploy` reproduces the live schema; (b) Prisma auto-resolved an ambiguous Player↔DraftPick relation by adding a synthetic `playerId` FK — removed by dropping the redundant `draftedByPicks` back-relation so DraftPick relates to Player only through `DraftEligiblePlayer`
+- Validation: engine tests 223 PASS (+39 new F27 engine tests); server tests 227 PASS (+24 new F27 server tests, +1 migration-history update, +1 F26 no-draft assertion update); all 13 verifiers PASS incl. `verify:draft`; Prisma format/validate/generate PASS; empty-DB + F1–F27 migration history (22 migrations) PASS; root typecheck + engine/server/client builds PASS; `git diff --check` clean; manual UI **NOT RUN**; GET /health requires a world-initialized DB (validated implicitly via the F27 server test suite which boots the full app)
+- Remaining: F25 + F26 + F27 uncommitted; F28 deferred
 
 ### 2026-07-15 — F26 Scouting
 
@@ -107,6 +129,19 @@ Unchanged.
 ---
 
 ## 6. Significant Changes
+
+### 2026-07-15 — F27 NHL Draft (Significant)
+
+- Draft eligibility uses an explicit `cutoffDate` (never wall clock); age is measured against it; eligibility never consults true ability or potential
+- Draft order and lottery are deterministic for the same frozen inputs, config version, and seed; order freezes when the DraftEvent starts (no reordering after IN_PROGRESS)
+- A prospect may be drafted at most once in one DraftEvent; pick numbers are unique within the event; one completed pick selects at most one player
+- Auto-pick uses **only that team's scouting estimates** (estimated CA/potential/confidence/projected role/risk + watchlist priority + a deterministic player-id fallback) — never true potential, hidden attributes, or F25 quality tier; unknown unscouted prospects get a bounded fallback value and the highest risk but remain manually selectable
+- Draft creates **draft rights, not contracts**: one ACTIVE `PlayerDraftRight` per completed pick; the drafted Player remains `PROSPECT`, unsigned, and `currentTeamId = null`; no contract row is created
+- F27 does **not** trade picks (currentTeamId == originalTeamId), assign drafted players to a club roster, modify lineups, or create the next WorldSeason
+- Team draft boards are **team-private**: the `/drafts/:id/teams/:teamId/board` endpoint returns only that club's F26 estimates; another club's private board, observations, and watchlist are not readable; normal APIs never expose true potential/CA/role/quality tier
+- Commissioner-only diagnostics reveal the order/lottery/result hashes and team-entry positions behind the header gate
+- Completed DraftEvents are immutable and carry a deterministic result hash; a pre-start SQLite safety backup is required before the first pick (not before every pick)
+- Draft never mutates Player truth, F25 provenance, F24 development, F26 scouting reports, club lineups, NT snapshots, or F20 archives
 
 ### 2026-07-15 — F26 Scouting (Significant)
 
@@ -153,8 +188,8 @@ Unchanged.
 | Item | Value |
 |---|---|
 | Dataset schemaVersion | 5 (unchanged) |
-| Migration | `20260716000000_f26_scouting` + `20260716010000_f26_scouting_audit` |
-| Verifier | `npm run verify:scouting` |
-| Default config | Scouting Default v1 (fictional calibration) |
-| UI | `/scouting`, `/teams/:teamId/scouting`, `/scouts`, `/scouts/:id` |
-| Next | F27 |
+| Migration | `20260716020000_f27_draft` (+ `20260716000000_f26_scouting`, `20260716010000_f26_scouting_audit`) |
+| Verifier | `npm run verify:draft` |
+| Default config | Amateur Draft Default (fictional, 7 rounds) |
+| UI | `/drafts`, `/drafts/:draftEventId` (tabs: Overview/Eligibility/Order/Lottery/Draft Room/Results/Team Board/Diagnostics) |
+| Next | F28 |

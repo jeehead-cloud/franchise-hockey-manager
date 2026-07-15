@@ -591,6 +591,50 @@ Client: `/scouting` landing (club selection required), `/teams/:teamId/scouting`
 
 Verifier: `npm run verify:scouting`
 
+## 7m. NHL Draft (F27)
+
+Pure engine (`packages/engine/src/draft/`):
+- Strict versioned `DraftConfig` (schemaVersion 1): rounds, eligibility (min/max age, explicit `cutoffDate`, allowed lifecycle/source, require-unsigned, exclude-already-drafted), order (REVERSE_STANDINGS/MANUAL, repeat-or-snake), lottery (enabled/eligibleTeamCount/drawCount/maximumMoveUp/weights), autoPick weights
+- Deterministic eligibility from `draftAgeOnCutoffDate` (explicit cutoff — no wall clock); never consults true ability/potential; frozen `DraftEligiblePlayer` snapshots with eligibility hash
+- Deterministic multi-round order: reverse standings (worst first) or MANUAL; optional snaking; unique contiguous overall pick numbers
+- Bounded deterministic seeded lottery (simplified — not NHL-fidelity): weighted draw among the bottom `eligibleTeamCount`, no repeat winners, `maximumMoveUp` enforced, non-lottery teams retain relative order; deterministic lottery hash
+- Frozen team board normalization from F26 scouting DTOs (estimates only); suggested rank (estimate-only score) separate from manual rank; risk derived from confidence/staleness; unscouted prospects get bounded fallback + high risk but remain selectable
+- Estimate-only deterministic auto-pick: weighted blend of estimated potential/CA/confidence/projected role minus risk penalty, plus watchlist bonus and a stable player-id fallback for tie-breaks; manual-rank precedence when configured; **no true-value parameter**
+- Progression (on-the-clock is state only — no real timer), reconciliation (unique picks/players, one ACTIVE right per completed pick), result hash
+
+Persistence:
+- `DraftPreset` / immutable `DraftPresetVersion` / singleton `ActiveDraftConfiguration` (separate from F10/F24/F25/F26 presets); default bootstrap **Amateur Draft Default** (idempotent, fictional, 7 rounds)
+- `DraftEvent` (PLANNED → PREPARING → READY → IN_PROGRESS → COMPLETED | CANCELLED), `DraftEligiblePlayer` (AVAILABLE/DRAFTED/WITHDRAWN/INELIGIBLE_AFTER_REVIEW), `DraftTeamEntry` (original/lottery/final order positions), `DraftLotteryDraw`, `DraftPick` (PENDING/ON_THE_CLOCK/COMPLETED/PASSED/CANCELLED; `currentTeamId == originalTeamId`), `PlayerDraftRight` (ACTIVE only in F27), `DraftTeamBoardSnapshot` (frozen at start)
+- `DraftPick.selectedPlayerId` → `DraftEligiblePlayer` (not Player); `PlayerDraftRight.draftPickId` unique (one right per pick)
+
+Visibility boundary (highest-priority invariant):
+- Team-scoped `/api/drafts/:id/teams/:teamId/board` returns **only that club's F26 estimates** — estimated CA/potential/confidence/risk/watchlist/manual+suggested rank; never true potential, true current ability, role, F25 quality tier, or generation diagnostics
+- Another club's private board/observations/watchlist are not readable; team A's board shows Unknown for prospects scouted only by team B
+- Commissioner `/api/commissioner/drafts/:id/diagnostics` reveal order/lottery/result hashes and team-entry positions behind the header gate; normal routes never carry those fields
+- Public `/api/players/:id/draft-history` and `/api/teams/:id/draft-rights` show season/round/overall/team/rights-status/unsigned only
+
+Pick workflow (atomic transaction):
+1. validate DraftEvent IN_PROGRESS + current ON_THE_CLOCK pick
+2. validate Player is in eligibility class and AVAILABLE
+3. complete DraftPick (selectedPlayerId/name/source/selectedAt)
+4. create ACTIVE `PlayerDraftRight` (no contract)
+5. mark `DraftEligiblePlayer` DRAFTED
+6. advance next pick to ON_THE_CLOCK
+7. if no picks or no available prospects remain → `completeDraftInternal` (reconcile + result hash + COMPLETED)
+8. audit at pick level; **Player.currentTeamId is never updated; no Contract row is created; no lineup is mutated**
+
+Invariants:
+- Draft never mutates Player truth, F25 provenance, F24 development, F26 scouting reports, club lineups, NT snapshots, or F20 archives
+- Drafted Player remains `PROSPECT`, unsigned, `currentTeamId = null`; one ACTIVE right per completed pick
+- F27 does not trade picks, assign drafted players to a club roster, modify lineups, or create the next WorldSeason
+- Completed DraftEvents are immutable (deterministic result hash); pre-start SQLite backup required before the first pick
+
+APIs: `/api/drafts*` (list/status/detail/eligibility/order/picks/lottery/results, `/teams/:teamId/board`, `/teams/:teamId/results`), `/api/players/:id/draft-history`, `/api/teams/:id/draft-rights`, `/api/drafts/:id/picks/:pickId/select|auto-select`; Commissioner `/api/commissioner/drafts*` (create/generate-eligibility/generate-order/run-lottery/mark-ready/start/cancel/picks/:pickId/select/diagnostics) + `/api/commissioner/draft/configurations*`
+
+Client: `/drafts` landing (current-season status + latest selections), `/drafts/:id` (tabs: Overview, Eligible Prospects, Draft Order, Lottery, Draft Room, Results, Team Board, Diagnostics), sidebar Draft entry, World Dashboard draft card; Draft Room shows pick history, on-clock team, team board estimates, manual Select + Auto-Pick + Commissioner Select
+
+Verifier: `npm run verify:draft`
+
 ---
 
 ## 8. Why Client-Server From Day One

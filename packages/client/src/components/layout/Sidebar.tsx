@@ -1,5 +1,6 @@
 import {
   BookOpen,
+  ClipboardList,
   Flag,
   FlaskConical,
   Globe,
@@ -40,6 +41,7 @@ export const MAIN_NAV: NavItem[] = [
   { to: '/coaches', label: 'Coaches', icon: UserRound },
   { to: '/development', label: 'Development', icon: Sprout },
   { to: '/youth-generation', label: 'Youth Generation', icon: UsersRound },
+  { to: '/drafts', label: 'Draft', icon: ClipboardList },
   { to: '/settings', label: 'Settings', icon: Settings },
   { to: '/simulation-lab', label: 'Simulation Lab', icon: FlaskConical },
 ];

@@ -29,7 +29,8 @@
     "verify:international-tournaments": "tsx src/competitions/international/verify-international-tournaments.ts",
     "verify:player-development": "tsx src/development/verify-player-development.ts",
     "verify:youth-generation": "tsx src/youth-generation/verify-youth-generation.ts",
-    "verify:scouting": "tsx src/scouting/verify-scouting.ts"
+    "verify:scouting": "tsx src/scouting/verify-scouting.ts",
+    "verify:draft": "tsx src/draft/verify-draft.ts"
   },
   "devDependencies": {
     "typescript": "^5.8.2",

@@ -1485,39 +1485,36 @@ Use Commissioner-managed Scouts and one-per-club ScoutingDepartments with versio
 
 Implement the complete first-version NHL Draft.
 
+**Status: implemented locally (2026-07-15).** Deterministic annual amateur draft consuming F25 prospects and F26 team-specific scouting knowledge. Versioned draft configuration; explicit-cutoff eligibility snapshots; reverse-standings/MANUAL order; bounded deterministic seeded lottery; multi-round picks with original==current ownership (no pick trading); `PlayerDraftRight` (ACTIVE only — no contract, no club assignment); frozen team board snapshots (estimates only); estimate-only deterministic auto-pick; Commissioner lifecycle; pre-start SQLite backup; public `/drafts` + team-scoped Draft Room UI; sidebar entry; World Dashboard draft card. Drafted players remain PROSPECT/unsigned/`currentTeamId=null`. No contracts, trades, pick transfers, club assignment, lineup mutation, or next-WorldSeason creation. Verifier `verify:draft`.
+
 ## Scope
 
 - configurable rounds;
-- initial 3-round preset;
-- draft eligibility;
-- lottery;
-- draft order;
-- pick ownership;
-- draft screen;
+- versioned draft configuration (`DraftPreset`/`DraftPresetVersion`/`ActiveDraftConfiguration`);
+- draft eligibility with explicit cutoff date;
+- lottery (simplified, deterministic, seeded);
+- draft order (reverse standings or manual);
+- pick ownership (original==current in F27);
+- draft screen / draft room;
 - manual teams;
-- AI teams;
-- pause and auto-advance;
+- deterministic auto-pick (bounded, estimates only);
 - draft selection;
-- rights creation;
+- rights creation (ACTIVE only);
 - draft history.
 
-AI strategies:
-
-```text
-Best Player Available
-High Upside
-Team Need
-Low Risk
-```
+AI strategies: F27 ships a single bounded deterministic auto-pick (effectively "best estimate available" using only that team's scouting estimates). The four named strategies (Best Player Available / High Upside / Team Need / Low Risk) remain a future enrichment.
 
 ## Acceptance Criteria
 
-- eligible class comes from existing youth players;
-- every pick belongs to its current owner;
-- AI uses scouting estimates;
-- user may take over any pick;
-- rights owner is stored separately from current team;
-- undrafted players remain in the world;
+- eligible class comes from existing prospects (F25 youth + others already in the world);
+- every pick belongs to its current owner (== original owner; no pick trading in F27);
+- auto-pick uses scouting estimates only (never true potential/hidden values);
+- user may take over any pick (manual select + Commissioner on-behalf select);
+- rights owner is stored separately from current team (`PlayerDraftRight` vs `Player.currentTeamId`);
+- undrafted players remain in the world (PROSPECT/unsigned);
+- drafted players remain PROSPECT, unsigned, and `currentTeamId = null`;
+- no contracts, trades, or pick transfers are created;
+- completed DraftEvents are immutable;
 - tests pass.
 
 ---
