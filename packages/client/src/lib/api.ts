@@ -4709,3 +4709,167 @@ export const retryOffseasonPhase = (phaseId: string, runId: string, reason: stri
   commissionerWrite<{ item: OffseasonRunItem }>(`/api/commissioner/offseason/phases/${phaseId}/retry`, 'POST', { runId, reason, expectedUpdatedAt });
 export const linkOffseasonPhase = (phaseId: string, runId: string, operationType: 'CONTRACT_EXPIRATION' | 'PLAYER_DEVELOPMENT' | 'YOUTH_GENERATION' | 'DRAFT' | 'COMPETITION_ARCHIVE', operationId: string, expectedUpdatedAt?: string) =>
   commissionerWrite<{ item: OffseasonRunItem }>(`/api/commissioner/offseason/phases/${phaseId}/link`, 'POST', { runId, operationType, operationId, expectedUpdatedAt });
+
+// F31 — Season Transition (Renewable World Cycle).
+// Persistent, deterministic, Commissioner-controlled season-rollover workflow
+// that consumes a completed F30 OffseasonRun and creates exactly one next
+// WorldSeason plus its CompetitionEditions. One transition per source season;
+// the target season is a new record. F31 never generates schedules or Matches
+// and never replays F24–F30 operations.
+
+export interface SeasonTransitionReadiness {
+  status: 'READY' | 'WARNING' | 'NOT_READY';
+  checks: Array<{ id: string; status: 'PASS' | 'WARN' | 'FAIL'; message: string }>;
+  blockers: Array<{ code: string; message: string }>;
+  warnings: Array<{ code: string; message: string }>;
+  sourceSeason: { id: string; label: string; startYear: number; endYear: number; status: string; phase: string; updatedAt: string };
+  completedOffseasonRun: { id: string; status: string; resultHash: string | null; completedAt: string | null } | null;
+  proposedTargetSeason: {
+    order: number;
+    label: string;
+    displayName: string;
+    startDateIso: string;
+    endDateIso: string;
+    manuallyNamed: boolean;
+  };
+  competitionPlan: Array<{
+    competitionId: string;
+    competitionName: string;
+    competitionType: string;
+    simulationLevel: string | null;
+    displayName: string;
+    isInternational: boolean;
+    initialStatus: string;
+    rulesHash: string;
+    stages: Array<{ name: string; stageType: string; stageOrder: number; configHash: string; participantSource: string; remappedFromStageOrder: number | null }>;
+    participantCount: number;
+    selectionReason: string;
+  }>;
+  carryForwardSummary: {
+    lineups: { carryForward: boolean; markedForReview: boolean; copyTactics: boolean; autoRebuild: boolean };
+    scouting: { preserved: boolean; staleReports: number; totalReports: number };
+    nationalTeams: { createPreparation: boolean; carryLockedRosters: boolean };
+    contracts: { requireNoOwnershipMismatch: boolean; activateFuture: boolean; freeAgents: number };
+    draftRights: { carried: boolean; unsignedCount: number };
+    players: { preserved: boolean };
+  };
+  allowedActions: string[];
+  readinessHash: string;
+}
+
+export interface SeasonTransitionRunEvent {
+  id: string;
+  eventType: string;
+  statusBefore: string | null;
+  statusAfter: string | null;
+  summaryText: string;
+  reason: string;
+  eventHash: string;
+  createdAt: string;
+}
+
+export interface SeasonTransitionEntityRecord {
+  id: string;
+  entityType: string;
+  sourceEntityId: string | null;
+  targetEntityId: string | null;
+  action: string;
+  snapshotHash: string;
+  createdAt: string;
+}
+
+export interface SeasonTransitionRunItem {
+  id: string;
+  sourceWorldSeasonId: string;
+  sourceWorldSeason: { id: string; label: string; startYear: number; endYear: number; status: string; phase?: string };
+  targetWorldSeasonId: string | null;
+  targetWorldSeason: { id: string; label: string; startYear: number; endYear: number; status: string } | null;
+  status: string;
+  configVersion: { id: string; versionNumber: number; configHash: string; changeReason: string };
+  configHash: string;
+  runVersion: number;
+  targetDisplayName: string;
+  targetSeasonOrder: number;
+  targetStartDateIso: string | null;
+  targetEndDateIso: string | null;
+  inputHash: string;
+  planHash: string;
+  resultHash: string | null;
+  preparedAt: string | null;
+  startedAt: string | null;
+  completedAt: string | null;
+  failedAt: string | null;
+  cancelledAt: string | null;
+  backupMetadataText: string | null;
+  reason: string;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+  events: SeasonTransitionRunEvent[];
+  entityRecords: SeasonTransitionEntityRecord[];
+}
+
+export interface SeasonTransitionStatusDto {
+  initialized: boolean;
+  currentSeason: { id: string; label: string; startYear: number; endYear: number; status: string; phase: string } | null;
+  latestTransition: { id: string; status: string; sourceWorldSeasonId: string; targetWorldSeasonId: string | null; targetWorldSeasonLabel: string | null; targetDisplayName: string; targetSeasonOrder: number; completedAt: string | null } | null;
+}
+
+export interface SeasonTransitionListItem {
+  id: string;
+  sourceWorldSeasonId: string;
+  sourceWorldSeasonLabel: string;
+  targetWorldSeasonId: string | null;
+  targetWorldSeasonLabel: string | null;
+  status: string;
+  runVersion: number;
+  targetDisplayName: string;
+  targetSeasonOrder: number;
+  preparedAt: string | null;
+  completedAt: string | null;
+  failedAt: string | null;
+  cancelledAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  reason: string;
+  createdBy: string;
+}
+
+export interface SeasonTransitionConfigItem {
+  id: string;
+  name: string;
+  description: string | null;
+  isSystem: boolean;
+  versions: Array<{ id: string; versionNumber: number; schemaVersion: number; configHash: string; isActive: boolean; createdAt: string }>;
+}
+
+export const getCurrentWorldSeason = (signal?: AbortSignal) => getJson<{ item: WorldSeasonItem }>('/api/world-seasons/current', signal);
+export const getWorldSeason = (id: string, signal?: AbortSignal) => getJson<{ item: WorldSeasonItem }>(`/api/world-seasons/${id}`, signal);
+export const getWorldSeasonReadiness = (id: string, signal?: AbortSignal) =>
+  getJson<{ item: { worldSeasonId: string; label: string; status: string; completedOffseasonRun: { id: string; completedAt: string | null } | null; activeCompetitionEditions: number; completedButUnarchived: number; transitionEligible: boolean; transitionEligibleReason: string } }>(`/api/world-seasons/${id}/readiness`, signal);
+export const getSeasonTransitionStatus = (signal?: AbortSignal) => getJson<{ item: SeasonTransitionStatusDto }>('/api/season-transitions/status', signal);
+export const getSeasonTransitionConfigurations = (signal?: AbortSignal) => getJson<{ items: SeasonTransitionConfigItem[] }>('/api/season-transitions/configurations', signal);
+export const getSeasonTransitions = (query = '', signal?: AbortSignal) => getJson<{ items: SeasonTransitionListItem[] }>(`/api/season-transitions${query}`, signal);
+export const getSeasonTransitionRun = (id: string, signal?: AbortSignal) => getJson<{ item: SeasonTransitionRunItem }>(`/api/season-transitions/${id}`, signal);
+export const getSeasonTransitionRunReadiness = (id: string, signal?: AbortSignal) => getJson<{ item: SeasonTransitionReadiness }>(`/api/season-transitions/${id}/readiness`, signal);
+export const getSeasonTransitionRunHistory = (id: string, signal?: AbortSignal) => getJson<{ items: SeasonTransitionRunEvent[] }>(`/api/season-transitions/${id}/history`, signal);
+export const getSeasonTransitionRunResult = (id: string, signal?: AbortSignal) => getJson<{ item: { runId: string; status: string; resultHash: string | null; targetWorldSeasonId: string | null; entityRecords: SeasonTransitionEntityRecord[] } }>(`/api/season-transitions/${id}/result`, signal);
+export const previewSeasonTransition = (sourceWorldSeasonId: string, signal?: AbortSignal, configVersionId?: string, targetDisplayNameOverride?: string | null) => {
+  const params = new URLSearchParams({ sourceWorldSeasonId });
+  if (configVersionId) params.set('configVersionId', configVersionId);
+  if (targetDisplayNameOverride) params.set('targetDisplayNameOverride', targetDisplayNameOverride);
+  return getJson<{ item: { previewOnly: boolean; inputHash: string; readiness: SeasonTransitionReadiness } }>(`/api/season-transitions/preview?${params.toString()}`, signal);
+};
+
+export const prepareSeasonTransition = (payload: { sourceWorldSeasonId: string; configVersionId?: string; targetDisplayNameOverride?: string | null; expectedSourceSeasonUpdatedAt?: string; reason: string; createdBy: string }) =>
+  commissionerWrite<{ item: SeasonTransitionRunItem }>('/api/commissioner/season-transitions/prepare', 'POST', payload);
+export const executeSeasonTransition = (runId: string, reason: string, expectedUpdatedAt?: string) =>
+  commissionerWrite<{ item: SeasonTransitionRunItem }>(`/api/commissioner/season-transitions/${runId}/execute`, 'POST', { reason, expectedUpdatedAt });
+export const cancelSeasonTransition = (runId: string, reason: string, expectedUpdatedAt?: string) =>
+  commissionerDelete<{ item: SeasonTransitionRunItem }>(`/api/commissioner/season-transitions/${runId}`, { reason, expectedUpdatedAt });
+export const retrySeasonTransition = (runId: string, reason = 'Retry after failure') =>
+  commissionerWrite<{ item: SeasonTransitionRunItem }>(`/api/commissioner/season-transitions/${runId}/retry`, 'POST', { reason });
+export const createSeasonTransitionConfiguration = (payload: { name: string; description?: string | null; config: unknown; activate?: boolean; reason: string }) =>
+  commissionerWrite<{ item: SeasonTransitionConfigItem }>('/api/commissioner/season-transition-configurations', 'POST', payload);
+export const activateSeasonTransitionConfiguration = (versionId: string, reason: string) =>
+  commissionerWrite<{ item: unknown }>(`/api/commissioner/season-transition-configuration-versions/${versionId}/activate`, 'POST', { reason });

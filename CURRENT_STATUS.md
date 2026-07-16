@@ -1,7 +1,7 @@
 ﻿# Franchise Hockey Manager — Current Status
 
 **Status:** Active
-**Last updated:** 2026-07-17
+**Last updated:** 2026-07-17 (F31)
 **Repository:** `https://github.com/jeehead-cloud/franchise-hockey-manager`
 **Local repository path:** `C:\Projects\franchise-hockey-manager`
 
@@ -12,11 +12,11 @@
 
 ## 1. Current Development Phase
 
-**F30 — Offseason Workflow: implemented locally (not committed).** Persistent, resumable, Commissioner-controlled offseason orchestration that coordinates existing F20/F24/F25/F27/F28/F29 subsystems through their own services without duplicating their domain logic. Pure engine module (`packages/engine/src/offseason/`) owns strict versioned configuration validation, the explicit 13-phase order, the linear dependency graph, phase/run state transitions, FINAL_REVIEW completion aggregation from domain-neutral inputs, reconciliation, and deterministic hashes. Persistence adds `OffseasonPreset`/`OffseasonPresetVersion`/`ActiveOffseasonConfiguration`, `OffseasonRun`, ordered `OffseasonPhase` (with explicit nullable linked-operation columns — no polymorphic FK), and append-only `OffseasonPhaseEvent` history; migration `20260717000000_f30_offseason` is additive. Server services create/start/cancel/refresh/complete runs, start/complete/skip/retry/link phases, gather world-integrity inputs, detect already-completed underlying runs and link them idempotently, and audit orchestration actions only. Repeated refresh/link/completion are idempotent; the workflow survives server restart. Public read + Commissioner command APIs (no arbitrary status PATCH); client routes `/offseason`, `/offseason/runs/:runId`, `/offseason/runs/:runId/teams/:teamId`. Boundaries: F30 does **not** create the next WorldSeason (F31 does), enforce a salary cap or roster-size cap, auto-accept offers, auto-generate trades, auto-run draft picks, auto-release retired players, auto-rebuild lineups, or rescout — each remains an explicit action in its own subsystem.
+**F31 — Season Transition and Next WorldSeason Creation: implemented locally (not committed).** Persistent, deterministic, Commissioner-controlled season-rollover workflow that consumes a completed F30 OffseasonRun and creates exactly one next WorldSeason (plus its CompetitionEditions, stages, and confirmed participants) in one atomic transaction. Pure engine module (`packages/engine/src/season-transition/`) owns strict versioned configuration validation, deterministic target-season identity/order/date calculation, display-name derivation, carry-forward plan construction from domain-neutral inputs, readiness aggregation, transition result reconciliation, and deterministic hashes (no Prisma). Persistence adds `SeasonTransitionPreset`/immutable `SeasonTransitionPresetVersion`/singleton `ActiveSeasonTransitionConfiguration`, `SeasonTransitionRun` (PREPARED/RUNNING/COMPLETED/FAILED/CANCELLED — one active per source season, service-enforced; one source per target via unique `targetWorldSeasonId`), `SeasonTransitionEntityRecord` (aggregate summary only — never one row per Player), and append-only `SeasonTransitionEvent` history; `WorldSeason` gains `createdSeasonTransition`/`seasonTransitionsAsSource` relations; migration `20260718000000_f31_season_transition` is additive. Server services (`season-transition-config`/`-readiness`/`-runs`/`commissioner-season-transition`) handle bootstrap, preview (no writes), prepare (freeze input + plan hashes), stale-input proof, pre-execute SQLite safety backup, atomic execution (target season + current-season designation + editions + stages + participants + entity records + COMPLETED in one transaction), idempotent re-execute, cancel/retry, config CRUD, and audit at the orchestration level only. Public read + Commissioner command APIs (no arbitrary status PATCH); client routes `/seasons`, `/seasons/:worldSeasonId`, `/season-transition`, `/season-transition/runs/:runId` plus a sidebar Seasons entry. Boundaries: F31 does **not** generate schedules, Matches, standings, or brackets; does **not** replay F24 development / F25 youth / F27 draft / F28 expiration / F29 trades; does **not** auto-activate FUTURE contracts, auto-rebuild lineups, or reuse locked national-team rosters; completed transitions are immutable (correction requires F32 recovery). Exactly one current (ACTIVE) WorldSeason after completion; `startYear` remains the canonical season order; Player birth dates never change and age remains derived.
 
-**Next milestone: F31** (Renewable World Cycle — do not start until requested).
+**Next milestone: F32** (Backup and Recovery — do not start until requested).
 
-F1–F29 are committed on `main`. F30 changes are uncommitted in this tree.
+F1–F30 are committed on `main`. F31 changes are uncommitted in this tree.
 
 ---
 
@@ -104,6 +104,19 @@ Implemented:
 Not in F30:
 - F31 next WorldSeason / season rollover / new CompetitionEditions / next schedules; F32 backup recovery manager; F33 import/export maintenance; salary cap; roster-size enforcement beyond readiness warnings; AI general managers; automated contract acceptance; automated trades; automatic draft picks (the existing F27 explicit auto-pick must still be invoked); new development/youth/scouting/draft/contract/trade formulas; auto-release of retired players; auto-rebuild of lineups; auto-rescout; authentication; deployment
 
+### F31 — Season Transition (Done locally)
+
+Implemented:
+- Pure engine `packages/engine/src/season-transition/` — strict versioned `SeasonTransitionConfig` (schemaVersion 1), deterministic target-season identity/order/date calculation, display-name derivation with override support, carry-forward plan (domestic-recurring + international-explicit-recurrence rules), stage dependency remapping with acyclic validation, readiness aggregation (blockers vs warnings from domain-neutral inputs), transition result reconciliation (exactly-one-current-season, player-count invariance, no-Match/no-schedule proof, no-NT-roster-reuse), deterministic hashes (same family as offseason/trades/contracts; no node:crypto in engine exports); `verify:season-transition` (16 checks incl. 30-competition plan-construction benchmark)
+- Prisma: `SeasonTransitionPreset`/immutable `SeasonTransitionPresetVersion`/singleton `ActiveSeasonTransitionConfiguration`, `SeasonTransitionRun` (one active per source season service-enforced; one source per target via unique `targetWorldSeasonId`), `SeasonTransitionEntityRecord` (aggregate summary — never one per Player), append-only `SeasonTransitionEvent`; `WorldSeason.sourceTransition`/`targetTransition` relations; migration `20260718000000_f31_season_transition` (additive, no domain operations, no ownership changes); audit enums `SEASON_TRANSITION_*` + `WORLD_SEASON_CREATED`/`CURRENT_WORLD_SEASON_CHANGED`
+- Server: bootstrap Season Transition Default (idempotent); public reads (`/api/world-seasons/current`, `/api/world-seasons/:id/readiness`, `/api/season-transitions/status|configurations|runs|:runId|:runId/readiness|plan|history|result`, `/api/season-transitions/preview`); Commissioner command APIs (`/api/commissioner/season-transitions/preview|prepare|:runId/execute|:runId` DELETE cancel/`:runId/retry`/`:runId/diagnostics`, `/api/commissioner/season-transition-configurations` CRUD + version activate); engine errors mapped to 409/422/503 with stable codes; optimistic concurrency via `expectedUpdatedAt`/`expectedSourceSeasonUpdatedAt`; pre-execute SQLite safety backup; atomic execution (target season + current-season designation + editions + stages + participants + entity records + COMPLETED in one transaction); idempotent re-execute returns existing COMPLETED run; orchestration-only audit (no per-Player/per-Team audit)
+- Idempotency/resumability: preview is write-free; prepare freezes input + plan hashes (identical input returns the same PREPARED run; conflicting input → 409); execute re-validates the frozen input against the live world (409 `SeasonTransitionInputStale` on drift — no silent recalculation); the workflow reloads from persisted rows after server restart; second transition from the same source season is rejected (409 `SeasonTransitionAlreadyExists`)
+- Privacy: normal reads never expose true potential, hidden attributes, F25 quality tier, or another Team's private scouting report; F31 surfaces only advisory scouting-staleness counts (computed by F26) and ownership-integrity counters
+- Invariants: one active transition per source season; one source per target season; exactly one current (ACTIVE) WorldSeason after completion; source demoted to COMPLETED (historical, still readable); target CompetitionEditions are new PLANNED records (rules snapshots + hashes copied into new rows; later Competition.defaultRulesJson edits do not rewrite them); no schedules, Matches, standings, brackets, PlayoffSeries, AggregatedSeasonRun, or locked national-team rosters are created/copied; Players/contracts/rights/scouting/archives/history are preserved without duplication or mutation; club lineups are NOT auto-rebuilt (carried as working copies + surfaced for review); completed transitions are immutable
+
+Not in F31:
+- F32 backup/recovery manager (F31 creates one pre-execute SQLite safety snapshot but offers no restore UI); F33 import/export; automatic schedules, Matches, development, youth generation, draft, contract offers, free-agent signings, trades, scouting assignments, national-team roster selection; FUTURE-contract auto-activation (warned only — resolve through F28); promotion/relegation; league restructuring; expansion; salary cap; AI general managers; authentication; deployment
+
 ### M1–M8
 
 Unchanged.
@@ -118,21 +131,35 @@ Unchanged.
 - Scouting calibration (Scouting Default v1) is a simplified fictional preset — not tuned to any real scouting model.
 - The F27 draft lottery is a simplified fictional development lottery — **not exact NHL lottery fidelity**.
 - Team-scoped scouting/draft-board/trade APIs use local sandbox team context (`/teams/:teamId/scouting`, `/drafts/:id/teams/:teamId/board`, `/api/teams/:teamId/trade-proposals`); there is **no authentication** — any caller passing a teamId reads that club's estimates. Commissioner header is not security.
-- Manual UI verification for F25, F26, F27, F28, F29, and F30 was **NOT RUN**.
-- F30 changes not yet committed/pushed.
+- Manual UI verification for F25, F26, F27, F28, F29, F30, and F31 was **NOT RUN**.
+- F30 + F31 changes not yet committed/pushed.
+- F31 scouting-staleness counts in readiness are advisory upper bounds (F26 owns the precise stale-vs-fresh classification against the player-state hash; F31 reports the count only and never rewrites historical reports).
+- F31 international-tournament carry-forward defaults to "manual" unless the Competition definition carries an explicit recurrence flag (no recurrence metadata is modelled yet, so international tournaments are intentionally omitted from the plan and surfaced as a warning).
 - Retired players may still appear on team roster lists until offseason cleanup (Roster Review phase surfaces this as a blocker; F30 does not auto-release).
 
 ---
 
 ## 4. Nearest Next Steps
 
-1. Run the remaining disposable-database manual UI pass, including F30 Offseason: create run, phase checklist, start run, dependency-incomplete rejection, archive phase, expiration phase, development phase, retirement review, youth generation, draft, optional drafted signing, free agency, trades, roster review, lineup review, scouting review, skip optional phase, required-skip rejection, restart/resume, final-review blockers, resolve blocker, complete run, confirm no next season created, team page, normal read-only mode, direct routes/refresh, responsive checklist/tables.
-2. Commit/push F30 when the owner requests.
-3. **F31** (Renewable World Cycle) only when explicitly requested.
+1. Run the remaining disposable-database manual UI pass, including F30 Offseason and F31 Season Transition: seasons timeline, current/historical season labels, F30 completed prerequisite, transition preview (deterministic target identity + carry-forward list + stage templates + participants + contract/right summary + lineup review warning + national-team roster non-reuse), prepare, confirm no target before execute, execute + backup, target becomes current, source becomes historical, new CompetitionEditions are PLANNED, no schedules/Matches exist, repeated execute safe, second transition blocked, target-season readiness, dashboard switches current season, direct routes/refresh, responsive tables/cards, normal mode read-only, Commissioner diagnostics.
+2. Commit/push F30 + F31 when the owner requests.
+3. **F32** (Backup and Recovery) only when explicitly requested.
 
 ---
 
 ## 5. Recent Changes
+
+### 2026-07-17 — F31 Season Transition and Next WorldSeason Creation
+
+- Implemented a persistent, deterministic, Commissioner-controlled season-rollover workflow that consumes a completed F30 OffseasonRun and creates exactly one next WorldSeason (plus CompetitionEditions, stages, and confirmed participants) in one atomic transaction — without replaying F24–F30 operations
+- Pure engine `packages/engine/src/season-transition/` owns strict versioned config validation, deterministic target-season identity/order/date calculation, display-name derivation (with override support), carry-forward plan construction (domestic-recurring + international-explicit-recurrence), stage dependency remapping with acyclic validation, readiness aggregation (blockers vs warnings from domain-neutral inputs), transition result reconciliation (exactly-one-current-season, player-count invariance, no-Match/no-schedule proof, no-NT-roster-reuse), and deterministic hashes
+- Prisma: `SeasonTransitionPreset`/immutable `SeasonTransitionPresetVersion`/singleton `ActiveSeasonTransitionConfiguration`, `SeasonTransitionRun` (one active per source season service-enforced; one source per target via unique `targetWorldSeasonId`), `SeasonTransitionEntityRecord` (aggregate summary only — never one per Player), append-only `SeasonTransitionEvent`; `WorldSeason.sourceTransition`/`targetTransition` relations; migration `20260718000000_f31_season_transition` (additive, no domain operations, no ownership changes); audit enums `SEASON_TRANSITION_*` + `WORLD_SEASON_CREATED`/`CURRENT_WORLD_SEASON_CHANGED`
+- Server services: bootstrap Season Transition Default (idempotent); preview (no write) → prepare (freeze input + plan hashes) → execute (pre-execute SQLite safety backup + stale-input proof + atomic publication: target season + current-season designation + editions + stages + participants + entity records + COMPLETED in one transaction); idempotent re-execute returns existing COMPLETED; cancel/retry; config CRUD + version activate; optimistic concurrency; orchestration-only audit
+- Idempotency/resumability: identical prepare input returns the same PREPARED run; conflicting input → 409; execute re-validates the frozen input against the live world (409 `SeasonTransitionInputStale` on drift — no silent recalculation); the workflow reloads from persisted rows after server restart; second transition from the same source season is rejected
+- Boundaries (honest): F31 does **not** generate schedules/Matches/standings/brackets, replay development/youth/draft/expiration/trades, auto-activate FUTURE contracts, auto-rebuild lineups, or reuse locked national-team rosters; backups are not duplicated (one pre-execute SQLite snapshot only — no F32 restore UI); completed transitions are immutable (correction requires F32 recovery)
+- Validation (all PASS): Prisma format/validate/generate; empty-DB `migrate deploy` through F31 (26 migrations); engine tests 382 PASS (incl. 50 season-transition tests); server tests 283 PASS (incl. 25 F31 server tests + migration-history F1–F31); all 19 verifiers PASS incl. `verify:season-transition` (30-competition plan-construction benchmark ~25ms); root typecheck; engine/server/client builds; `git diff --check` clean
+- Manual UI **NOT RUN**
+- Remaining: F31 uncommitted; F32 deferred
 
 ### 2026-07-17 — F30 Offseason Workflow
 
@@ -203,6 +230,20 @@ Unchanged.
 ---
 
 ## 6. Significant Changes
+
+### 2026-07-17 — F31 Season Transition and Next WorldSeason Creation (Significant)
+
+- F31 is the **only** milestone in the foundation plan that may create the next WorldSeason. One completed transition per source WorldSeason; one source per target season (DB-enforced via unique `targetWorldSeasonId`); target seasons are new records, never mutations of the source.
+- The target-season order is deterministic: `source.startYear + configuredIncrement`. `startYear` remains the canonical WorldSeason order (consistent with F28 contract semantics). Target label/dates derive from the config; a Commissioner may override only the display name (order/dates are never altered by an override), and the override is part of the frozen input hash.
+- Exactly one current (ACTIVE) WorldSeason after completion. `status = ACTIVE` remains the single source of truth for "current" — F31 does **not** introduce a competing `isCurrent` boolean. The source season is demoted to COMPLETED (historical, still readable).
+- Transition lifecycle is `PREPARED → RUNNING → COMPLETED` (plus `FAILED`/`CANCELLED`). Preview is write-free; prepare freezes the input + plan hashes; execute re-validates the frozen input against the live world (409 `SeasonTransitionInputStale` on drift — no silent recalculation). A pre-execute SQLite safety backup is required; atomic publication creates the target season, current-season designation, CompetitionEditions, stages, participants, entity records, and the COMPLETED row in one transaction. Any failure leaves no partial target state.
+- Repeated execute after COMPLETED is idempotent (returns the existing result). A second transition from the same source season is rejected with 409 `SeasonTransitionAlreadyExists`. Completed transitions are immutable; correction requires F32 database recovery.
+- Target CompetitionEditions are new PLANNED records: rules snapshots + hashes are copied into new rows (later Competition.defaultRulesJson edits do not rewrite them); stage templates are copied with source-stage dependencies remapped to target stageOrder and re-validated for acyclicity; confirmed participants are copied with fresh snapshots. No schedules, Matches, standings, brackets, PlayoffSeries, AggregatedSeasonRun, awards, champions, stats, or completed-status are copied — those remain in F20 archives/history.
+- Domestic competitions recur automatically when they had a source edition. International tournaments are carried only when the Competition definition carries an explicit recurrence flag (no recurrence metadata is modelled yet — international tournaments are intentionally omitted from the plan and surfaced as a warning). Behavior is config-driven and documented; no real Olympic cycles are hardcoded.
+- F31 preserves Players, contracts, draft rights, scouting reports, archives, and all history without duplication or mutation. Player birth dates never change; age remains derived from birth date + target-season dates. ACTIVE/FUTURE contract semantics remain consistent; `Player.currentTeamId` stays synchronized with the ACTIVE contract. FUTURE contracts are **not** auto-activated (resolve through F28) — surfaced as a warning. Draft rights remain with their holder. Scouting reports remain Team-private; F26 owns the precise stale-vs-fresh classification and F31 reports only advisory counts.
+- Locked F22 national-team rosters from completed tournaments are **never** reused for a new edition. No automatic national-team edition preparation is performed. Club lineups are **not** auto-rebuilt — they carry forward as working copies and are surfaced for review (no `needsReview` column is added; the warning lives in readiness).
+- Normal mode is read-only; Commissioner Mode is required for every transition mutation (prepare/execute/cancel/retry, config version activate). All writes are audited at the orchestration level only (one row per run event, never one per Player/Team/edition).
+- F31 creates one pre-execute SQLite safety snapshot but offers no restore UI — full backup/recovery remains F32.
 
 ### 2026-07-17 — F30 Offseason Workflow (Significant)
 
@@ -301,8 +342,8 @@ Unchanged.
 | Item | Value |
 |---|---|
 | Dataset schemaVersion | 5 (unchanged) |
-| Migration | `20260717000000_f30_offseason` |
-| Verifier | `npm run verify:offseason` |
-| Default config | Offseason Default (13 ordered phases; required phases cannot be skipped) |
-| UI | `/offseason`, `/offseason/runs/:runId`, `/offseason/runs/:runId/teams/:teamId` |
-| Next | F31 |
+| Migration | `20260718000000_f31_season_transition` |
+| Verifier | `npm run verify:season-transition` |
+| Default config | Season Transition Default (creates one next WorldSeason; no schedules/Matches) |
+| UI | `/seasons`, `/seasons/:worldSeasonId`, `/season-transition`, `/season-transition/runs/:runId` |
+| Next | F32 |

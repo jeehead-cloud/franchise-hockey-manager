@@ -41,6 +41,10 @@ import { CompletedTradeDetailPage, TradeProposalDetailPage, TradesPage, TeamTrad
 import { OffseasonPage } from './pages/OffseasonPage';
 import { OffseasonRunDetailPage } from './pages/OffseasonRunDetailPage';
 import { OffseasonTeamPage } from './pages/OffseasonTeamPage';
+import { SeasonsPage } from './pages/SeasonsPage';
+import { SeasonDetailPage } from './pages/SeasonDetailPage';
+import { SeasonTransitionPage } from './pages/SeasonTransitionPage';
+import { SeasonTransitionRunDetailPage } from './pages/SeasonTransitionRunDetailPage';
 
 export function App() {
   return (
@@ -107,6 +111,10 @@ export function App() {
             <Route path="/offseason" element={<OffseasonPage />} />
             <Route path="/offseason/runs/:runId" element={<OffseasonRunDetailPage />} />
             <Route path="/offseason/runs/:runId/teams/:teamId" element={<OffseasonTeamPage />} />
+            <Route path="/seasons" element={<SeasonsPage />} />
+            <Route path="/seasons/:worldSeasonId" element={<SeasonDetailPage />} />
+            <Route path="/season-transition" element={<SeasonTransitionPage />} />
+            <Route path="/season-transition/runs/:runId" element={<SeasonTransitionRunDetailPage />} />
             <Route path="/contract-expiration" element={<Navigate to="/contracts?tab=expiration" replace />} />
             <Route path="/simulation-lab" element={<SimulationLabPage />} />
             <Route path="*" element={<NotFoundPage />} />

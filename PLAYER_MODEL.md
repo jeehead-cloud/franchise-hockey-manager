@@ -1,7 +1,7 @@
 # Franchise Hockey Manager — Player Model
 
 **Status:** Active — **F5 foundation implemented** in `@fhm/engine` (prototype transcription retained below for history)
-**Last updated:** 2026-07-15
+**Last updated:** 2026-07-17 (F31)
 **Repository:** `https://github.com/jeehead-cloud/franchise-hockey-manager`
 **Source:** `Player_template.xlsx` (owner-provided prototype) + F5 implementation decisions
 
@@ -90,7 +90,7 @@ If no public estimate is imported, show `UNKNOWN` — do not derive public bands
 - Face-offs column (never populated in prototype)
 - Goalie placeholder (50/50 + all attrs = 10)
 
-Annual development (F24): see §0.5. Youth generation (F25): see §0.6. Scouting visibility (F26): see §0.7. Draft eligibility & rights (F27): see §0.8. Contracts and free agency (F28): see §0.9. Trades and rights transfers (F29): see §0.10.
+Annual development (F24): see §0.5. Youth generation (F25): see §0.6. Scouting visibility (F26): see §0.7. Draft eligibility & rights (F27): see §0.8. Contracts and free agency (F28): see §0.9. Trades and rights transfers (F29): see §0.10. Season transition (F31): see §0.11.
 
 ### 0.5 Annual development (F24)
 
@@ -144,6 +144,13 @@ Annual development (F24): see §0.5. Youth generation (F25): see §0.6. Scouting
 - Retired Players and free agents (no ACTIVE contract) cannot be traded as Player assets; rights-held Players who are already signed cannot be traded as rights.
 - Trade operations never change Player attributes, ability, potential, role, form, nationality, provenance, scouting observations/reports, development history, or archives. Team-private scouting reports do **not** transfer with a Player — each Team retains its own report or Unknown state.
 - Trade history is immutable: a completed trade and its append-only transactions persist permanently; `/api/players/:id/trades`, `/api/teams/:id/trades`, `/api/draft-picks/:id/trades`, and `/api/draft-rights/:id/trades` expose transfer history. Lineups are not auto-rewritten (a Team may become NOT_READY until auto-lineup is rerun).
+
+### 0.11 Season transition (F31)
+
+- F31 is the only milestone that creates the next WorldSeason. It does **not** alter Player skill, lifecycle, attributes, current ability, potential, development rate, form, role, or nationality. Player birth dates never change; age continues to derive from `dateOfBirth` and explicit target-season dates (F31 adds no persisted integer age).
+- ACTIVE/FUTURE contract semantics remain authoritative across seasons. `Player.currentTeamId` stays synchronized with the applicable ACTIVE contract after transition. FUTURE contracts are **not** auto-activated by F31 (resolve through F28) — surfaced as a warning. Draft rights remain with their holder. Free agents remain free agents. Retired Players remain retired and historical.
+- Scouting reports and observations are preserved unchanged (Team-private); F26 owns staleness against the player-state hash. F31 surfaces advisory staleness counts only and never rewrites historical reports.
+- F31 creates the next WorldSeason plus its CompetitionEditions, stages, and confirmed participants as new PLANNED records. It generates no schedules, Matches, standings, or brackets, and does not replay F24–F30 operations. Club lineups are not auto-rebuilt; locked national-team rosters are not reused.
 
 ### F12–F13 simulation consumption (2026-07-13)
 

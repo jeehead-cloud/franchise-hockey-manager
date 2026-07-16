@@ -1,7 +1,7 @@
 # Franchise Hockey Manager — Product Rules
 
 **Status:** Active
-**Last updated:** 2026-07-17
+**Last updated:** 2026-07-17 (F31)
 **Repository:** `https://github.com/jeehead-cloud/franchise-hockey-manager`
 
 > This document defines game-design invariants: rules that must remain true across the generator, the chemistry/tactics engine, and the season simulation.
@@ -302,6 +302,18 @@ Prototype aging table in §6 remains historical reference; F24 uses `PlayerDevel
 - Offseason completion does **not** imply every free agent is signed, every Team is perfectly optimized, or every draft right is converted (warnings only, per config). Completion requires no critical world-integrity blockers (required phases complete, no unarchived required competition, contract-expiration/development/youth/draft runs complete, no retired players in active lineups, no lineup ownership mismatch, no duplicate ACTIVE contracts, no open submitted trade proposals or contract offers when config disallows, no incomplete required detailed-club lineups).
 - Completing F30 does **not** create the next WorldSeason. F31 handles season rollover. This is surfaced as an explicit warning in the final-review UI and in every "complete run" path.
 - F30 audit records orchestration only (one row per run/phase event, never one per Player/Team). Underlying subsystems keep their own audits/history.
+
+## 7d. Season Transition (F31 Implemented)
+
+- F31 is the **only** milestone that may create the next WorldSeason. One completed transition per source WorldSeason; one source per target season (DB-enforced); the target season is a new record, never a mutation of the source. Completed transitions are immutable; correction requires F32 database recovery.
+- Transition requires a completed F30 OffseasonRun for the source season. The target-season order is deterministic (`source.startYear + configuredIncrement`); `startYear` remains the canonical WorldSeason order. Target label/dates derive from config; a Commissioner may override only the display name (order/dates are never altered), and the override is part of the frozen input hash.
+- Exactly one current (ACTIVE) WorldSeason exists after completion. `status = ACTIVE` is the single source of truth for "current" — F31 introduces no competing `isCurrent` boolean. The source season is demoted to COMPLETED and remains readable and historical.
+- Preview is write-free; preparation freezes the input + plan hashes; execution re-validates the frozen input against the live world (409 `SeasonTransitionInputStale` on drift — no silent recalculation). A pre-execute SQLite safety backup is required. Atomic publication creates the target season, current-season designation, CompetitionEditions, stages, participants, entity records, and the COMPLETED row in one transaction; any failure leaves no partial target state.
+- Repeated execute after COMPLETED is idempotent (returns the existing result). A second transition from the same source season is rejected. PREPARED may be discarded; FAILED may be retried only when no target rows exist and the frozen input is still valid.
+- Target CompetitionEditions are new PLANNED records: rules snapshots + hashes are copied into new rows (later Competition.defaultRulesJson edits do not rewrite them); stage templates are copied with source-stage dependencies remapped and re-validated for acyclicity; confirmed participants are copied with fresh snapshots. No schedules, Matches, standings, brackets, PlayoffSeries, AggregatedSeasonRun, awards, champions, or stats are copied — those remain in F20 archives/history.
+- Domestic competitions recur automatically when they had a source edition. International tournaments are carried only with an explicit recurrence flag (manual warning otherwise); no real Olympic cycles are hardcoded.
+- F31 does **not** replay F24 development, F25 youth generation, F27 draft, F28 contract expiration, or F29 trades. It does **not** auto-activate FUTURE contracts (resolve through F28), auto-rebuild club lineups, or reuse locked F22 national-team rosters. Players are not duplicated or mutated; birth dates never change (age remains derived from birth date + target-season dates). ACTIVE/FUTURE contract semantics remain consistent; `Player.currentTeamId` stays synchronized with the ACTIVE contract. Draft rights remain with their holder. Scouting reports remain Team-private (F26 owns staleness; F31 reports advisory counts only).
+- Normal mode is read-only; Commissioner Mode is required for every transition mutation (prepare/execute/cancel/retry, config version activate). F31 audit records orchestration only (one row per run event, never one per Player/Team/edition). F31 creates one pre-execute SQLite safety snapshot but offers no restore UI — full backup/recovery remains F32.
 
 ---
 

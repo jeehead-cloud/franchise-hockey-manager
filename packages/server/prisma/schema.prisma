@@ -259,6 +259,9 @@ enum CommissionerAuditEntityType {
   OFFSEASON_CONFIG
   OFFSEASON_RUN
   OFFSEASON_PHASE
+  SEASON_TRANSITION_CONFIG
+  SEASON_TRANSITION_RUN
+  WORLD_SEASON
 }
 
 enum CommissionerAuditAction {
@@ -403,6 +406,16 @@ enum CommissionerAuditAction {
   OFFSEASON_PHASE_FAILED
   OFFSEASON_RUN_COMPLETED
   OFFSEASON_RUN_CANCELLED
+  SEASON_TRANSITION_CONFIG_CREATED
+  SEASON_TRANSITION_CONFIG_VERSION_CREATED
+  SEASON_TRANSITION_CONFIG_ACTIVATED
+  SEASON_TRANSITION_PREPARED
+  SEASON_TRANSITION_STARTED
+  SEASON_TRANSITION_COMPLETED
+  SEASON_TRANSITION_FAILED
+  SEASON_TRANSITION_CANCELLED
+  WORLD_SEASON_CREATED
+  CURRENT_WORLD_SEASON_CHANGED
 }
 
 /// F20 competition archive status.
@@ -505,6 +518,10 @@ model WorldSeason {
   contractInitializationRuns ContractInitializationRun[]
   completedTradesEffective   CompletedTrade[]            @relation("CompletedTradeEffectiveSeason")
   offseasonRuns              OffseasonRun[]
+  /// F31: target seasons produced from this season as the source.
+  seasonTransitionsAsSource  SeasonTransitionRun[]       @relation("SeasonTransitionSource")
+  /// F31: the transition run that created this season (null for the initial season).
+  createdSeasonTransition    SeasonTransitionRun?        @relation("SeasonTransitionTarget")
 }
 
 model Country {
@@ -3687,5 +3704,183 @@ model OffseasonPhaseEvent {
 
   @@index([offseasonRunId, createdAt])
   @@index([offseasonRunId, offseasonPhaseId, createdAt])
+  @@index([eventType, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// F31 — Season Transition (Renewable World Cycle).
+// Persistent, deterministic, Commissioner-controlled season-rollover workflow
+// that consumes a completed F30 OffseasonRun and creates exactly one next
+// WorldSeason plus its CompetitionEditions in one atomic transaction. One
+// completed transition per source WorldSeason; the target season is a new
+// record, never a mutation of the source. F31 does not generate schedules,
+// Matches, development, youth, draft, contracts, or trades.
+// ---------------------------------------------------------------------------
+
+enum SeasonTransitionRunStatus {
+  PREPARED
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum SeasonTransitionEntityType {
+  WORLD_SEASON
+  COMPETITION_EDITION
+  COMPETITION_STAGE
+  COMPETITION_PARTICIPANT
+  CLUB_LINEUP
+  CLUB_TACTICS
+  CONTRACT_STATE
+  SCOUTING_STATE
+  NATIONAL_TEAM_STATE
+}
+
+enum SeasonTransitionEntityAction {
+  CREATED
+  COPIED
+  CARRIED
+  MARKED_FOR_REVIEW
+  PRESERVED
+  SKIPPED
+}
+
+enum SeasonTransitionEventType {
+  PREPARED
+  STARTED
+  BACKUP_CREATED
+  TARGET_SEASON_CREATED
+  COMPETITIONS_CREATED
+  STATE_CARRIED
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+/// Named season-transition preset (system default or owner duplicate). F31.
+model SeasonTransitionPreset {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  isSystem    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  versions SeasonTransitionPresetVersion[]
+}
+
+/// Immutable season-transition configuration snapshot. F31.
+model SeasonTransitionPresetVersion {
+  id              String                   @id @default(cuid())
+  presetId        String
+  versionNumber   Int
+  schemaVersion   Int
+  configJson      String
+  configHash      String
+  changeReason    String
+  createdAt       DateTime                 @default(now())
+  createdBySource CommissionerAuditSource?
+
+  preset    SeasonTransitionPreset               @relation(fields: [presetId], references: [id], onDelete: Restrict)
+  activeFor ActiveSeasonTransitionConfiguration?
+  runs      SeasonTransitionRun[]
+
+  @@unique([presetId, versionNumber])
+  @@index([configHash])
+}
+
+/// Singleton pointing at the active season-transition configuration version. F31.
+model ActiveSeasonTransitionConfiguration {
+  id                    String   @id @default("default")
+  activePresetVersionId String   @unique
+  updatedAt             DateTime @updatedAt
+
+  activeVersion SeasonTransitionPresetVersion @relation(fields: [activePresetVersionId], references: [id], onDelete: Restrict)
+}
+
+/// One season-transition run for a source WorldSeason. Exactly one current
+/// (PREPARED/RUNNING/COMPLETED) transition per source season is enforced at the
+/// service layer; completed runs are immutable. The target WorldSeason is only
+/// created on atomic execution. F31.
+model SeasonTransitionRun {
+  id                  String                    @id @default(cuid())
+  sourceWorldSeasonId String
+  targetWorldSeasonId String?                   @unique
+  status              SeasonTransitionRunStatus @default(PREPARED)
+  configVersionId     String
+  configHash          String
+  runVersion          Int                       @default(1)
+  targetDisplayName   String
+  targetSeasonOrder   Int
+  targetStartDateIso  String?
+  targetEndDateIso    String?
+  inputSnapshotText   String                    @default("{}")
+  inputHash           String
+  planSnapshotText    String                    @default("{}")
+  planHash            String
+  resultHash          String?
+  preparedAt          DateTime?
+  startedAt           DateTime?
+  completedAt         DateTime?
+  failedAt            DateTime?
+  cancelledAt         DateTime?
+  backupMetadataText  String?
+  reason              String
+  createdBy           String
+  createdAt           DateTime                  @default(now())
+  updatedAt           DateTime                  @updatedAt
+
+  sourceWorldSeason WorldSeason                    @relation("SeasonTransitionSource", fields: [sourceWorldSeasonId], references: [id], onDelete: Restrict)
+  targetWorldSeason WorldSeason?                   @relation("SeasonTransitionTarget", fields: [targetWorldSeasonId], references: [id], onDelete: Restrict)
+  configVersion     SeasonTransitionPresetVersion  @relation(fields: [configVersionId], references: [id], onDelete: Restrict)
+  entityRecords     SeasonTransitionEntityRecord[]
+  events            SeasonTransitionEvent[]
+
+  @@index([sourceWorldSeasonId, status])
+  @@index([targetWorldSeasonId])
+  @@index([targetSeasonOrder])
+  @@index([status])
+  @@index([configVersionId])
+}
+
+/// Immutable summary of created/carried entities for a transition run. F31.
+/// Prefer aggregate records for unchanged large sets (e.g. one CONTRACT_STATE
+/// record summarizing all preserved ACTIVE contracts) — never one row per
+/// Player.
+model SeasonTransitionEntityRecord {
+  id                    String                       @id @default(cuid())
+  seasonTransitionRunId String
+  entityType            SeasonTransitionEntityType
+  sourceEntityId        String?
+  targetEntityId        String?
+  action                SeasonTransitionEntityAction
+  snapshotText          String                       @default("{}")
+  snapshotHash          String
+  createdAt             DateTime                     @default(now())
+
+  run SeasonTransitionRun @relation(fields: [seasonTransitionRunId], references: [id], onDelete: Cascade)
+
+  @@index([seasonTransitionRunId, entityType])
+  @@index([seasonTransitionRunId, sourceEntityId])
+  @@index([seasonTransitionRunId, targetEntityId])
+}
+
+/// Append-only operational history for a SeasonTransitionRun. F31.
+/// One row per orchestration event (no per-Player/per-Team audit).
+model SeasonTransitionEvent {
+  id                    String                    @id @default(cuid())
+  seasonTransitionRunId String
+  eventType             SeasonTransitionEventType
+  statusBefore          String?
+  statusAfter           String?
+  summaryText           String
+  reason                String                    @default("")
+  eventHash             String
+  createdAt             DateTime                  @default(now())
+
+  run SeasonTransitionRun @relation(fields: [seasonTransitionRunId], references: [id], onDelete: Cascade)
+
+  @@index([seasonTransitionRunId, createdAt])
   @@index([eventType, createdAt])
 }

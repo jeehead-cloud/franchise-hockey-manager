@@ -33,7 +33,8 @@
     "verify:draft": "tsx src/draft/verify-draft.ts",
     "verify:contracts": "tsx src/contracts/verify-contracts.ts",
     "verify:trades": "tsx src/trades/verify-trades.ts",
-    "verify:offseason": "tsx src/offseason/verify-offseason.ts"
+    "verify:offseason": "tsx src/offseason/verify-offseason.ts",
+    "verify:season-transition": "tsx src/season-transition/verify-season-transition.ts"
   },
   "devDependencies": {
     "typescript": "^5.8.2",
