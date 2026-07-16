@@ -62,3 +62,7 @@ Dataset import does not invent contracts. After world initialization, Commission
 ## F29 trade configuration bootstrap
 
 Dataset import does not create trades. World initialization bootstraps one idempotent **Trades Simplified Default** system preset/version and activates it only when no owner trade configuration exists (owner configurations are preserved). No trade files are required and **schemaVersion remains 5**. Trade-value defaults are advisory only (normalized 0–100 scale) and F29 enforces no salary cap, retained salary, conditional picks, or multi-team trades.
+
+## F30 offseason configuration bootstrap
+
+Dataset import does not create offseason runs. World initialization bootstraps one idempotent **Offseason Default** system preset/version (13 ordered phases; required phases cannot be skipped; optional phases DRAFTED_PLAYER_SIGNINGS/FREE_AGENCY/TRADES/SCOUTING_REVIEW may be skipped) and activates it only when no owner offseason configuration exists (owner configurations are preserved). No offseason files are required and **schemaVersion remains 5**. F30 is pure coordination — it never duplicates F20/F24/F25/F27/F28/F29 logic and never creates the next WorldSeason (F31 will).

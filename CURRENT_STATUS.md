@@ -1,7 +1,7 @@
 ﻿# Franchise Hockey Manager — Current Status
 
 **Status:** Active
-**Last updated:** 2026-07-16
+**Last updated:** 2026-07-17
 **Repository:** `https://github.com/jeehead-cloud/franchise-hockey-manager`
 **Local repository path:** `C:\Projects\franchise-hockey-manager`
 
@@ -12,11 +12,11 @@
 
 ## 1. Current Development Phase
 
-**F29 — Trades and Rights Transfers: implemented locally (not committed).** Persistent versioned trade configuration; two-club trade proposals with immutable asset snapshots; deterministic Team-context value calculations (player / pick / right) using each club's F26 scouting estimates or a conservative Unknown fallback; fairness warnings; proposal lifecycle (DRAFT → SUBMITTED → ACCEPTED/REJECTED/WITHDRAWN); atomic acceptance with pre-trade SQLite backup and ownership revalidation; ACTIVE+FUTURE contract transfer synchronized with `Player.currentTeamId`; `DraftPick.currentTeamId` transfer while `originalTeamId` is never changed; ACTIVE draft-right transfer without signing the player; append-only `TradeTransaction` history; immutable `CompletedTrade`; readiness, APIs, and UI. Trade value is advisory only — no autonomous AI, no salary cap, no retained salary, no conditional picks, no multi-team trades, no lineup auto-rewrite. F29 creates no next WorldSeason or offseason orchestration.
+**F30 — Offseason Workflow: implemented locally (not committed).** Persistent, resumable, Commissioner-controlled offseason orchestration that coordinates existing F20/F24/F25/F27/F28/F29 subsystems through their own services without duplicating their domain logic. Pure engine module (`packages/engine/src/offseason/`) owns strict versioned configuration validation, the explicit 13-phase order, the linear dependency graph, phase/run state transitions, FINAL_REVIEW completion aggregation from domain-neutral inputs, reconciliation, and deterministic hashes. Persistence adds `OffseasonPreset`/`OffseasonPresetVersion`/`ActiveOffseasonConfiguration`, `OffseasonRun`, ordered `OffseasonPhase` (with explicit nullable linked-operation columns — no polymorphic FK), and append-only `OffseasonPhaseEvent` history; migration `20260717000000_f30_offseason` is additive. Server services create/start/cancel/refresh/complete runs, start/complete/skip/retry/link phases, gather world-integrity inputs, detect already-completed underlying runs and link them idempotently, and audit orchestration actions only. Repeated refresh/link/completion are idempotent; the workflow survives server restart. Public read + Commissioner command APIs (no arbitrary status PATCH); client routes `/offseason`, `/offseason/runs/:runId`, `/offseason/runs/:runId/teams/:teamId`. Boundaries: F30 does **not** create the next WorldSeason (F31 does), enforce a salary cap or roster-size cap, auto-accept offers, auto-generate trades, auto-run draft picks, auto-release retired players, auto-rebuild lineups, or rescout — each remains an explicit action in its own subsystem.
 
-**Next milestone: F30** (Offseason orchestration — do not start until requested).
+**Next milestone: F31** (Renewable World Cycle — do not start until requested).
 
-F1–F28 are committed on `main`. F29 changes are uncommitted in this tree.
+F1–F29 are committed on `main`. F30 changes are uncommitted in this tree.
 
 ---
 
@@ -77,7 +77,7 @@ Implemented:
 Not in F28:
 - Trades, pick/right transfers, cap accounting, retained salary, buyouts, waivers, arbitration, bonuses/clauses, AI negotiation, next WorldSeason, F30 orchestration, or authentication
 
-### F29 — Trades and Rights Transfers (Done locally)
+### F29 — Trades and Rights Transfers (Committed on `main`)
 
 Implemented:
 - Pure `packages/engine/src/trades/` rules for strict versioned config, asset eligibility (player/pick/right), deterministic Team-context player/pick/right valuation (advisory only), fairness warnings, proposal summary with duplicate/conflict detection, reconciliation, hashing; `verify:trades` (21 checks incl. 200-valuation benchmark)
@@ -89,6 +89,20 @@ Implemented:
 
 Not in F29:
 - F30 offseason orchestration; salary cap; retained salary; conditional picks; multi-team trades; cash; waivers; buyouts; arbitration; no-trade/no-move clauses; trade deadline; counteroffers; autonomous AI negotiation; next WorldSeason; authentication; deployment
+
+### F30 — Offseason Workflow (Done locally)
+
+Implemented:
+- Pure `packages/engine/src/offseason/` rules for strict versioned config (schemaVersion 1), the canonical 13-phase order (COMPETITION_ARCHIVE → CONTRACT_EXPIRATION → PLAYER_DEVELOPMENT → RETIREMENT_REVIEW → YOUTH_GENERATION → DRAFT → DRAFTED_PLAYER_SIGNINGS → FREE_AGENCY → TRADES → ROSTER_REVIEW → LINEUP_REVIEW → SCOUTING_REVIEW → FINAL_REVIEW), the linear dependency graph, phase/run state-machine transitions, FINAL_REVIEW completion aggregation from domain-neutral inputs, reconciliation, and deterministic hashes; `verify:offseason` (29 checks incl. 100-readiness benchmark)
+- Prisma: `OffseasonPreset`/immutable `OffseasonPresetVersion`/singleton `ActiveOffseasonConfiguration`, `OffseasonRun` (PLANNED/READY/IN_PROGRESS/BLOCKED/COMPLETED/CANCELLED/FAILED), ordered `OffseasonPhase` (PENDING/READY/IN_PROGRESS/BLOCKED/COMPLETED/SKIPPED/FAILED; explicit nullable linked-operation columns for archive/expiration/development/youth/draft — no polymorphic FK), append-only `OffseasonPhaseEvent`; migration `20260717000000_f30_offseason` (additive, no domain operations); audit enums `OFFSEASON_*`
+- Server: bootstrap Offseason Default (idempotent); public reads (`/api/offseason/status`, `/runs`, `/runs/:id`, `/runs/:id/phases|readiness|history|teams|teams/:teamId|final-review`, `/configurations`); Commissioner command APIs (`/api/commissioner/offseason/runs` create/start/cancel/refresh/complete, `/phases/:phaseId` start/refresh/complete/skip/retry/link, `/configurations` CRUD + version activate, `/runs/:id/diagnostics`); engine errors mapped to 409/422 with stable codes; optimistic concurrency via `expectedUpdatedAt`; orchestration-only audit (no per-Player/per-Team audit)
+- Client: `/offseason` landing (current WorldSeason, run status, progress %, Commissioner create/start/refresh/complete), `/offseason/runs/:runId` (Checklist / History / Teams / Final Review tabs; per-phase Start/Complete/Skip actions gated by Commissioner Mode and readiness), `/offseason/runs/:runId/teams/:teamId` (privacy-safe per-team offseason summary); sidebar Offseason entry
+- Idempotency/resumability: repeated refresh/link/completion are no-ops or return existing state; the workflow reloads from persisted rows after server restart; already-completed underlying subsystem runs are detected and linked automatically at run creation + refresh
+- Privacy: normal offseason reads never expose true potential, hidden attributes, F25 quality tier, or another Team's private scouting report; the team offseason page reads only that team's own contract/proposal/scouting rows
+- Invariants: one current non-cancelled OffseasonRun per WorldSeason (service-enforced); phase order is explicit and dependency-validated; required phases cannot be skipped; COMPLETED/SKIPPED phases and COMPLETED runs are immutable; underlying F20/F24/F25/F27/F28 runs remain authoritative; F30 does not duplicate their logic; completing F30 does **not** create the next WorldSeason
+
+Not in F30:
+- F31 next WorldSeason / season rollover / new CompetitionEditions / next schedules; F32 backup recovery manager; F33 import/export maintenance; salary cap; roster-size enforcement beyond readiness warnings; AI general managers; automated contract acceptance; automated trades; automatic draft picks (the existing F27 explicit auto-pick must still be invoked); new development/youth/scouting/draft/contract/trade formulas; auto-release of retired players; auto-rebuild of lineups; auto-rescout; authentication; deployment
 
 ### M1–M8
 
@@ -104,21 +118,33 @@ Unchanged.
 - Scouting calibration (Scouting Default v1) is a simplified fictional preset — not tuned to any real scouting model.
 - The F27 draft lottery is a simplified fictional development lottery — **not exact NHL lottery fidelity**.
 - Team-scoped scouting/draft-board/trade APIs use local sandbox team context (`/teams/:teamId/scouting`, `/drafts/:id/teams/:teamId/board`, `/api/teams/:teamId/trade-proposals`); there is **no authentication** — any caller passing a teamId reads that club's estimates. Commissioner header is not security.
-- Manual UI verification for F25, F26, F27, F28, and F29 was **NOT RUN**.
-- F29 changes not yet committed/pushed.
-- Retired players may still appear on team roster lists until offseason cleanup (F30).
+- Manual UI verification for F25, F26, F27, F28, F29, and F30 was **NOT RUN**.
+- F30 changes not yet committed/pushed.
+- Retired players may still appear on team roster lists until offseason cleanup (Roster Review phase surfaces this as a blocker; F30 does not auto-release).
 
 ---
 
 ## 4. Nearest Next Steps
 
-1. Run the remaining disposable-database manual UI pass, including F29 Trade Center: create/edit/preview/submit/withdraw/accept/reject, multi-asset transfer, Team-specific valuation differences, pick original/current split, rights transfer, stale-ownership rejection, retired/free-agent rejection, Draft IN_PROGRESS pick restriction, Commissioner diagnostics, and privacy checks.
-2. Commit/push F29 when the owner requests.
-3. **F30** only when explicitly requested.
+1. Run the remaining disposable-database manual UI pass, including F30 Offseason: create run, phase checklist, start run, dependency-incomplete rejection, archive phase, expiration phase, development phase, retirement review, youth generation, draft, optional drafted signing, free agency, trades, roster review, lineup review, scouting review, skip optional phase, required-skip rejection, restart/resume, final-review blockers, resolve blocker, complete run, confirm no next season created, team page, normal read-only mode, direct routes/refresh, responsive checklist/tables.
+2. Commit/push F30 when the owner requests.
+3. **F31** (Renewable World Cycle) only when explicitly requested.
 
 ---
 
 ## 5. Recent Changes
+
+### 2026-07-17 — F30 Offseason Workflow
+
+- Implemented a persistent, resumable, Commissioner-controlled offseason orchestration layer that coordinates existing F20/F24/F25/F27/F28/F29 subsystems through their own services without duplicating their domain logic
+- Pure engine `packages/engine/src/offseason/` owns strict versioned config validation, the explicit 13-phase order, the linear dependency graph, phase/run state transitions, FINAL_REVIEW completion aggregation from domain-neutral inputs, reconciliation, and deterministic hashes
+- Prisma: `OffseasonPreset`/immutable `OffseasonPresetVersion`/singleton `ActiveOffseasonConfiguration`, `OffseasonRun`, ordered `OffseasonPhase` (explicit nullable linked-operation columns — no polymorphic FK), append-only `OffseasonPhaseEvent`; migration `20260717000000_f30_offseason` (additive, no domain operations, no ownership changes); audit enums `OFFSEASON_*`
+- Server services: bootstrap Offseason Default (idempotent); run create/start/cancel/refresh/complete; phase start/complete/skip/retry/link; world-integrity input gathering (unarchived competitions, retired-in-lineup, duplicate ACTIVE contracts, ownership mismatch, incomplete required lineups, open trade proposals, submitted contract offers, unsigned draft rights, free agents, no-next-season warning); idempotent detection + linking of already-completed underlying runs; orchestration-only audit
+- Idempotency/resumability: repeated refresh/link/completion are no-ops or return existing state; the workflow reloads from persisted rows after server restart; one current non-cancelled run per WorldSeason (service-enforced)
+- Boundaries (honest): F30 does **not** create the next WorldSeason (F31 does), enforce a salary cap or roster-size cap, auto-accept offers, auto-generate trades, auto-run draft picks, auto-release retired players, auto-rebuild lineups, or rescout — each remains an explicit action in its own subsystem; backups are not duplicated (the underlying F20/F24/F25/F28 services already create their own)
+- Validation (all PASS): Prisma format/validate/generate; empty-DB `migrate deploy` through F30 (25 migrations); engine tests 332 PASS (incl. 59 offseason engine tests); server tests 258 PASS (incl. 16 F30 server tests + migration-history F1–F30); all 18 verifiers PASS incl. `verify:offseason` (100-readiness benchmark ~10ms); root typecheck; engine/server/client builds; `git diff --check` clean
+- Manual UI **NOT RUN**
+- Remaining: F30 uncommitted; F31 deferred
 
 ### 2026-07-16 — F29 Trades and Rights Transfers
 
@@ -177,6 +203,20 @@ Unchanged.
 ---
 
 ## 6. Significant Changes
+
+### 2026-07-17 — F30 Offseason Workflow (Significant)
+
+- One current non-cancelled `OffseasonRun` per `WorldSeason` (service-enforced); an `OffseasonRun` belongs to exactly one WorldSeason and persists across server restart
+- Phase order is explicit and persisted in a versioned config: COMPETITION_ARCHIVE → CONTRACT_EXPIRATION → PLAYER_DEVELOPMENT → RETIREMENT_REVIEW → YOUTH_GENERATION → DRAFT → DRAFTED_PLAYER_SIGNINGS → FREE_AGENCY → TRADES → ROSTER_REVIEW → LINEUP_REVIEW → SCOUTING_REVIEW → FINAL_REVIEW. FINAL_REVIEW is always last. The order is **not** hardcoded only in the client.
+- Dependencies are linear: a phase cannot start before every earlier phase is COMPLETED or SKIPPED. Required phases cannot be skipped. The engine `OffseasonPhaseCannotSkip`/`OffseasonPhaseDependencyIncomplete` errors map to HTTP 409.
+- COMPLETED phases and COMPLETED runs are immutable. Correction requires the underlying subsystem's permitted recorded action or F32 recovery — never an edit, reopen, or partial reversal. A FAILED phase may be retried only when underlying state is safe.
+- Underlying F20/F24/F25/F27/F28 runs remain authoritative. F30 references existing run/event ids through explicit nullable columns on `OffseasonPhase` (no polymorphic FK) and never duplicates their results. If an underlying run already completed before OffseasonRun creation, F30 detects and links it automatically.
+- F30 is pure coordination — it never invokes development/youth/draft/contract-expiration/trade domain logic itself; it only validates progression and aggregates readiness from domain-neutral inputs the server supplies. Refresh and retries are idempotent (no duplicate events, no duplicate domain operations).
+- Backups are not duplicated: the underlying F20 archive, F24 development, F25 youth, and F28 expiration services already create their own SQLite safety backups before their world-mutating operations; F30 records linked backup metadata only where available and does not implement F32 restore.
+- Normal mode is read-only; Commissioner Mode is required for every workflow mutation (run create/start/cancel/complete, phase start/complete/skip/retry/link, config version activate). Team management actions remain separate explicit actions in their own subsystems.
+- Offseason completion does **not** require every free agent to be signed, every Team to be perfectly optimized, or every draft right to be converted (warnings only, per config). It does require no critical world-integrity blockers: required phases complete, no unarchived required competition, contract-expiration/development/youth/draft runs complete, no retired players in active lineups, no lineup ownership mismatch, no duplicate ACTIVE contracts, no open submitted trade proposals or contract offers when config disallows, no incomplete required detailed-club lineups.
+- F30 does **not** auto-accept offers, auto-generate or auto-accept trades, auto-run draft picks (the existing F27 explicit auto-pick must still be invoked), auto-release retired players, auto-rebuild lineups, or auto-rescout. Lineups are not automatically rebuilt unless the user explicitly invokes existing auto-lineup.
+- Completing F30 does **not** create the next WorldSeason. F31 will handle season rollover. This is surfaced as an explicit warning in the final-review UI and in every "complete run" path.
 
 ### 2026-07-16 — F29 Trades and Rights Transfers (Significant)
 
@@ -261,8 +301,8 @@ Unchanged.
 | Item | Value |
 |---|---|
 | Dataset schemaVersion | 5 (unchanged) |
-| Migration | `20260716040000_f29_trades` |
-| Verifier | `npm run verify:trades` |
-| Default config | Trades Simplified Default (advisory 0–100 values; no cap) |
-| UI | `/trades`, `/trades/:tradeId`, `/trade-proposals/:proposalId`, `/teams/:teamId/trade-center` |
-| Next | F30 |
+| Migration | `20260717000000_f30_offseason` |
+| Verifier | `npm run verify:offseason` |
+| Default config | Offseason Default (13 ordered phases; required phases cannot be skipped) |
+| UI | `/offseason`, `/offseason/runs/:runId`, `/offseason/runs/:runId/teams/:teamId` |
+| Next | F31 |

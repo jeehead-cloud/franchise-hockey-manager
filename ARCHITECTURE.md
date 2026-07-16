@@ -1,7 +1,7 @@
 # Franchise Hockey Manager — Architecture
 
 **Status:** Active
-**Last updated:** 2026-07-15
+**Last updated:** 2026-07-17
 **Repository:** `https://github.com/jeehead-cloud/franchise-hockey-manager`
 
 > Technical source of truth for stack, monorepo structure, data flow, and config-driven balance.
@@ -656,6 +656,38 @@ Persistence is server-only: `TradePreset`/`TradePresetVersion`/`ActiveTradeConfi
 Server services batch-load state and scouting reports, freeze snapshots at submit, revalidate every asset's ownership/state at acceptance, take a pre-trade SQLite backup, then publish all transfers in one transaction: ACTIVE+FUTURE contract move + `Player.currentTeamId` sync, `DraftPick.currentTeamId` transfer (`originalTeamId` unchanged), and `PlayerDraftRight` holder transfer (no contract/`currentTeamId` change). Any stale asset aborts the whole trade (409) with no partial history. Commissioner Mode manages configuration versions and may accept on a Team's behalf; completed trades are immutable.
 
 REST surfaces include `/api/trades*`, `/api/trade-proposals*`, Player/Team/pick/right trade history, `/api/teams/:teamId/trade-center`, Team-scoped proposal actions, and `/api/commissioner/trade*` (config CRUD, accept-on-behalf, both-side diagnostics). Client routes are `/trades`, `/trades/:tradeId`, `/trade-proposals/:proposalId`, and `/teams/:teamId/trade-center`. Trade value is advisory only; F29 has no cap, retained salary, conditional picks, multi-team trades, or lineup auto-rewrite.
+
+## 7p. Offseason Workflow (F30)
+
+A persistent, resumable, Commissioner-controlled orchestration layer that coordinates existing F20/F24/F25/F27/F28/F29 subsystems through their own services — it does **not** duplicate their domain logic.
+
+Pure engine (`packages/engine/src/offseason/`):
+- Strict versioned `OffseasonConfig` (schemaVersion 1): unique phases, canonical order, FINAL_REVIEW last, required phases cannot `allowSkip`, acyclic linear dependency graph, no unknown fields, validated completion rules
+- Canonical 13-phase order: COMPETITION_ARCHIVE → CONTRACT_EXPIRATION → PLAYER_DEVELOPMENT → RETIREMENT_REVIEW → YOUTH_GENERATION → DRAFT → DRAFTED_PLAYER_SIGNINGS → FREE_AGENCY → TRADES → ROSTER_REVIEW → LINEUP_REVIEW → SCOUTING_REVIEW → FINAL_REVIEW
+- Phase/run state-machine transitions (PENDING/READY/IN_PROGRESS/BLOCKED/COMPLETED/SKIPPED/FAILED for phases; PLANNED/READY/IN_PROGRESS/BLOCKED/COMPLETED/CANCELLED/FAILED for runs); COMPLETED/SKIPPED phases and COMPLETED runs are terminal
+- FINAL_REVIEW completion aggregation from domain-neutral inputs (the server gathers world-integrity facts; the engine only classifies them into BLOCKER vs WARNING)
+- Reconciliation (phase plan + run coherence) and deterministic hashes (same family as trades/contracts; no node:crypto in engine exports)
+- No Prisma, no Fastify/React, no Player truth
+
+Persistence (server-only):
+- `OffseasonPreset` / immutable `OffseasonPresetVersion` / singleton `ActiveOffseasonConfiguration` (separate from F10/F24/F25/F26/F27/F28/F29 presets); default bootstrap **Offseason Default** (idempotent, fictional)
+- `OffseasonRun` (one current non-cancelled per WorldSeason, service-enforced), ordered `OffseasonPhase` (explicit nullable linked-operation columns for `competitionArchiveIds`/`contractExpirationRunId`/`playerDevelopmentRunId`/`youthGenerationRunId`/`draftEventId` — **no polymorphic FK**), and append-only `OffseasonPhaseEvent` history (no per-Player/per-Team audit rows)
+- Migration `20260717000000_f30_offseason` is additive: no domain operations, no ownership changes, nullable/default-safe columns, no OffseasonRun created during migration
+- Optimistic concurrency via `expectedUpdatedAt` on run start/cancel/complete, phase start/complete/skip/retry/link, and config activation (409 `OffseasonInputStale` on stale state)
+
+Server services (`offseason-config`, `offseason-runs`, `offseason-readiness`, `offseason-links`, `offseason-teams`, `commissioner-offseason`) keep orchestration separate from domain logic. They never invoke development/youth/draft/contract-expiration/trade domain writes — they only read existing authoritative rows, detect already-completed underlying runs, link them idempotently, and aggregate readiness. Repeated refresh / link / completion are idempotent (no duplicate events, no duplicate domain operations). The workflow survives server restart by reloading from persisted rows.
+
+Boundaries (highest-priority invariants):
+- One current non-cancelled `OffseasonRun` per `WorldSeason`; COMPLETED/SKIPPED phases and COMPLETED runs are immutable (correction requires the underlying subsystem's permitted recorded action or F32 recovery)
+- F30 references existing F20/F24/F25/F27/F28 run/event ids through explicit nullable columns and never duplicates their results; underlying runs remain authoritative
+- F30 does **not** create the next WorldSeason (F31 does), enforce a salary cap or roster-size cap, auto-accept offers, auto-generate or auto-accept trades, auto-run draft picks (the existing F27 explicit auto-pick must still be invoked), auto-release retired players, auto-rebuild lineups, or auto-rescout — each remains an explicit action in its own subsystem
+- Backups are not duplicated: the underlying F20 archive, F24 development, F25 youth, and F28 expiration services already create their own SQLite safety backups before their world-mutating operations; F30 records linked backup metadata only where available and does not implement F32 restore
+- Normal offseason reads never expose true potential, hidden attributes, F25 quality tier, or another Team's private scouting report; the team offseason page reads only that team's own contract/proposal/scouting rows
+- Phase transitions use command endpoints only (no arbitrary status PATCH); engine errors map to stable HTTP codes (`OffseasonPhaseDependencyIncomplete`/`OffseasonPhaseCannotSkip`/`OffseasonPhaseCompleted` → 409; `OffseasonPhaseReconciliationFailed`/`OffseasonCompletionReconciliationFailed`/`OffseasonNotReady` → 422)
+
+APIs: `/api/offseason/*` (status, configurations, runs, runs/:id, runs/:id/phases|readiness|history|teams|teams/:teamId|final-review) and `/api/commissioner/offseason/*` (runs create/start/cancel/refresh/complete, phases/:phaseId start/refresh/complete/skip/retry/link, configurations CRUD + version activate, runs/:id/diagnostics). Client routes are `/offseason`, `/offseason/runs/:runId` (Checklist / History / Teams / Final Review tabs), and `/offseason/runs/:runId/teams/:teamId`; sidebar Offseason entry.
+
+Verifier: `npm run verify:offseason`
 
 ## 8. Why Client-Server From Day One
 

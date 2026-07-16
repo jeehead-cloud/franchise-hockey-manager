@@ -256,6 +256,9 @@ enum CommissionerAuditEntityType {
   TRADE_CONFIG
   TRADE_PROPOSAL
   COMPLETED_TRADE
+  OFFSEASON_CONFIG
+  OFFSEASON_RUN
+  OFFSEASON_PHASE
 }
 
 enum CommissionerAuditAction {
@@ -388,6 +391,18 @@ enum CommissionerAuditAction {
   TRADE_PROPOSAL_REJECTED
   TRADE_ACCEPTED
   TRADE_FAILED
+  OFFSEASON_CONFIG_CREATED
+  OFFSEASON_CONFIG_VERSION_CREATED
+  OFFSEASON_CONFIG_ACTIVATED
+  OFFSEASON_RUN_CREATED
+  OFFSEASON_RUN_STARTED
+  OFFSEASON_PHASE_STARTED
+  OFFSEASON_DOMAIN_OPERATION_LINKED
+  OFFSEASON_PHASE_COMPLETED
+  OFFSEASON_PHASE_SKIPPED
+  OFFSEASON_PHASE_FAILED
+  OFFSEASON_RUN_COMPLETED
+  OFFSEASON_RUN_CANCELLED
 }
 
 /// F20 competition archive status.
@@ -489,6 +504,7 @@ model WorldSeason {
   contractTransactions       ContractTransaction[]
   contractInitializationRuns ContractInitializationRun[]
   completedTradesEffective   CompletedTrade[]            @relation("CompletedTradeEffectiveSeason")
+  offseasonRuns              OffseasonRun[]
 }
 
 model Country {
@@ -3486,4 +3502,190 @@ model TradeTransaction {
   @@index([toTeamId, transactionType, createdAt])
   @@index([draftPickId])
   @@index([draftRightId])
+}
+
+// ---------------------------------------------------------------------------
+// F30 — Offseason Workflow
+//
+// Persistent, resumable, Commissioner-controlled offseason orchestration. F30
+// coordinates existing F20/F24/F25/F27/F28/F29 subsystems through their own
+// services without duplicating their domain logic. One current official run per
+// WorldSeason; phases are explicit, ordered, dependency-validated, and
+// idempotent on refresh/retry. Completed phases/runs are immutable; F30 does
+// not create the next WorldSeason (F31 does).
+// ---------------------------------------------------------------------------
+
+enum OffseasonRunStatus {
+  PLANNED
+  READY
+  IN_PROGRESS
+  BLOCKED
+  COMPLETED
+  CANCELLED
+  FAILED
+}
+
+enum OffseasonPhaseStatus {
+  PENDING
+  READY
+  IN_PROGRESS
+  BLOCKED
+  COMPLETED
+  SKIPPED
+  FAILED
+}
+
+enum OffseasonPhaseEventType {
+  RUN_CREATED
+  RUN_STARTED
+  PHASE_READY
+  PHASE_STARTED
+  DOMAIN_OPERATION_LINKED
+  PHASE_COMPLETED
+  PHASE_SKIPPED
+  PHASE_FAILED
+  RUN_BLOCKED
+  RUN_RESUMED
+  RUN_COMPLETED
+  RUN_CANCELLED
+}
+
+/// Named offseason preset (system default or owner duplicate). F30.
+model OffseasonPreset {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  isSystem    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  versions OffseasonPresetVersion[]
+}
+
+/// Immutable offseason configuration snapshot. F30.
+model OffseasonPresetVersion {
+  id              String                   @id @default(cuid())
+  presetId        String
+  versionNumber   Int
+  schemaVersion   Int
+  configJson      String
+  configHash      String
+  changeReason    String
+  createdAt       DateTime                 @default(now())
+  createdBySource CommissionerAuditSource?
+
+  preset        OffseasonPreset               @relation(fields: [presetId], references: [id], onDelete: Restrict)
+  activeFor     ActiveOffseasonConfiguration?
+  offseasonRuns OffseasonRun[]
+
+  @@unique([presetId, versionNumber])
+  @@index([configHash])
+}
+
+/// Singleton pointing at the active offseason configuration version. F30.
+model ActiveOffseasonConfiguration {
+  id                    String   @id @default("default")
+  activePresetVersionId String   @unique
+  updatedAt             DateTime @updatedAt
+
+  activeVersion OffseasonPresetVersion @relation(fields: [activePresetVersionId], references: [id], onDelete: Restrict)
+}
+
+/// One offseason workflow run for a WorldSeason. Exactly one current
+/// non-cancelled run per WorldSeason is enforced at the service layer.
+/// Completion does not create the next WorldSeason (F31 boundary). F30.
+model OffseasonRun {
+  id               String             @id @default(cuid())
+  worldSeasonId    String
+  status           OffseasonRunStatus @default(PLANNED)
+  configVersionId  String
+  configHash       String
+  runVersion       Int                @default(1)
+  startedAt        DateTime?
+  completedAt      DateTime?
+  cancelledAt      DateTime?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  currentPhaseType String?
+  readinessHash    String?
+  resultHash       String?
+  reason           String
+  createdBy        String
+
+  worldSeason   WorldSeason            @relation(fields: [worldSeasonId], references: [id], onDelete: Restrict)
+  configVersion OffseasonPresetVersion @relation(fields: [configVersionId], references: [id], onDelete: Restrict)
+  phases        OffseasonPhase[]
+  events        OffseasonPhaseEvent[]
+
+  @@index([worldSeasonId, status])
+  @@index([status])
+  @@index([configVersionId])
+}
+
+/// One ordered phase of an OffseasonRun. Status transitions are validated
+/// through the engine progression module; COMPLETED/SKIPPED are immutable.
+/// Linked operation ids reference existing F20/F24/F25/F27/F28 subsystem rows
+/// via explicit nullable columns (no polymorphic FK). F30.
+model OffseasonPhase {
+  id                      String               @id @default(cuid())
+  offseasonRunId          String
+  phaseType               String
+  phaseOrder              Int
+  status                  OffseasonPhaseStatus @default(PENDING)
+  required                Boolean
+  allowSkip               Boolean
+  competitionArchiveIds   String?
+  contractExpirationRunId String?
+  playerDevelopmentRunId  String?
+  youthGenerationRunId    String?
+  draftEventId            String?
+  linkedEntityType        String?
+  linkedEntityId          String?
+  startedAt               DateTime?
+  completedAt             DateTime?
+  skippedAt               DateTime?
+  failedAt                DateTime?
+  readinessText           String               @default("{}")
+  readinessHash           String?
+  resultText              String?
+  resultHash              String?
+  reason                  String?
+  createdAt               DateTime             @default(now())
+  updatedAt               DateTime             @updatedAt
+
+  offseasonRun OffseasonRun          @relation(fields: [offseasonRunId], references: [id], onDelete: Cascade)
+  events       OffseasonPhaseEvent[]
+
+  @@unique([offseasonRunId, phaseType])
+  @@index([offseasonRunId, phaseOrder])
+  @@index([offseasonRunId, status])
+  @@index([offseasonRunId, phaseType, status])
+  @@index([contractExpirationRunId])
+  @@index([playerDevelopmentRunId])
+  @@index([youthGenerationRunId])
+  @@index([draftEventId])
+}
+
+/// Append-only operational history for an OffseasonRun. One row per
+/// orchestration event (no per-Player or per-Team audit). F30.
+model OffseasonPhaseEvent {
+  id               String                  @id @default(cuid())
+  offseasonRunId   String
+  offseasonPhaseId String?
+  eventType        OffseasonPhaseEventType
+  statusBefore     String?
+  statusAfter      String?
+  linkedEntityType String?
+  linkedEntityId   String?
+  summaryText      String
+  reason           String                  @default("")
+  eventHash        String
+  createdAt        DateTime                @default(now())
+
+  offseasonRun   OffseasonRun    @relation(fields: [offseasonRunId], references: [id], onDelete: Cascade)
+  offseasonPhase OffseasonPhase? @relation(fields: [offseasonPhaseId], references: [id])
+
+  @@index([offseasonRunId, createdAt])
+  @@index([offseasonRunId, offseasonPhaseId, createdAt])
+  @@index([eventType, createdAt])
 }

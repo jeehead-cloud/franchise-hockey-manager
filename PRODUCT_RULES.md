@@ -1,7 +1,7 @@
 # Franchise Hockey Manager — Product Rules
 
 **Status:** Active
-**Last updated:** 2026-07-15
+**Last updated:** 2026-07-17
 **Repository:** `https://github.com/jeehead-cloud/franchise-hockey-manager`
 
 > This document defines game-design invariants: rules that must remain true across the generator, the chemistry/tactics engine, and the season simulation.
@@ -287,6 +287,21 @@ Prototype aging table in §6 remains historical reference; F24 uses `PlayerDevel
 - Trade value is **advisory only** and never accepts or rejects a trade; there is no autonomous AI acceptance. Normal Team-context valuations use only that club's F26 scouting estimates or a conservative Unknown fallback — never true potential, hidden attributes, F25 quality tier, or another Team's private report.
 - Scouting reports are Team-private and do **not** transfer with a Player. Trade operations never change Player truth, attributes, form, role, scouting, provenance, development, or archives.
 - F29 enforces **no salary cap, no retained salary, no conditional picks, no multi-team trades, no cash, no waivers/buyouts/arbitration/no-trade-or-no-move clauses, and no trade deadline.** Lineups are never auto-rewritten (run auto-lineup later to rebuild from current ownership).
+
+## 7c. Offseason Workflow (F30 Implemented)
+
+- One current non-cancelled `OffseasonRun` per `WorldSeason`. An `OffseasonRun` belongs to exactly one WorldSeason and persists across server restart.
+- Phase order is explicit and persisted in a versioned config: COMPETITION_ARCHIVE → CONTRACT_EXPIRATION → PLAYER_DEVELOPMENT → RETIREMENT_REVIEW → YOUTH_GENERATION → DRAFT → DRAFTED_PLAYER_SIGNINGS → FREE_AGENCY → TRADES → ROSTER_REVIEW → LINEUP_REVIEW → SCOUTING_REVIEW → FINAL_REVIEW. FINAL_REVIEW is always last. Order is not hardcoded only in the client.
+- A phase cannot start before required dependencies complete. Dependencies are linear: every earlier phase must be COMPLETED or SKIPPED. A phase cannot complete if its readiness blockers remain.
+- Required phases cannot be skipped (a required phase with `allowSkip=true` is rejected by config validation). Optional phases (DRAFTED_PLAYER_SIGNINGS, FREE_AGENCY, TRADES, SCOUTING_REVIEW) may be skipped when configured.
+- COMPLETED phases and COMPLETED runs are immutable. Failed execution does not mark a phase complete. Retrying a phase is idempotent. Correction requires the underlying subsystem's permitted recorded action or F32 recovery — never an edit, reopen, or partial reversal.
+- Underlying F20/F24/F25/F27/F28 runs remain authoritative. F30 references existing run/event ids through explicit nullable columns and never duplicates their results. If an underlying run already completed before OffseasonRun creation, F30 detects and links it. F30 does not rewrite completed underlying runs and must detect conflicting or stale underlying operations.
+- F30 is pure coordination: it never duplicates F24 development, F25 youth-generation, F27 draft, F28 contract-expiration, or F29 trade logic. Refresh and retries are idempotent (no duplicate events, no duplicate domain operations). Normal mode is read-only; Commissioner Mode is required for every workflow mutation.
+- Team management actions (signings, offers, trades, lineup edits, rescouts) remain separate explicit actions in their own subsystems. F30 does not auto-accept offers, auto-generate or auto-accept trades, auto-run draft picks (the existing F27 explicit auto-pick must still be invoked), auto-release retired players, auto-rebuild lineups, or auto-rescout.
+- Backups are not duplicated: the underlying F20 archive, F24 development, F25 youth, and F28 expiration services already create their own SQLite safety backups before their world-mutating operations; F30 records linked backup metadata only where available and does not implement F32 restore.
+- Offseason completion does **not** imply every free agent is signed, every Team is perfectly optimized, or every draft right is converted (warnings only, per config). Completion requires no critical world-integrity blockers (required phases complete, no unarchived required competition, contract-expiration/development/youth/draft runs complete, no retired players in active lineups, no lineup ownership mismatch, no duplicate ACTIVE contracts, no open submitted trade proposals or contract offers when config disallows, no incomplete required detailed-club lineups).
+- Completing F30 does **not** create the next WorldSeason. F31 handles season rollover. This is surfaced as an explicit warning in the final-review UI and in every "complete run" path.
+- F30 audit records orchestration only (one row per run/phase event, never one per Player/Team). Underlying subsystems keep their own audits/history.
 
 ---
 

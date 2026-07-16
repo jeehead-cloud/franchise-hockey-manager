@@ -4618,3 +4618,94 @@ export const acceptTradeProposal = (teamId: string, proposalId: string, reason: 
   postJson<{ item: { completedTradeId: string; tradeHash: string; proposalStatus: string; transfers: unknown[] } }>(`/api/teams/${teamId}/trade-proposals/${proposalId}/accept`, { reason, expectedUpdatedAt });
 export const rejectTradeProposal = (teamId: string, proposalId: string, reason: string, expectedUpdatedAt?: string) =>
   postJson<{ item: TradeProposalItem }>(`/api/teams/${teamId}/trade-proposals/${proposalId}/reject`, { reason, expectedUpdatedAt });
+
+// ---------------------------------------------------------------------------
+// F30 — Offseason Workflow
+//
+// Persistent, resumable, Commissioner-controlled offseason orchestration. F30
+// coordinates existing F20/F24/F25/F27/F28/F29 subsystems; it does not duplicate
+// their logic and never creates the next WorldSeason (F31 does).
+// ---------------------------------------------------------------------------
+
+export interface OffseasonPhaseItem {
+  id: string;
+  phaseType: string;
+  phaseOrder: number;
+  status: string;
+  required: boolean;
+  allowSkip: boolean;
+  category: 'AUTOMATED' | 'INTERACTIVE';
+  competitionArchiveIds: string | null;
+  contractExpirationRunId: string | null;
+  playerDevelopmentRunId: string | null;
+  youthGenerationRunId: string | null;
+  draftEventId: string | null;
+  startedAt: string | null;
+  completedAt: string | null;
+  skippedAt: string | null;
+  failedAt: string | null;
+  readinessHash: string | null;
+  resultHash: string | null;
+  reason: string | null;
+  updatedAt: string;
+}
+
+export interface OffseasonRunItem {
+  id: string;
+  worldSeasonId: string;
+  worldSeason: { id: string; label: string; startYear: number; endYear: number; status: string; phase: string };
+  status: string;
+  configVersion: { id: string; versionNumber: number; configHash: string; changeReason: string };
+  configHash: string;
+  runVersion: number;
+  startedAt: string | null;
+  completedAt: string | null;
+  cancelledAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  currentPhaseType: string | null;
+  readinessHash: string | null;
+  resultHash: string | null;
+  reason: string;
+  createdBy: string;
+  phases: OffseasonPhaseItem[];
+  events: Array<{ id: string; eventType: string; offseasonPhaseId: string | null; statusBefore: string | null; statusAfter: string | null; summaryText: string; reason: string; createdAt: string }>;
+}
+
+export interface OffseasonStatusDto {
+  initialized: boolean;
+  worldSeason: { id: string; label: string; startYear: number; endYear: number; status: string; phase: string } | null;
+  currentRun: OffseasonRunItem | null;
+}
+
+export const getOffseasonStatus = (signal?: AbortSignal) => getJson<{ item: OffseasonStatusDto }>('/api/offseason/status', signal);
+export const getOffseasonConfigurations = (signal?: AbortSignal) => getJson<{ items: Array<{ id: string; name: string; description: string | null; isSystem: boolean; versions: Array<{ id: string; versionNumber: number; configHash: string; isActive: boolean }> }> }>('/api/offseason/configurations', signal);
+export const getOffseasonRuns = (query = '', signal?: AbortSignal) => getJson<{ items: Array<{ id: string; worldSeasonId: string; worldSeasonLabel: string; status: string; runVersion: number; currentPhaseType: string | null; startedAt: string | null; completedAt: string | null; createdAt: string; reason: string; phaseCount: number }> }>(`/api/offseason/runs${query}`, signal);
+export const getOffseasonRun = (id: string, signal?: AbortSignal) => getJson<{ item: OffseasonRunItem }>(`/api/offseason/runs/${id}`, signal);
+export const getOffseasonRunPhases = (id: string, signal?: AbortSignal) => getJson<{ items: OffseasonPhaseItem[] }>(`/api/offseason/runs/${id}/phases`, signal);
+export const getOffseasonRunReadiness = (id: string, signal?: AbortSignal) => getJson<{ item: { phases: Array<{ phaseType: string; level: string; blockers: string[]; warnings: string[]; allowedActions: string[]; linkedOperation: { type: string; id: string | null; summary?: string | null } | null; readinessHash: string }> } }>(`/api/offseason/runs/${id}/readiness`, signal);
+export const getOffseasonRunHistory = (id: string, signal?: AbortSignal) => getJson<{ items: OffseasonRunItem['events'] }>(`/api/offseason/runs/${id}/history`, signal);
+export const getOffseasonRunTeams = (id: string, query = '', signal?: AbortSignal) => getJson<{ items: Array<{ id: string; name: string; shortName: string | null }>; page: number; pageSize: number; total: number; totalPages: number }>(`/api/offseason/runs/${id}/teams${query}`, signal);
+export const getOffseasonTeamOverview = (runId: string, teamId: string, signal?: AbortSignal) => getJson<{ item: { team: { id: string; name: string; teamType: string }; contracts: { active: number; expiring: number; future: number }; offers: { submittedByThisTeam: number; incomingAgainstThisTeam: number }; freeAgents: number; draftRights: { unsigned: number; signed: number }; trades: { incomingProposals: number; outgoingProposals: number; completedCount: number }; retiredPlayers: number; rosterReadiness: { ownershipMismatch: number; retiredOnRoster: number; blockers: string[] }; lineupReadiness: { present: boolean; slotCount: number; retiredInLineup: number; ownershipMismatch: number; blockers: string[] }; staleScoutingReports: { currentReports: number } } }>(`/api/offseason/runs/${runId}/teams/${teamId}`, signal);
+export const getOffseasonFinalReview = (id: string, signal?: AbortSignal) => getJson<{ item: { ready: boolean; blockers: Array<{ code: string; severity: string; message: string }>; warnings: Array<{ code: string; severity: string; message: string }> } }>(`/api/offseason/runs/${id}/final-review`, signal);
+
+export const createOffseasonRun = (payload: { worldSeasonId: string; configVersionId?: string; reason: string; createdBy: string }) =>
+  commissionerWrite<{ item: OffseasonRunItem }>('/api/commissioner/offseason/runs', 'POST', payload);
+export const startOffseasonRun = (id: string, reason: string, expectedUpdatedAt?: string) =>
+  commissionerWrite<{ item: OffseasonRunItem }>(`/api/commissioner/offseason/runs/${id}/start`, 'POST', { reason, expectedUpdatedAt });
+export const cancelOffseasonRun = (id: string, reason: string, expectedUpdatedAt?: string) =>
+  commissionerWrite<{ item: OffseasonRunItem }>(`/api/commissioner/offseason/runs/${id}/cancel`, 'POST', { reason, expectedUpdatedAt });
+export const refreshOffseasonRun = (id: string, expectedUpdatedAt?: string) =>
+  commissionerWrite<{ item: OffseasonRunItem }>(`/api/commissioner/offseason/runs/${id}/refresh`, 'POST', { expectedUpdatedAt });
+export const completeOffseasonRun = (id: string, reason: string, expectedUpdatedAt?: string) =>
+  commissionerWrite<{ item: OffseasonRunItem }>(`/api/commissioner/offseason/runs/${id}/complete`, 'POST', { reason, expectedUpdatedAt });
+export const startOffseasonPhase = (phaseId: string, runId: string, reason: string, expectedUpdatedAt?: string) =>
+  commissionerWrite<{ item: OffseasonRunItem }>(`/api/commissioner/offseason/phases/${phaseId}/start`, 'POST', { runId, reason, expectedUpdatedAt });
+export const completeOffseasonPhase = (phaseId: string, runId: string, reason: string, expectedUpdatedAt?: string) =>
+  commissionerWrite<{ item: OffseasonRunItem }>(`/api/commissioner/offseason/phases/${phaseId}/complete`, 'POST', { runId, reason, expectedUpdatedAt });
+export const skipOffseasonPhase = (phaseId: string, runId: string, reason: string, expectedUpdatedAt?: string) =>
+  commissionerWrite<{ item: OffseasonRunItem }>(`/api/commissioner/offseason/phases/${phaseId}/skip`, 'POST', { runId, reason, expectedUpdatedAt });
+export const retryOffseasonPhase = (phaseId: string, runId: string, reason: string, expectedUpdatedAt?: string) =>
+  commissionerWrite<{ item: OffseasonRunItem }>(`/api/commissioner/offseason/phases/${phaseId}/retry`, 'POST', { runId, reason, expectedUpdatedAt });
+export const linkOffseasonPhase = (phaseId: string, runId: string, operationType: 'CONTRACT_EXPIRATION' | 'PLAYER_DEVELOPMENT' | 'YOUTH_GENERATION' | 'DRAFT' | 'COMPETITION_ARCHIVE', operationId: string, expectedUpdatedAt?: string) =>
+  commissionerWrite<{ item: OffseasonRunItem }>(`/api/commissioner/offseason/phases/${phaseId}/link`, 'POST', { runId, operationType, operationId, expectedUpdatedAt });

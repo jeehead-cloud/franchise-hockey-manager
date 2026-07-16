@@ -17,6 +17,7 @@ import {
   UsersRound,
   FileSignature,
   ArrowLeftRight,
+  CalendarClock,
   type LucideIcon,
 } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
@@ -46,6 +47,7 @@ export const MAIN_NAV: NavItem[] = [
   { to: '/drafts', label: 'Draft', icon: ClipboardList },
   { to: '/contracts', label: 'Contracts & Free Agency', icon: FileSignature },
   { to: '/trades', label: 'Trade Center', icon: ArrowLeftRight },
+  { to: '/offseason', label: 'Offseason', icon: CalendarClock },
   { to: '/settings', label: 'Settings', icon: Settings },
   { to: '/simulation-lab', label: 'Simulation Lab', icon: FlaskConical },
 ];

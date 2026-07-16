@@ -105,7 +105,7 @@ Vitest uses isolated temporary SQLite databases for server tests (does not mutat
 
 | Package | Role |
 |---|---|
-| `@fhm/engine` | Pure simulation/generation logic, including deterministic F28 contract and F29 trade rules |
+| `@fhm/engine` | Pure simulation/generation logic, including deterministic F28 contract, F29 trade, and F30 offseason orchestration rules |
 | `@fhm/server` | Fastify + Prisma + SQLite REST API + world import |
 | `@fhm/client` | React + Vite shell using Atlas design tokens |
 

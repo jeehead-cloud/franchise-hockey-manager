@@ -29,6 +29,8 @@ import { registerContractRoutes } from './routes/contracts.js';
 import { registerCommissionerContractRoutes } from './routes/commissioner-contracts.js';
 import { registerTradeRoutes } from './routes/trades.js';
 import { registerCommissionerTradeRoutes } from './routes/commissioner-trades.js';
+import { registerOffseasonRoutes } from './routes/offseason.js';
+import { registerCommissionerOffseasonRoutes } from './routes/commissioner-offseason.js';
 
 export async function buildApp(options?: { logger?: boolean }) {
   const app = Fastify({ logger: options?.logger ?? true });
@@ -74,6 +76,8 @@ export async function buildApp(options?: { logger?: boolean }) {
   await registerCommissionerContractRoutes(app);
   await registerTradeRoutes(app);
   await registerCommissionerTradeRoutes(app);
+  await registerOffseasonRoutes(app);
+  await registerCommissionerOffseasonRoutes(app);
   await registerCommissionerRoutes(app);
 
   return app;
@@ -103,4 +107,6 @@ export async function ensureAppMeta() {
   await bootstrapContractConfiguration(prisma);
   const { bootstrapTradeConfiguration } = await import('./services/trade-config.js');
   await bootstrapTradeConfiguration(prisma);
+  const { bootstrapOffseasonConfiguration } = await import('./services/offseason-config.js');
+  await bootstrapOffseasonConfiguration(prisma);
 }
