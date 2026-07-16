@@ -1521,7 +1521,7 @@ AI strategies: F27 ships a single bounded deterministic auto-pick (effectively "
 
 # 33. F28 — Contracts and Free Agency
 
-**Implementation status (2026-07-15): implemented locally, not committed.** The delivered boundary includes versioned simplified configuration, explicit-WorldSeason ACTIVE/FUTURE/history contracts, deterministic recommendations, compatibility initialization, offers/acceptance, free agency, rights-holder signing and conversion, release, idempotent expiration/future activation, append-only transactions, readiness, APIs/UI, tests, and `verify:contracts`. Salary is integer dollars with no cap enforcement. F29 trades and F30 orchestration remain deferred.
+**Implementation status (2026-07-15): committed on `main`.** The delivered boundary includes versioned simplified configuration, explicit-WorldSeason ACTIVE/FUTURE/history contracts, deterministic recommendations, compatibility initialization, offers/acceptance, free agency, rights-holder signing and conversion, release, idempotent expiration/future activation, append-only transactions, readiness, APIs/UI, tests, and `verify:contracts`. Salary is integer dollars with no cap enforcement. F30 orchestration remains deferred.
 
 ## Goal
 
@@ -1559,6 +1559,8 @@ No salary-cap enforcement yet.
 ---
 
 # 34. F29 — Trades and Rights
+
+**Implementation status (2026-07-16): implemented locally, not committed.** The delivered boundary includes versioned simplified trade configuration, two-club proposals with immutable asset snapshots, deterministic Team-context valuations (player/pick/right from each club's F26 estimates or Unknown fallback), fairness warnings, the full proposal lifecycle (DRAFT/SUBMITTED/ACCEPTED/REJECTED/WITHDRAWN), atomic acceptance with pre-trade SQLite backup and ownership revalidation, ACTIVE+FUTURE contract transfer synchronized with `Player.currentTeamId`, `DraftPick.currentTeamId` transfer with `originalTeamId` preserved, ACTIVE draft-right transfer without signing the Player, append-only `TradeTransaction` + immutable `CompletedTrade` history, readiness, APIs/UI, tests, and `verify:trades`. Trade value is advisory only; there is no salary cap, retained salary, conditional picks, multi-team trades, autonomous AI, or lineup auto-rewrite. F30 offseason orchestration remains deferred.
 
 ## Goal
 

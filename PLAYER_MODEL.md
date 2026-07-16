@@ -90,7 +90,7 @@ If no public estimate is imported, show `UNKNOWN` — do not derive public bands
 - Face-offs column (never populated in prototype)
 - Goalie placeholder (50/50 + all attrs = 10)
 
-Annual development (F24): see §0.5. Youth generation (F25): see §0.6. Scouting visibility (F26): see §0.7. Draft eligibility & rights (F27): see §0.8. Contracts and free agency (F28): see §0.9.
+Annual development (F24): see §0.5. Youth generation (F25): see §0.6. Scouting visibility (F26): see §0.7. Draft eligibility & rights (F27): see §0.8. Contracts and free agency (F28): see §0.9. Trades and rights transfers (F29): see §0.10.
 
 ### 0.5 Annual development (F24)
 
@@ -135,6 +135,15 @@ Annual development (F24): see §0.5. Youth generation (F25): see §0.6. Scouting
 - Retired Players cannot receive new contracts. Contract operations never change attributes, potential, development, form, role, scouting, or provenance.
 - Player draft provenance (season/round/overall pick/drafting Team snapshot/rights status) is exposed via `/api/players/:id/draft-history`; the unsigned state is explicit. Commissioner diagnostics may reveal order/lottery/result hashes; normal APIs never expose true potential/current ability/role/quality tier.
 - Draft never mutates Player truth, F25 provenance, F24 development, F26 scouting reports, club lineups, NT snapshots, or F20 archives.
+
+### 0.10 Trades and rights transfers (F29)
+
+- A trade is between exactly two **club** Teams. Trading a signed Player moves the ACTIVE contract and any FUTURE contract to the receiving Team and sets `Player.currentTeamId` to that Team; no new contract is created and salary/term/form/chemistry are unchanged. Historical EXPIRED/TERMINATED contracts do not move.
+- `DraftPick.currentTeamId` transfers on trade but `originalTeamId` **never** changes; only PENDING picks are tradeable and pick trades are blocked once the DraftEvent is `IN_PROGRESS`.
+- An ACTIVE `PlayerDraftRight` may transfer to another Team without signing the Player: the right holder changes, `currentTeamId` remains null, no contract is created, and DraftEvent/DraftPick history is unchanged. Converted/expired/renounced rights are not tradeable.
+- Retired Players and free agents (no ACTIVE contract) cannot be traded as Player assets; rights-held Players who are already signed cannot be traded as rights.
+- Trade operations never change Player attributes, ability, potential, role, form, nationality, provenance, scouting observations/reports, development history, or archives. Team-private scouting reports do **not** transfer with a Player — each Team retains its own report or Unknown state.
+- Trade history is immutable: a completed trade and its append-only transactions persist permanently; `/api/players/:id/trades`, `/api/teams/:id/trades`, `/api/draft-picks/:id/trades`, and `/api/draft-rights/:id/trades` expose transfer history. Lineups are not auto-rewritten (a Team may become NOT_READY until auto-lineup is rerun).
 
 ### F12–F13 simulation consumption (2026-07-13)
 

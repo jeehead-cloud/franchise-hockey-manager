@@ -647,6 +647,16 @@ Server services batch-load state, preserve Team-scoped F26 scouting privacy, and
 
 REST surfaces include `/api/contracts*`, Player/Team contract history/status, `/api/free-agents*`, Team offers/recommendations/releases, expiration runs, and `/api/commissioner/contracts*`. Client routes are `/contracts`, `/contracts/:id`, `/teams/:teamId/contracts`, and `/free-agency`. Payroll is informational only; F28 has no cap or trade persistence.
 
+## 7o. Trades and Rights Transfers (F29)
+
+The pure `packages/engine/src/trades/` module owns strict versioned configuration validation, asset eligibility (player/pick/right), deterministic Team-context value calculations, fairness warnings, proposal summary with duplicate/conflict detection, reconciliation, and stable hashes. It has no Prisma dependency and no access to hidden Player truth — prospect/right valuations consume F26 scouting estimate DTOs or a conservative Unknown fallback.
+
+Persistence is server-only: `TradePreset`/`TradePresetVersion`/`ActiveTradeConfiguration`; `TradeProposal`/`TradeProposalAsset` (immutable frozen asset + valuation snapshots once SUBMITTED); immutable `CompletedTrade`/`CompletedTradeAsset`; and append-only `TradeTransaction`. `PlayerContract.transferredByTradeId` optionally links a moved contract to its completed trade. The F29 migration is additive and performs no ownership changes.
+
+Server services batch-load state and scouting reports, freeze snapshots at submit, revalidate every asset's ownership/state at acceptance, take a pre-trade SQLite backup, then publish all transfers in one transaction: ACTIVE+FUTURE contract move + `Player.currentTeamId` sync, `DraftPick.currentTeamId` transfer (`originalTeamId` unchanged), and `PlayerDraftRight` holder transfer (no contract/`currentTeamId` change). Any stale asset aborts the whole trade (409) with no partial history. Commissioner Mode manages configuration versions and may accept on a Team's behalf; completed trades are immutable.
+
+REST surfaces include `/api/trades*`, `/api/trade-proposals*`, Player/Team/pick/right trade history, `/api/teams/:teamId/trade-center`, Team-scoped proposal actions, and `/api/commissioner/trade*` (config CRUD, accept-on-behalf, both-side diagnostics). Client routes are `/trades`, `/trades/:tradeId`, `/trade-proposals/:proposalId`, and `/teams/:teamId/trade-center`. Trade value is advisory only; F29 has no cap, retained salary, conditional picks, multi-team trades, or lineup auto-rewrite.
+
 ## 8. Why Client-Server From Day One
 
 Milestone M8 (public deployment) remains an explicit goal. See `DEPLOYMENT.md`.

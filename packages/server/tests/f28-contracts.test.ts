@@ -156,11 +156,12 @@ describe('F28 contracts and free agency', () => {
     expect(await prisma.draftPick.count({ where: { id: pick.id } })).toBe(1);
   });
 
-  it('does not leak hidden truth or create trade/cap tables', async () => {
+  it('does not leak hidden truth or create cap tables', async () => {
     const body = (await app.inject({ method: 'GET', url: '/api/free-agents' })).body;
     expect(body).not.toContain('potentialFloor');
     expect(body).not.toContain('developmentRate');
     const tables = await prisma.$queryRaw<Array<{ name: string }>>`SELECT name FROM sqlite_master WHERE type='table'`;
-    expect(tables.some((t) => /trade|salarycap|caphit/i.test(t.name))).toBe(false);
+    // Trade tables now legitimately exist from F29; only salary-cap artifacts remain excluded.
+    expect(tables.some((t) => /salarycap|caphit|retainedsalary/i.test(t.name))).toBe(false);
   });
 });

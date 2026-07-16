@@ -253,6 +253,9 @@ enum CommissionerAuditEntityType {
   PLAYER_CONTRACT
   CONTRACT_OFFER
   CONTRACT_EXPIRATION_RUN
+  TRADE_CONFIG
+  TRADE_PROPOSAL
+  COMPLETED_TRADE
 }
 
 enum CommissionerAuditAction {
@@ -375,6 +378,16 @@ enum CommissionerAuditAction {
   PLAYER_RELEASED
   CONTRACT_EXPIRATION_PREPARED
   CONTRACT_EXPIRATION_COMPLETED
+  TRADE_CONFIG_CREATED
+  TRADE_CONFIG_VERSION_CREATED
+  TRADE_CONFIG_ACTIVATED
+  TRADE_PROPOSAL_CREATED
+  TRADE_PROPOSAL_UPDATED
+  TRADE_PROPOSAL_SUBMITTED
+  TRADE_PROPOSAL_WITHDRAWN
+  TRADE_PROPOSAL_REJECTED
+  TRADE_ACCEPTED
+  TRADE_FAILED
 }
 
 /// F20 competition archive status.
@@ -475,6 +488,7 @@ model WorldSeason {
   expirationRuns             ContractExpirationRun[]
   contractTransactions       ContractTransaction[]
   contractInitializationRuns ContractInitializationRun[]
+  completedTradesEffective   CompletedTrade[]            @relation("CompletedTradeEffectiveSeason")
 }
 
 model Country {
@@ -565,6 +579,15 @@ model Team {
   contractOffers            ContractOffer[]
   contractTransactions      ContractTransaction[]        @relation("ContractTransactionTeam")
   otherContractTransactions ContractTransaction[]        @relation("ContractTransactionOtherTeam")
+  /// F29 trade-proposal relations.
+  proposingTradeProposals   TradeProposal[]              @relation("TradeProposalProposingTeam")
+  receivingTradeProposals   TradeProposal[]              @relation("TradeProposalReceivingTeam")
+  tradeProposalAssets       TradeProposalAsset[]         @relation("TradeProposalAssetTeam")
+  proposedCompletedTrades   CompletedTrade[]             @relation("CompletedTradeProposingTeam")
+  receivedCompletedTrades   CompletedTrade[]             @relation("CompletedTradeReceivingTeam")
+  completedTradeAssets      CompletedTradeAsset[]        @relation("CompletedTradeAssetTeam")
+  tradeTransactionsFrom     TradeTransaction[]           @relation("TradeTransactionFromTeam")
+  tradeTransactionsTo       TradeTransaction[]           @relation("TradeTransactionToTeam")
 
   @@unique([leagueId, name])
   @@unique([sourceDataset, externalId])
@@ -625,6 +648,9 @@ model Player {
   contractRecommendations ContractRecommendation[]
   contractOffers          ContractOffer[]
   contractTransactions    ContractTransaction[]
+  /// F29 trade history (completed-trade assets and transfer transactions).
+  completedTradeAssets    CompletedTradeAsset[]
+  tradeTransactions       TradeTransaction[]
 
   @@unique([sourceDataset, externalId])
   @@index([nationalityCountryId])
@@ -2871,11 +2897,15 @@ model DraftPick {
   createdAt                  DateTime              @default(now())
   updatedAt                  DateTime              @updatedAt
 
-  draftEvent     DraftEvent           @relation(fields: [draftEventId], references: [id], onDelete: Cascade)
-  originalTeam   Team                 @relation("DraftPickOriginalTeam", fields: [originalTeamId], references: [id], onDelete: Restrict)
-  currentTeam    Team                 @relation("DraftPickCurrentTeam", fields: [currentTeamId], references: [id], onDelete: Restrict)
-  selectedPlayer DraftEligiblePlayer? @relation(fields: [selectedPlayerId], references: [id], onDelete: SetNull)
-  draftRight     PlayerDraftRight?
+  draftEvent           DraftEvent            @relation(fields: [draftEventId], references: [id], onDelete: Cascade)
+  originalTeam         Team                  @relation("DraftPickOriginalTeam", fields: [originalTeamId], references: [id], onDelete: Restrict)
+  currentTeam          Team                  @relation("DraftPickCurrentTeam", fields: [currentTeamId], references: [id], onDelete: Restrict)
+  selectedPlayer       DraftEligiblePlayer?  @relation(fields: [selectedPlayerId], references: [id], onDelete: SetNull)
+  draftRight           PlayerDraftRight?
+  /// F29 — pick transfer history (does not rewrite original/current ownership).
+  tradeProposalAssets  TradeProposalAsset[]
+  completedTradeAssets CompletedTradeAsset[]
+  tradeTransactions    TradeTransaction[]
 
   @@unique([draftEventId, overallPick])
   @@unique([draftEventId, roundNumber, pickInRound])
@@ -2907,6 +2937,10 @@ model PlayerDraftRight {
   originatingContract  PlayerContract?
   contractOffers       ContractOffer[]
   contractTransactions ContractTransaction[]
+  /// F29 — draft-right transfer history (does not rewrite DraftPick/DraftEvent history).
+  tradeProposalAssets  TradeProposalAsset[]
+  completedTradeAssets CompletedTradeAsset[]
+  tradeTransactions    TradeTransaction[]
 
   @@unique([playerId, status])
   @@index([playerId, status])
@@ -3079,11 +3113,18 @@ model PlayerContract {
   extensionOffers          ContractOffer[]          @relation("OfferCurrentContract")
   recommendations          ContractRecommendation[]
   transactions             ContractTransaction[]
+  /// F29 — set when an ACTIVE/FUTURE contract was moved (not created) by a completed trade.
+  transferredByTradeId     String?
+  transferredByTrade       CompletedTrade?          @relation("ContractsTransferredByTrade", fields: [transferredByTradeId], references: [id], onDelete: Restrict)
+  tradeProposalAssets      TradeProposalAsset[]
+  completedTradeAssets     CompletedTradeAsset[]
+  tradeTransactions        TradeTransaction[]
 
   @@index([playerId, status])
   @@index([teamId, status, endSeasonOrderSnapshot])
   @@index([startWorldSeasonId])
   @@index([endWorldSeasonId])
+  @@index([transferredByTradeId])
 }
 
 model ContractRecommendation {
@@ -3218,4 +3259,231 @@ model ContractTransaction {
 
   @@index([playerId, transactionType, createdAt])
   @@index([teamId, transactionType, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// F29 — Trades and Rights Transfers
+//
+// Two-club trade proposals, immutable asset snapshots, atomic acceptance,
+// completed-trade history, and append-only transfer transactions. Trades never
+// rewrite historical contracts, DraftPick original ownership, DraftEvent results,
+// scouting reports, lineups, or competition archives. No salary cap, retained
+// salary, conditional picks, multi-team trades, or autonomous AI acceptance.
+// ---------------------------------------------------------------------------
+
+enum TradeProposalStatus {
+  DRAFT
+  SUBMITTED
+  ACCEPTED
+  REJECTED
+  WITHDRAWN
+  FAILED
+  EXPIRED
+}
+
+enum TradeSide {
+  PROPOSING
+  RECEIVING
+}
+
+enum TradeAssetType {
+  PLAYER_CONTRACT
+  DRAFT_PICK
+  PLAYER_DRAFT_RIGHT
+}
+
+enum TradeTransactionType {
+  PLAYER_TRANSFERRED
+  CONTRACT_TRANSFERRED
+  FUTURE_CONTRACT_TRANSFERRED
+  DRAFT_PICK_TRANSFERRED
+  DRAFT_RIGHT_TRANSFERRED
+}
+
+model TradePreset {
+  id          String               @id @default(cuid())
+  name        String               @unique
+  description String?
+  isSystem    Boolean              @default(false)
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  versions    TradePresetVersion[]
+}
+
+model TradePresetVersion {
+  id              String                    @id @default(cuid())
+  presetId        String
+  versionNumber   Int
+  schemaVersion   Int
+  configJson      String
+  configHash      String
+  changeReason    String
+  createdAt       DateTime                  @default(now())
+  createdBySource CommissionerAuditSource?
+  preset          TradePreset               @relation(fields: [presetId], references: [id], onDelete: Restrict)
+  activeFor       ActiveTradeConfiguration?
+  tradeProposals  TradeProposal[]
+  completedTrades CompletedTrade[]
+
+  @@unique([presetId, versionNumber])
+  @@index([configHash])
+}
+
+model ActiveTradeConfiguration {
+  id                    String             @id @default("default")
+  activePresetVersionId String             @unique
+  updatedAt             DateTime           @updatedAt
+  activeVersion         TradePresetVersion @relation(fields: [activePresetVersionId], references: [id], onDelete: Restrict)
+}
+
+model TradeProposal {
+  id                             String              @id @default(cuid())
+  proposingTeamId                String
+  receivingTeamId                String
+  status                         TradeProposalStatus @default(DRAFT)
+  configVersionId                String
+  configHash                     String
+  proposedBy                     String
+  reason                         String?
+  proposingTeamUpdatedAtSnapshot DateTime
+  receivingTeamUpdatedAtSnapshot DateTime
+  proposalHash                   String
+  submittedAt                    DateTime?
+  acceptedAt                     DateTime?
+  rejectedAt                     DateTime?
+  withdrawnAt                    DateTime?
+  createdAt                      DateTime            @default(now())
+  updatedAt                      DateTime            @updatedAt
+
+  proposingTeam  Team                 @relation("TradeProposalProposingTeam", fields: [proposingTeamId], references: [id], onDelete: Restrict)
+  receivingTeam  Team                 @relation("TradeProposalReceivingTeam", fields: [receivingTeamId], references: [id], onDelete: Restrict)
+  configVersion  TradePresetVersion   @relation(fields: [configVersionId], references: [id], onDelete: Restrict)
+  completedTrade CompletedTrade?      @relation("CompletedTradeForProposal")
+  assets         TradeProposalAsset[]
+
+  @@index([proposingTeamId, status, createdAt])
+  @@index([receivingTeamId, status, createdAt])
+  @@index([status, createdAt])
+}
+
+model TradeProposalAsset {
+  id                    String         @id @default(cuid())
+  tradeProposalId       String
+  side                  TradeSide
+  assetType             TradeAssetType
+  playerContractId      String?
+  draftPickId           String?
+  playerDraftRightId    String?
+  sourceTeamId          String
+  targetTeamId          String
+  /// Immutable, sanitized asset description (no hidden truth / private scouting).
+  assetSnapshotText     String
+  /// Team-context valuation snapshot (advisory only).
+  valuationSnapshotText String
+  valuationHash         String
+  assetHash             String
+  createdAt             DateTime       @default(now())
+
+  tradeProposal    TradeProposal     @relation(fields: [tradeProposalId], references: [id], onDelete: Cascade)
+  sourceTeam       Team              @relation("TradeProposalAssetTeam", fields: [sourceTeamId], references: [id], onDelete: Restrict)
+  playerContract   PlayerContract?   @relation(fields: [playerContractId], references: [id], onDelete: Restrict)
+  draftPick        DraftPick?        @relation(fields: [draftPickId], references: [id], onDelete: Restrict)
+  playerDraftRight PlayerDraftRight? @relation(fields: [playerDraftRightId], references: [id], onDelete: Restrict)
+
+  @@index([tradeProposalId, side])
+  @@index([tradeProposalId, assetType])
+  @@index([sourceTeamId])
+  @@index([playerContractId])
+  @@index([draftPickId])
+  @@index([playerDraftRightId])
+}
+
+/// Immutable record of an accepted trade. Never edited or deleted — correction
+/// uses F32 recovery or a new opposite trade where legally valid.
+model CompletedTrade {
+  id                        String   @id @default(cuid())
+  tradeProposalId           String   @unique
+  proposingTeamId           String
+  receivingTeamId           String
+  proposingTeamNameSnapshot String
+  receivingTeamNameSnapshot String
+  effectiveWorldSeasonId    String?
+  configVersionId           String
+  configHash                String
+  tradeHash                 String
+  completedAt               DateTime @default(now())
+  createdAt                 DateTime @default(now())
+
+  tradeProposal        TradeProposal         @relation("CompletedTradeForProposal", fields: [tradeProposalId], references: [id], onDelete: Restrict)
+  proposingTeam        Team                  @relation("CompletedTradeProposingTeam", fields: [proposingTeamId], references: [id], onDelete: Restrict)
+  receivingTeam        Team                  @relation("CompletedTradeReceivingTeam", fields: [receivingTeamId], references: [id], onDelete: Restrict)
+  effectiveWorldSeason WorldSeason?          @relation("CompletedTradeEffectiveSeason", fields: [effectiveWorldSeasonId], references: [id], onDelete: Restrict)
+  configVersion        TradePresetVersion    @relation(fields: [configVersionId], references: [id], onDelete: Restrict)
+  assets               CompletedTradeAsset[]
+  transactions         TradeTransaction[]
+  transferredContracts PlayerContract[]      @relation("ContractsTransferredByTrade")
+
+  @@index([proposingTeamId, completedAt])
+  @@index([receivingTeamId, completedAt])
+  @@index([completedAt])
+}
+
+model CompletedTradeAsset {
+  id                 String         @id @default(cuid())
+  completedTradeId   String
+  side               TradeSide
+  assetType          TradeAssetType
+  sourceTeamId       String
+  targetTeamId       String
+  playerId           String?
+  playerContractId   String?
+  draftPickId        String?
+  playerDraftRightId String?
+  assetSnapshotText  String
+  createdAt          DateTime       @default(now())
+
+  completedTrade   CompletedTrade    @relation(fields: [completedTradeId], references: [id], onDelete: Cascade)
+  sourceTeam       Team              @relation("CompletedTradeAssetTeam", fields: [sourceTeamId], references: [id], onDelete: Restrict)
+  player           Player?           @relation(fields: [playerId], references: [id], onDelete: Restrict)
+  playerContract   PlayerContract?   @relation(fields: [playerContractId], references: [id], onDelete: Restrict)
+  draftPick        DraftPick?        @relation(fields: [draftPickId], references: [id], onDelete: Restrict)
+  playerDraftRight PlayerDraftRight? @relation(fields: [playerDraftRightId], references: [id], onDelete: Restrict)
+
+  @@index([completedTradeId, side])
+  @@index([sourceTeamId])
+  @@index([playerId])
+  @@index([draftPickId])
+  @@index([playerDraftRightId])
+}
+
+/// Append-only operational history for a completed trade. Avoids duplicating the
+/// full proposal payload — one row per transferred asset.
+model TradeTransaction {
+  id                String               @id @default(cuid())
+  completedTradeId  String
+  transactionType   TradeTransactionType
+  playerId          String?
+  contractId        String?
+  draftPickId       String?
+  draftRightId      String?
+  fromTeamId        String
+  toTeamId          String
+  assetNameSnapshot String
+  transactionHash   String               @unique
+  createdAt         DateTime             @default(now())
+
+  completedTrade CompletedTrade    @relation(fields: [completedTradeId], references: [id], onDelete: Cascade)
+  player         Player?           @relation(fields: [playerId], references: [id], onDelete: Restrict)
+  contract       PlayerContract?   @relation(fields: [contractId], references: [id], onDelete: Restrict)
+  draftPick      DraftPick?        @relation(fields: [draftPickId], references: [id], onDelete: Restrict)
+  draftRight     PlayerDraftRight? @relation(fields: [draftRightId], references: [id], onDelete: Restrict)
+  fromTeam       Team              @relation("TradeTransactionFromTeam", fields: [fromTeamId], references: [id], onDelete: Restrict)
+  toTeam         Team              @relation("TradeTransactionToTeam", fields: [toTeamId], references: [id], onDelete: Restrict)
+
+  @@index([completedTradeId, transactionType])
+  @@index([playerId, transactionType, createdAt])
+  @@index([fromTeamId, transactionType, createdAt])
+  @@index([toTeamId, transactionType, createdAt])
+  @@index([draftPickId])
+  @@index([draftRightId])
 }

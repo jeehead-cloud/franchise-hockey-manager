@@ -37,6 +37,7 @@ import { ScoutDetailPage, ScoutsPage, ScoutingAssignmentPage, ScoutingLandingPag
 import { DraftDetailPage, DraftsLandingPage } from './pages/DraftsPage';
 import { ContractDetailPage, ContractsPage, TeamContractsPage } from './pages/ContractsPage';
 import { FreeAgencyPage } from './pages/FreeAgencyPage';
+import { CompletedTradeDetailPage, TradeProposalDetailPage, TradesPage, TeamTradeCenterPage } from './pages/TradesPage';
 
 export function App() {
   return (
@@ -96,6 +97,10 @@ export function App() {
             <Route path="/contracts" element={<ContractsPage />} />
             <Route path="/contracts/:id" element={<ContractDetailPage />} />
             <Route path="/free-agency" element={<FreeAgencyPage />} />
+            <Route path="/trades" element={<TradesPage />} />
+            <Route path="/trades/:tradeId" element={<CompletedTradeDetailPage />} />
+            <Route path="/trade-proposals/:proposalId" element={<TradeProposalDetailPage />} />
+            <Route path="/teams/:teamId/trade-center" element={<TeamTradeCenterPage />} />
             <Route path="/contract-expiration" element={<Navigate to="/contracts?tab=expiration" replace />} />
             <Route path="/simulation-lab" element={<SimulationLabPage />} />
             <Route path="*" element={<NotFoundPage />} />

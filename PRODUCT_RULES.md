@@ -277,6 +277,19 @@ Prototype aging table in §6 remains historical reference; F24 uses `PlayerDevel
 
 ---
 
+## 7b. Trades & Rights Transfers (F29 Implemented)
+
+- A trade has exactly two **club** Teams. A Team cannot trade with itself; national teams cannot participate.
+- Supported assets: a Player under an ACTIVE contract (the ACTIVE contract and any FUTURE contract move together, and `Player.currentTeamId` follows the ACTIVE contract), a PENDING `DraftPick` whose `currentTeamId` transfers while `originalTeamId` **never** changes, and an ACTIVE `PlayerDraftRight` whose holder transfers **without** signing the Player (no contract created, `currentTeamId` stays null).
+- A proposal is `DRAFT` (editable) → `SUBMITTED` (immutable frozen asset snapshots + valuations) → `ACCEPTED`/`REJECTED`/`WITHDRAWN`. Accepted/rejected/withdrawn proposals are immutable. No counteroffers in F29.
+- Acceptance revalidates every asset's current ownership/state inside one transaction; any stale asset aborts the whole trade (409) — no partial transfer, no partial history. A pre-trade SQLite backup is required first.
+- Completed trades and their append-only `TradeTransaction` history are immutable. Correction uses F32 recovery or a new opposite trade where legally valid — never an edit, reversal, or partial move.
+- Trade value is **advisory only** and never accepts or rejects a trade; there is no autonomous AI acceptance. Normal Team-context valuations use only that club's F26 scouting estimates or a conservative Unknown fallback — never true potential, hidden attributes, F25 quality tier, or another Team's private report.
+- Scouting reports are Team-private and do **not** transfer with a Player. Trade operations never change Player truth, attributes, form, role, scouting, provenance, development, or archives.
+- F29 enforces **no salary cap, no retained salary, no conditional picks, no multi-team trades, no cash, no waivers/buyouts/arbitration/no-trade-or-no-move clauses, and no trade deadline.** Lineups are never auto-rewritten (run auto-lineup later to rebuild from current ownership).
+
+---
+
 ## 8. Explicitly Deferred Mechanics
 
 The following are intentionally **not** implemented yet, and no feature should assume they exist:

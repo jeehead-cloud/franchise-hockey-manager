@@ -703,3 +703,5 @@ export type {
   DraftReconciliationResult,
   PlayerDraftRightDto,
 } from './draft/index.js';
+
+export * from './trades/index.js';

@@ -58,3 +58,7 @@ No web scraping, live APIs, or automatic roster sync.
 ## F28 contract compatibility initialization
 
 Dataset import does not invent contracts. After world initialization, Commissioner Mode can preview and publish one deterministic one-season ACTIVE contract for each eligible team-owned Player. Publication uses the selected existing WorldSeason, creates a SQLite safety backup, is atomic, and sets `AppMeta.contractsInitializedAt`; before that marker, missing contracts are compatibility warnings, and afterward they are readiness blockers. Salary is stored as integer dollars and no salary cap is enforced.
+
+## F29 trade configuration bootstrap
+
+Dataset import does not create trades. World initialization bootstraps one idempotent **Trades Simplified Default** system preset/version and activates it only when no owner trade configuration exists (owner configurations are preserved). No trade files are required and **schemaVersion remains 5**. Trade-value defaults are advisory only (normalized 0–100 scale) and F29 enforces no salary cap, retained salary, conditional picks, or multi-team trades.

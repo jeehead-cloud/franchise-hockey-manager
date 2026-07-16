@@ -128,7 +128,8 @@ describe('Migrations', () => {
       expect(names.some((n) => n.includes('f26_scouting_audit'))).toBe(true);
       expect(names.some((n) => n.includes('f27_draft'))).toBe(true);
       expect(names.some((n) => n.includes('f28_contracts'))).toBe(true);
-      expect(names).toHaveLength(23);
+      expect(names.some((n) => n.includes('f29_trades'))).toBe(true);
+      expect(names).toHaveLength(24);
       expect(names.some((n) => n.includes('f1_bootstrap'))).toBe(true);
       expect(names.some((n) => n.includes('f2_core_domain'))).toBe(true);
       expect(names.some((n) => n.includes('f3_source_metadata_and_init'))).toBe(true);

@@ -1767,6 +1767,20 @@ async function postJson<T>(path: string, payload: unknown, signal?: AbortSignal)
   return res.json() as Promise<T>;
 }
 
+async function patchJson<T>(path: string, payload: unknown): Promise<T> {
+  const res = await fetch(`${apiBase()}${path}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const err = new Error(await readError(res)) as Error & { status?: number };
+    err.status = res.status;
+    throw err;
+  }
+  return res.json() as Promise<T>;
+}
+
 async function putJson<T>(path: string, payload: unknown, signal?: AbortSignal): Promise<T> {
   const res = await fetch(`${apiBase()}${path}`, {
     method: 'PUT',
@@ -4548,3 +4562,59 @@ export async function getCommissionerDraftDiagnostics(id: string, signal?: Abort
 export async function listDraftConfigurations(signal?: AbortSignal): Promise<{ items: Array<{ id: string; name: string; description: string | null; isSystem: boolean; latestVersion: { id: string; versionNumber: number; configHash: string; isActive: boolean } | null }> }> {
   return commissionerGetJson('/api/commissioner/draft/configurations', signal);
 }
+
+// F29 trades and rights transfers ---------------------------------------------
+export type TradeAssetType = 'PLAYER_CONTRACT' | 'DRAFT_PICK' | 'PLAYER_DRAFT_RIGHT';
+export interface TradeAssetDescriptor { assetType: TradeAssetType; playerContractId?: string; draftPickId?: string; playerDraftRightId?: string }
+export interface TradeProposalItem {
+  id: string; status: string; proposedBy: string; reason: string | null; proposalHash: string;
+  proposingTeam: { id: string; name: string }; receivingTeam: { id: string; name: string };
+  submittedAt: string | null; acceptedAt: string | null; rejectedAt: string | null; withdrawnAt: string | null;
+  updatedAt: string; createdAt: string;
+  assets: Array<{ id: string; side: 'PROPOSING' | 'RECEIVING'; assetType: TradeAssetType; sourceTeamId: string; targetTeamId: string;
+    playerContract: { id: string; player: { id: string; name: string } } | null;
+    draftPick: { id: string; roundNumber: number; overallPick: number } | null;
+    playerDraftRight: { id: string; player: { id: string; name: string } } | null;
+    snapshot: Record<string, unknown> | null; valuation: { value: number; factors: string[] } | null }>;
+}
+export interface CompletedTradeItem {
+  id: string; tradeProposalId: string; tradeHash: string; completedAt: string;
+  proposingTeam: { id: string; name: string }; receivingTeam: { id: string; name: string };
+  effectiveWorldSeason: { id: string; label: string } | null;
+  assets: Array<{ id: string; side: string; assetType: TradeAssetType; sourceTeamId: string; targetTeamId: string; snapshot: Record<string, unknown> | null }>;
+  transactions: Array<{ id: string; transactionType: string; fromTeamId: string; toTeamId: string; assetNameSnapshot: string; transactionHash: string }>;
+}
+export interface TradeReadinessDto { status: 'READY' | 'WARNING' | 'NOT_READY'; checks: Record<string, number | boolean>; blockers: string[]; warnings: string[]; noSalaryCap: boolean }
+export interface TradeCenterOverviewDto {
+  team: { id: string; name: string; isClub: boolean };
+  openProposals: number; incomingProposals: number; outgoingProposals: number; recentCompletedTrades: number;
+  rightsHeldUnsignedProspects: number; availablePicks: number; lineupRequiresReview: boolean; lineupReviewReason: string | null;
+}
+export interface TradeValuationPreview { proposal: TradeProposalItem; valuations: { proposing: { totalValue: number }; receiving: { totalValue: number }; fairness: { imbalance: number; label: string; warning: boolean } } | null; previewError: { code: string; message: string } | null }
+
+export const getTradeReadiness = (signal?: AbortSignal) => getJson<{ item: TradeReadinessDto }>('/api/trades/readiness', signal);
+export const getCompletedTrades = (query = '', signal?: AbortSignal) => getJson<{ items: CompletedTradeItem[]; meta: { total: number; page: number; pageSize: number; totalPages: number } }>(`/api/trades${query}`, signal);
+export const getCompletedTradeById = (id: string, signal?: AbortSignal) => getJson<{ item: CompletedTradeItem }>(`/api/trades/${id}`, signal);
+export const getTradeProposals = (query = '', signal?: AbortSignal) => getJson<{ items: TradeProposalItem[]; meta: { total: number; page: number; pageSize: number; totalPages: number } }>(`/api/trade-proposals${query}`, signal);
+export const getTradeProposalById = (id: string, signal?: AbortSignal) => getJson<{ item: TradeProposalItem }>(`/api/trade-proposals/${id}`, signal);
+export const getTradeConfigurations = (signal?: AbortSignal) => getJson<{ items: Array<{ id: string; name: string; description: string | null; isSystem: boolean; versions: Array<{ id: string; versionNumber: number; configHash: string; isActive: boolean }> }> }>('/api/trade/configurations', signal);
+export const getPlayerTrades = (playerId: string, signal?: AbortSignal) => getJson<{ items: Array<{ transactionType: string; fromTeam: { id: string; name: string }; toTeam: { id: string; name: string }; date: string; completedTradeId: string }> }>(`/api/players/${playerId}/trades`, signal);
+export const getTeamTrades = (teamId: string, signal?: AbortSignal) => getJson<{ items: CompletedTradeItem[]; meta: { total: number } }>(`/api/teams/${teamId}/trades`, signal);
+export const getTeamTradeCenter = (teamId: string, signal?: AbortSignal) => getJson<{ item: TradeCenterOverviewDto }>(`/api/teams/${teamId}/trade-center`, signal);
+export const getDraftPickTrades = (pickId: string, signal?: AbortSignal) => getJson<{ item: { pickId: string; originalTeamId: string; currentTeamId: string; history: Array<{ fromTeamId: string; toTeamId: string; date: string }> } }>(`/api/draft-picks/${pickId}/trades`, signal);
+export const getDraftRightTrades = (rightId: string, signal?: AbortSignal) => getJson<{ item: { rightId: string; currentTeamId: string; history: Array<{ fromTeamId: string; toTeamId: string; date: string }> } }>(`/api/draft-rights/${rightId}/trades`, signal);
+
+export const createTradeProposal = (teamId: string, payload: { receivingTeamId: string; proposedBy: string; reason?: string; proposingAssets: TradeAssetDescriptor[]; receivingAssets: TradeAssetDescriptor[] }) =>
+  postJson<{ item: TradeProposalItem }>(`/api/teams/${teamId}/trade-proposals`, payload);
+export const editTradeProposal = (teamId: string, proposalId: string, payload: { proposingAssets: TradeAssetDescriptor[]; receivingAssets: TradeAssetDescriptor[]; reason?: string; expectedUpdatedAt?: string }) =>
+  patchJson<{ item: TradeProposalItem }>(`/api/teams/${teamId}/trade-proposals/${proposalId}`, payload);
+export const previewTradeProposal = (teamId: string, proposalId: string) =>
+  postJson<{ item: TradeValuationPreview }>(`/api/teams/${teamId}/trade-proposals/${proposalId}/preview`, {});
+export const submitTradeProposal = (teamId: string, proposalId: string, expectedUpdatedAt?: string) =>
+  postJson<{ item: TradeProposalItem }>(`/api/teams/${teamId}/trade-proposals/${proposalId}/submit`, { expectedUpdatedAt });
+export const withdrawTradeProposal = (teamId: string, proposalId: string, reason: string, expectedUpdatedAt?: string) =>
+  postJson<{ item: TradeProposalItem }>(`/api/teams/${teamId}/trade-proposals/${proposalId}/withdraw`, { reason, expectedUpdatedAt });
+export const acceptTradeProposal = (teamId: string, proposalId: string, reason: string, expectedUpdatedAt?: string) =>
+  postJson<{ item: { completedTradeId: string; tradeHash: string; proposalStatus: string; transfers: unknown[] } }>(`/api/teams/${teamId}/trade-proposals/${proposalId}/accept`, { reason, expectedUpdatedAt });
+export const rejectTradeProposal = (teamId: string, proposalId: string, reason: string, expectedUpdatedAt?: string) =>
+  postJson<{ item: TradeProposalItem }>(`/api/teams/${teamId}/trade-proposals/${proposalId}/reject`, { reason, expectedUpdatedAt });

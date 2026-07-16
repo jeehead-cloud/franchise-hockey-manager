@@ -12,11 +12,11 @@
 
 ## 1. Current Development Phase
 
-**F28 — Contracts and Free Agency: implemented locally (not committed).** Persistent versioned configuration; active/future/historical contracts over explicit `WorldSeason` ranges; deterministic valuation and extension advice; compatibility initialization with preview/backup/atomic publication; extension, expiration/future activation, free agency, competing offers, rights-holder signing, release, append-only transactions, readiness, APIs, and UI. Salary is integer dollars and informational only: no cap enforcement. F28 creates no trades, pick/right transfers, next season, or offseason orchestration.
+**F29 — Trades and Rights Transfers: implemented locally (not committed).** Persistent versioned trade configuration; two-club trade proposals with immutable asset snapshots; deterministic Team-context value calculations (player / pick / right) using each club's F26 scouting estimates or a conservative Unknown fallback; fairness warnings; proposal lifecycle (DRAFT → SUBMITTED → ACCEPTED/REJECTED/WITHDRAWN); atomic acceptance with pre-trade SQLite backup and ownership revalidation; ACTIVE+FUTURE contract transfer synchronized with `Player.currentTeamId`; `DraftPick.currentTeamId` transfer while `originalTeamId` is never changed; ACTIVE draft-right transfer without signing the player; append-only `TradeTransaction` history; immutable `CompletedTrade`; readiness, APIs, and UI. Trade value is advisory only — no autonomous AI, no salary cap, no retained salary, no conditional picks, no multi-team trades, no lineup auto-rewrite. F29 creates no next WorldSeason or offseason orchestration.
 
-**Next milestone: F29** (Trades — do not start until requested).
+**Next milestone: F30** (Offseason orchestration — do not start until requested).
 
-F1–F24 remain complete on `main`. F25–F28 changes are uncommitted in this tree.
+F1–F28 are committed on `main`. F29 changes are uncommitted in this tree.
 
 ---
 
@@ -66,7 +66,7 @@ Implemented:
 Not in F27:
 - F28 contracts/FA; F29 trades/pick transfers; F30 offseason orchestration; next WorldSeason creation; AI general-manager strategy beyond bounded deterministic auto-pick; real-time multiplayer; authentication
 
-### F28 — Contracts and Free Agency (Done locally)
+### F28 — Contracts and Free Agency (Committed on `main`)
 
 Implemented:
 - Pure `packages/engine/src/contracts/` rules for strict configuration, eligibility, valuation/recommendations, offer validation/comparison, expiration, rights conversion, reconciliation, hashes, and `verify:contracts`
@@ -76,6 +76,19 @@ Implemented:
 
 Not in F28:
 - Trades, pick/right transfers, cap accounting, retained salary, buyouts, waivers, arbitration, bonuses/clauses, AI negotiation, next WorldSeason, F30 orchestration, or authentication
+
+### F29 — Trades and Rights Transfers (Done locally)
+
+Implemented:
+- Pure `packages/engine/src/trades/` rules for strict versioned config, asset eligibility (player/pick/right), deterministic Team-context player/pick/right valuation (advisory only), fairness warnings, proposal summary with duplicate/conflict detection, reconciliation, hashing; `verify:trades` (21 checks incl. 200-valuation benchmark)
+- Prisma: `TradePreset`/`TradePresetVersion`/`ActiveTradeConfiguration`, `TradeProposal`/`TradeProposalAsset`, `CompletedTrade`/`CompletedTradeAsset`, `TradeTransaction`; optional `PlayerContract.transferredByTradeId`; migration `20260716040000_f29_trades`; audit enums `TRADE_*`
+- Server: bootstrap Trades Simplified Default (idempotent); public reads (`/api/trades`, `/api/trade-proposals`, `/api/players/:id/trades`, `/api/teams/:id/trades`, `/api/draft-picks/:id/trades`, `/api/draft-rights/:id/trades`); team-scoped proposal actions (create/edit/preview/submit/withdraw/accept/reject); Commissioner config CRUD + accept-on-behalf + diagnostics; pre-trade SQLite backup; atomic acceptance transaction (transfer + history + ownership sync); audit coverage
+- Client: `/trades` landing (Overview/Proposals/Completed tabs), `/trades/:tradeId` (immutable completed detail), `/trade-proposals/:proposalId` (review + Team-context valuation + actions), `/teams/:teamId/trade-center` (overview + New Proposal builder); sidebar Trade Center entry
+- Visibility: normal proposal valuations use each Team's own F26 scouting estimates or conservative Unknown fallback — never true potential, hidden attributes, F25 quality tier, or another Team's private report; Commissioner diagnostics reveal both-side valuations behind the header gate
+- Invariants: ACTIVE+FUTURE contracts move with the Player and `currentTeamId` follows the ACTIVE contract; `DraftPick.originalTeamId` never changes while `currentTeamId` transfers; ACTIVE rights transfer without signing the Player (no contract created); scouting reports are Team-private and never transfer; lineups are never auto-rewritten; completed trades + history are immutable; no salary cap / retained salary / conditional picks / multi-team trades / autonomous AI
+
+Not in F29:
+- F30 offseason orchestration; salary cap; retained salary; conditional picks; multi-team trades; cash; waivers; buyouts; arbitration; no-trade/no-move clauses; trade deadline; counteroffers; autonomous AI negotiation; next WorldSeason; authentication; deployment
 
 ### M1–M8
 
@@ -90,22 +103,32 @@ Unchanged.
 - Default youth name pools are fictional development examples for fixture countries only.
 - Scouting calibration (Scouting Default v1) is a simplified fictional preset — not tuned to any real scouting model.
 - The F27 draft lottery is a simplified fictional development lottery — **not exact NHL lottery fidelity**.
-- Team-scoped scouting/draft-board APIs use local sandbox team context (`/teams/:teamId/scouting`, `/drafts/:id/teams/:teamId/board`); there is **no authentication** — any caller passing a teamId reads that club's estimates. Commissioner header is not security.
-- Manual UI verification for F25, F26, F27, and F28 was **NOT RUN**.
-- F25–F28 changes not yet committed/pushed.
+- Team-scoped scouting/draft-board/trade APIs use local sandbox team context (`/teams/:teamId/scouting`, `/drafts/:id/teams/:teamId/board`, `/api/teams/:teamId/trade-proposals`); there is **no authentication** — any caller passing a teamId reads that club's estimates. Commissioner header is not security.
+- Manual UI verification for F25, F26, F27, F28, and F29 was **NOT RUN**.
+- F29 changes not yet committed/pushed.
 - Retired players may still appear on team roster lists until offseason cleanup (F30).
 
 ---
 
 ## 4. Nearest Next Steps
 
-1. Run the remaining disposable-database manual UI pass, including F28 initialization, extension, expiration, offers/acceptance, rights signing, release, privacy, and responsive/direct-route checks.
-2. Commit/push F25–F28 when the owner requests.
-3. **F29** only when explicitly requested.
+1. Run the remaining disposable-database manual UI pass, including F29 Trade Center: create/edit/preview/submit/withdraw/accept/reject, multi-asset transfer, Team-specific valuation differences, pick original/current split, rights transfer, stale-ownership rejection, retired/free-agent rejection, Draft IN_PROGRESS pick restriction, Commissioner diagnostics, and privacy checks.
+2. Commit/push F29 when the owner requests.
+3. **F30** only when explicitly requested.
 
 ---
 
 ## 5. Recent Changes
+
+### 2026-07-16 — F29 Trades and Rights Transfers
+
+- Implemented two-club trade proposals with immutable asset snapshots, deterministic Team-context valuations (player/pick/right using each club's F26 estimates or Unknown fallback), fairness warnings, atomic acceptance (pre-trade SQLite backup + ownership revalidation + single transaction), and append-only/immutable history
+- Ownership synchronization: ACTIVE+FUTURE contracts move with the Player; `Player.currentTeamId` follows the ACTIVE contract; `DraftPick.currentTeamId` transfers while `originalTeamId` never changes; ACTIVE rights transfer without signing the Player
+- Privacy: normal valuations never expose true potential, hidden attributes, F25 quality tier, or another Team's private scouting report; scouting reports do not transfer with a Player; Commissioner diagnostics reveal both-side valuations behind the gate
+- Boundaries: trade value is advisory only (no autonomous accept/reject); no salary cap, retained salary, conditional picks, multi-team trades, waivers, buyouts, arbitration, clauses, counteroffers, or lineup auto-rewrite; completed trades are immutable (correction uses F32 recovery or a new opposite trade)
+- Validation (all PASS): Prisma format/validate/generate; empty-DB `migrate deploy` through F29 (24 migrations); engine tests 273 PASS (incl. 37 trades tests); server tests 242 PASS (incl. 9 F29 tests + migration-history F1–F29); all 17 verifiers PASS incl. `verify:trades` (200-valuation benchmark ~17 ms); root typecheck; engine/server/client builds; `git diff --check` clean
+- Manual UI **NOT RUN**
+- Remaining: F29 uncommitted; F30 deferred
 
 ### 2026-07-16 — F28 recovery re-verification
 
@@ -154,6 +177,20 @@ Unchanged.
 ---
 
 ## 6. Significant Changes
+
+### 2026-07-16 — F29 Trades and Rights Transfers (Significant)
+
+- A trade has exactly two club Teams; a Team cannot trade with itself; national teams cannot participate
+- Submitted proposals are immutable (frozen asset snapshots + valuations); only DRAFT proposals are editable; accepted/rejected/withdrawn proposals are immutable
+- Acceptance revalidates every asset's current ownership/state inside one transaction; any stale asset (player released/retired, contract expired, pick traded elsewhere, right converted) aborts the whole trade with 409 — no partial transfer, no partial history
+- Accepted trades publish atomically: ACTIVE contract + FUTURE contract move to the receiving Team; `Player.currentTeamId` follows the ACTIVE contract; `DraftPick.currentTeamId` transfers while `originalTeamId` never changes; ACTIVE `PlayerDraftRight` holder transfers without creating a contract or assigning `currentTeamId`
+- A pre-trade SQLite safety backup is required before acceptance (one per accepted proposal); backup failure blocks acceptance
+- Trade value is advisory only — it never accepts or rejects a trade; there is no autonomous AI acceptance
+- Normal Team-context valuations use only that club's F26 scouting estimates or a conservative Unknown fallback — never true potential, hidden attributes, F25 quality tier, or another Team's private report; different Teams may see different values for the same asset
+- Scouting reports are Team-private and do **not** transfer with a Player; trade operations never change Player truth, attributes, form, scouting, provenance, development, or archives
+- F29 enforces no salary cap, no retained salary, no conditional picks, no multi-team trades, no cash, no waivers/buyouts/arbitration/clauses, no counteroffers, and no trade deadline; lineups are never auto-rewritten (source lineups may reference players no longer owned; auto-lineup rebuilds from current ownership when later run)
+- Completed trades and their transaction history are immutable; correction requires F32 database recovery or a new opposite trade where legally valid — never an edit, reversal, or partial move
+- F29 does not create the next WorldSeason or perform offseason orchestration
 
 ### 2026-07-15 — F28 Contracts and Free Agency (Significant)
 
@@ -224,8 +261,8 @@ Unchanged.
 | Item | Value |
 |---|---|
 | Dataset schemaVersion | 5 (unchanged) |
-| Migration | `20260716030000_f28_contracts` |
-| Verifier | `npm run verify:contracts` |
-| Default config | Contracts Simplified Default (integer dollars; no cap) |
-| UI | `/contracts`, `/contracts/:contractId`, `/teams/:teamId/contracts`, `/free-agency` |
-| Next | F29 |
+| Migration | `20260716040000_f29_trades` |
+| Verifier | `npm run verify:trades` |
+| Default config | Trades Simplified Default (advisory 0–100 values; no cap) |
+| UI | `/trades`, `/trades/:tradeId`, `/trade-proposals/:proposalId`, `/teams/:teamId/trade-center` |
+| Next | F30 |
