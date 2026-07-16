@@ -4507,6 +4507,38 @@ export async function commissionerStartDraft(id: string, reason: string): Promis
 export async function commissionerCancelDraft(id: string, reason: string): Promise<{ item: DraftEventItem }> {
   return commissionerWrite(`/api/commissioner/drafts/${id}/cancel`, 'POST', { reason });
 }
+
+// F28 contracts and free agency ------------------------------------------------
+export interface ContractItem {
+  id: string; playerId: string; teamId: string;
+  player?: { id: string; name: string; position: string };
+  team?: { id: string; name: string };
+  startSeason: { id: string; label?: string; order: number };
+  endSeason: { id: string; label?: string; order: number };
+  annualSalary: number; status: string; contractType: string; source: string;
+  playerNameSnapshot: string; teamNameSnapshot: string; updatedAt: string;
+}
+export interface ContractStatusDto { initialized: boolean; initializedAt: string | null; activeContracts: number; openOffers: number; freeAgents: number; rightsHeldUnsignedProspects: number; noSalaryCap: boolean }
+export interface FreeAgentItem { player: { id: string; name: string; position: string; country: string; rosterStatus: string; model: { currentAbility: number | null; modelStatus: string } }; previousContract: { annualSalary: number; teamNameSnapshot: string } | null; recommendation: { annualSalary: number; termYears: number; confidence: number }; openOffers: number; eligibleToSign: boolean }
+export const getContractsStatus=(signal?:AbortSignal)=>getJson<{item:ContractStatusDto}>('/api/contracts/status',signal);
+export const getContracts=(query='',signal?:AbortSignal)=>getJson<{items:ContractItem[];meta:{page:number;pageSize:number;total:number;totalPages:number}}>(`/api/contracts${query}`,signal);
+export const getContractById=(id:string,signal?:AbortSignal)=>getJson<{item:ContractItem&{transactions:unknown[];recommendations:unknown[]}}>(`/api/contracts/${id}`,signal);
+export const getTeamContracts=(teamId:string,signal?:AbortSignal)=>getJson<{items:ContractItem[];payroll:number;salaryCapEnforced:boolean}>(`/api/teams/${teamId}/contracts`,signal);
+export const getTeamContractOffers=(teamId:string,signal?:AbortSignal)=>getJson<{items:Array<{id:string;playerId:string;player:{firstName:string;lastName:string};offerType:string;annualSalary:number;status:string;updatedAt:string;startWorldSeason:{label:string};endWorldSeason:{label:string}}>}>(`/api/teams/${teamId}/free-agent-offers`,signal);
+export const getFreeAgents=(teamId?:string,signal?:AbortSignal)=>getJson<{items:FreeAgentItem[];meta:{total:number}}>(`/api/free-agents${teamId?`?teamId=${encodeURIComponent(teamId)}`:''}`,signal);
+export const getContractExpirationRuns=(signal?:AbortSignal)=>getJson<{items:Array<{id:string;status:string;worldSeason:{label:string};expiredCount:number;activatedFutureCount:number;freeAgentCount:number;createdAt:string}>}>('/api/contract-expiration-runs',signal);
+export const getContractConfigurations=(signal?:AbortSignal)=>getJson<{items:Array<{id:string;name:string;description:string|null;versions:Array<{id:string;versionNumber:number;configHash:string;isActive:boolean}>}>}>('/api/contracts/configurations',signal);
+export const createFreeAgentOffer=(teamId:string,payload:{playerId:string;startWorldSeasonId:string;endWorldSeasonId:string;annualSalary:number;reason:string})=>postJson<{item:any}>(`/api/teams/${teamId}/free-agent-offers`,payload);
+export const submitContractOffer=(teamId:string,offerId:string,expectedUpdatedAt:string)=>postJson<{item:any}>(`/api/teams/${teamId}/contract-offers/${offerId}/submit`,{expectedUpdatedAt});
+export const acceptContractOffer=(offerId:string,reason:string,expectedUpdatedAt:string)=>postJson<{item:any}>(`/api/contract-offers/${offerId}/accept`,{reason,expectedUpdatedAt});
+export const rejectContractOffer=(offerId:string,reason:string,expectedUpdatedAt:string)=>postJson<{item:any}>(`/api/contract-offers/${offerId}/reject`,{reason,expectedUpdatedAt});
+export const withdrawContractOffer=(teamId:string,offerId:string,reason:string,expectedUpdatedAt:string)=>postJson<{item:any}>(`/api/teams/${teamId}/contract-offers/${offerId}/withdraw`,{reason,expectedUpdatedAt});
+export const commissionerInitialContractPreview=(worldSeasonId:string)=>commissionerWrite<{item:any}>('/api/commissioner/contracts/initial-preview','POST',{worldSeasonId});
+export const commissionerPrepareInitialContracts=(worldSeasonId:string,reason:string)=>commissionerWrite<{item:any}>('/api/commissioner/contracts/initial-prepare','POST',{worldSeasonId,reason});
+export const commissionerExecuteInitialContracts=(runId:string,reason:string)=>commissionerWrite<{item:any}>(`/api/commissioner/contracts/initial-runs/${runId}/execute`,'POST',{reason});
+export const commissionerExpirationPreview=(worldSeasonId:string)=>commissionerWrite<{item:any}>('/api/commissioner/contracts/expiration-preview','POST',{worldSeasonId});
+export const commissionerPrepareExpiration=(worldSeasonId:string,reason:string)=>commissionerWrite<{item:any}>('/api/commissioner/contracts/expiration-prepare','POST',{worldSeasonId,reason});
+export const commissionerExecuteExpiration=(runId:string)=>commissionerWrite<{item:any}>(`/api/commissioner/contracts/expiration-runs/${runId}/execute`,'POST',{});
 export async function commissionerSelectPick(draftEventId: string, pickId: string, playerId: string, reason?: string): Promise<{ item: { pickId: string; overallPick: number; selectedPlayerId: string; selectedPlayerName: string; teamId: string; rightId: string } }> {
   return commissionerWrite(`/api/commissioner/drafts/${draftEventId}/picks/${pickId}/select`, 'POST', { playerId, reason });
 }

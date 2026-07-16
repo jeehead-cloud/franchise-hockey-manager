@@ -90,7 +90,7 @@ If no public estimate is imported, show `UNKNOWN` — do not derive public bands
 - Face-offs column (never populated in prototype)
 - Goalie placeholder (50/50 + all attrs = 10)
 
-Annual development (F24): see §0.5. Youth generation (F25): see §0.6. Scouting visibility (F26): see §0.7. Draft eligibility & rights (F27): see §0.8.
+Annual development (F24): see §0.5. Youth generation (F25): see §0.6. Scouting visibility (F26): see §0.7. Draft eligibility & rights (F27): see §0.8. Contracts and free agency (F28): see §0.9.
 
 ### 0.5 Annual development (F24)
 
@@ -124,6 +124,15 @@ Annual development (F24): see §0.5. Youth generation (F25): see §0.6. Scouting
 - Draft eligibility is decided structurally from `dateOfBirth` against an explicit `cutoffDate` (never wall clock), lifecycle (`PROSPECT`), source type, unsigned/no-club status, and prior draft rights — **never** from true ability or potential. Eligible prospects are frozen as `DraftEligiblePlayer` snapshots when the DraftEvent is prepared; later Player edits do not silently add/remove prospects once the event starts.
 - A draft selection creates an **ACTIVE `PlayerDraftRight`** owned by exactly one Team per drafted Player. The Player's **lifecycle remains `PROSPECT`** (no new lifecycle status is introduced); **`currentTeamId` stays `null`**; **no contract is created**. Draft rights are separate from current team, contract ownership, and national-team eligibility.
 - Draft rights history is immutable; one active right per Player for the relevant draft outcome; one right per completed `DraftPick`. F27 only creates ACTIVE rights — renunciation/expiration/conversion arrive with later milestones.
+
+### 0.9 Contracts and free agency (F28)
+
+- `PlayerContract` carries explicit start/end WorldSeason references, integer annual salary, ACTIVE/FUTURE/historical status, source, immutable signing snapshots, and configuration/terms hashes.
+- `Player.currentTeamId` is synchronized atomically with the ACTIVE contract. A Player without an ACTIVE contract is derived as a free agent only when not retired, not FUTURE-contracted, and not restricted by an ACTIVE draft right.
+- An accepted extension is FUTURE until its explicit season boundary. Expiration marks the prior contract EXPIRED and either activates the FUTURE contract without an ownership gap or clears ownership.
+- Release marks the ACTIVE contract TERMINATED and clears ownership; neither operation deletes Player or contract history and neither rewrites lineups.
+- `PlayerDraftRight` is not a contract. Only its Team may accept the prospect's ENTRY offer; acceptance converts the right while preserving DraftEvent/DraftPick history.
+- Retired Players cannot receive new contracts. Contract operations never change attributes, potential, development, form, role, scouting, or provenance.
 - Player draft provenance (season/round/overall pick/drafting Team snapshot/rights status) is exposed via `/api/players/:id/draft-history`; the unsigned state is explicit. Commissioner diagnostics may reveal order/lottery/result hashes; normal APIs never expose true potential/current ability/role/quality tier.
 - Draft never mutates Player truth, F25 provenance, F24 development, F26 scouting reports, club lineups, NT snapshots, or F20 archives.
 

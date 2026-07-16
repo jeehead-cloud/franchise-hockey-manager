@@ -25,6 +25,8 @@ import { registerScoutingRoutes } from './routes/scouting.js';
 import { registerCommissionerScoutingRoutes } from './routes/commissioner-scouting.js';
 import { registerDraftRoutes } from './routes/draft.js';
 import { registerCommissionerDraftRoutes } from './routes/commissioner-draft.js';
+import { registerContractRoutes } from './routes/contracts.js';
+import { registerCommissionerContractRoutes } from './routes/commissioner-contracts.js';
 
 export async function buildApp(options?: { logger?: boolean }) {
   const app = Fastify({ logger: options?.logger ?? true });
@@ -66,6 +68,8 @@ export async function buildApp(options?: { logger?: boolean }) {
   await registerCommissionerScoutingRoutes(app);
   await registerDraftRoutes(app);
   await registerCommissionerDraftRoutes(app);
+  await registerContractRoutes(app);
+  await registerCommissionerContractRoutes(app);
   await registerCommissionerRoutes(app);
 
   return app;
@@ -91,4 +95,6 @@ export async function ensureAppMeta() {
   await bootstrapScoutingConfiguration(prisma);
   const { bootstrapDraftConfiguration } = await import('./services/draft-config.js');
   await bootstrapDraftConfiguration(prisma);
+  const { bootstrapContractConfiguration } = await import('./services/contract-config.js');
+  await bootstrapContractConfiguration(prisma);
 }

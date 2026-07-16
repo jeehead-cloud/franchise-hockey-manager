@@ -2413,6 +2413,10 @@ This is not part of the foundation plan.
 
 ---
 
+## F28 implementation note (2026-07-15)
+
+The live client adds `/contracts`, `/contracts/:contractId`, `/teams/:teamId/contracts`, and `/free-agency`, with Overview/Active/Expiring/Transactions/Expiration/Configuration/Diagnostics contract tabs. It supports compatibility initialization, explicit-season expiration, team offer creation/submission/acceptance/withdrawal, team contract/payroll views, player-history links, versioned configuration display, and Commissioner boundaries. Payroll is informational and every surface states that no salary cap is enforced. Rights signing is exposed by the contract API and remains distinct from draft history; F29 trade/rights-transfer controls do not exist.
+
 ## 94. Open Questions
 
 To be resolved during implementation and balancing:

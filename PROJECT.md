@@ -104,7 +104,7 @@ The owner is both the sole developer and the sole player. There is no multiplaye
 | M3 | Chemistry & Tactics Fit | Non-linear performance engine (the core design pillar) | Not started |
 | M4 | Season Simulation Engine | Schedule, game sim, standings, playoffs | Not started |
 | M5 | Draft & Scouting | Draft classes, fog-of-war scouting, draft-day flow | Not started |
-| M6 | Contracts, Cap & Transactions | Salary cap, contracts, free agency, trades | Not started |
+| M6 | Contracts, Cap & Transactions | F28 contracts/free agency implemented locally; salary cap and F29 trades deferred | In progress |
 | M7 | Automation & AI GMs | Automated other-team decisions, AI GM personalities | Queued |
 | M8 | Server Deployment & Multiplayer | Public hosting on a domain, possible multiplayer | Queued |
 

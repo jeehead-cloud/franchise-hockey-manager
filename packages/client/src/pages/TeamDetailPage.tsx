@@ -222,6 +222,7 @@ export function TeamDetailPage() {
       >
         <PageHeader
           title={team.name}
+          actions={<Link to={`/teams/${team.id}/contracts`}><Button variant="secondary">Contracts</Button></Link>}
           subtitle={[team.city, team.country?.name, team.league?.name, team.teamType]
             .filter(Boolean)
             .join(' · ')}

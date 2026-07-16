@@ -75,6 +75,9 @@ describe('Migrations', () => {
       expect(names).toContain('ScoutingObservation');
       expect(names).toContain('TeamScoutingReport');
       expect(names).toContain('TeamProspectWatchlistEntry');
+      expect(names).toContain('PlayerContract');
+      expect(names).toContain('ContractOffer');
+      expect(names).toContain('ContractTransaction');
       const cols = await prisma.$queryRaw<Array<{ name: string }>>`
         PRAGMA table_info('AppMeta')
       `;
@@ -100,7 +103,7 @@ describe('Migrations', () => {
     }
   });
 
-  it('records F1–F27 migrations in history', async () => {
+  it('records F1–F28 migrations in history', async () => {
     const { url, dir } = createTempDatabaseUrl();
     try {
       migrateTempDatabase(url);
@@ -124,7 +127,8 @@ describe('Migrations', () => {
       expect(names.some((n) => n.includes('f26_scouting'))).toBe(true);
       expect(names.some((n) => n.includes('f26_scouting_audit'))).toBe(true);
       expect(names.some((n) => n.includes('f27_draft'))).toBe(true);
-      expect(names).toHaveLength(22);
+      expect(names.some((n) => n.includes('f28_contracts'))).toBe(true);
+      expect(names).toHaveLength(23);
       expect(names.some((n) => n.includes('f1_bootstrap'))).toBe(true);
       expect(names.some((n) => n.includes('f2_core_domain'))).toBe(true);
       expect(names.some((n) => n.includes('f3_source_metadata_and_init'))).toBe(true);

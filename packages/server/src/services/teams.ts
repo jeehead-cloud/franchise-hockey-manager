@@ -52,6 +52,7 @@ const readinessPlayerInclude = {
   publicPotentialEstimate: true,
   skaterAttributes: true,
   goalieAttributes: true,
+  contracts: { where: { status: 'ACTIVE' as const }, select: { id: true } },
 } as const;
 
 const TEAM_SORTS = ['name', 'city', 'teamType', 'createdAt'] as const;
@@ -92,7 +93,7 @@ export async function listTeams(query: Record<string, unknown> = {}) {
     ];
   }
 
-  const [total, rows] = await Promise.all([
+  const [total, rows, appMeta] = await Promise.all([
     prisma.team.count({ where }),
     prisma.team.findMany({
       where,
@@ -111,6 +112,7 @@ export async function listTeams(query: Record<string, unknown> = {}) {
         lineup: { include: { assignments: { select: { slot: true, playerId: true } } } },
       },
     }),
+    prisma.appMeta.findUnique({ where: { id: 'default' }, select: { contractsInitializedAt: true } }),
   ]);
 
   const items = rows.map((row) => {
@@ -126,7 +128,7 @@ export async function listTeams(query: Record<string, unknown> = {}) {
     return {
       ...mapTeam(row),
       rosterCount: row._count.players,
-      readinessStatus: readiness.status,
+      readinessStatus: row.teamType === 'CLUB' && appMeta?.contractsInitializedAt && row.players.some((p) => p.contracts.length === 0) ? 'NOT_READY' : readiness.status,
       lineupStatus: presence,
       coach: row.coach
         ? {
@@ -155,6 +157,7 @@ export async function getTeamById(id: string) {
           skaterAttributes: true,
           goalieAttributes: true,
           secondaryPositions: { select: { position: true } },
+          contracts: { where: { status: 'ACTIVE' }, select: { id: true } },
         },
       },
       lineup: { include: { assignments: { select: { slot: true, playerId: true } } } },
@@ -186,16 +189,20 @@ export async function getTeamById(id: string) {
   const validation = buildValidationForTeam(row.players as LineupPlayerRow[], assignmentInputs);
   const presence = lineupPresenceFromValidation(Boolean(row.lineup), row.lineup ? validation : null);
 
+  const appMeta = await prisma.appMeta.findUnique({ where: { id: 'default' }, select: { contractsInitializedAt: true } });
+  const baseReadiness = buildTeamReadiness({
+    hasHeadCoach: Boolean(row.coach), tacticalStyle: row.tacticalStyle,
+    players: row.players, lineupPresence: presence,
+  });
+  const unsigned = row.teamType === 'CLUB' ? row.players.filter((p) => p.contracts.length === 0).length : 0;
+  const contractCheck = { code: 'CONTRACT_OWNERSHIP', label: 'Active player contracts', result: (appMeta?.contractsInitializedAt && unsigned ? 'FAIL' : unsigned ? 'WARN' : 'PASS') as 'FAIL'|'WARN'|'PASS', actual: unsigned, required: 0, explanation: unsigned ? `${unsigned} team-owned player(s) have no active contract` : 'All team-owned players have an active contract' };
+  const readiness = unsigned && appMeta?.contractsInitializedAt ? { ...baseReadiness, status: 'NOT_READY' as const, checks: [...baseReadiness.checks, contractCheck] } : { ...baseReadiness, checks: [...baseReadiness.checks, contractCheck] };
+
   return {
     ...mapTeam(row),
     rosterCount: row.players.length,
     coach: row.coach ? { ...row.coach } : null,
-    readiness: buildTeamReadiness({
-      hasHeadCoach: Boolean(row.coach),
-      tacticalStyle: row.tacticalStyle,
-      players: row.players,
-      lineupPresence: presence,
-    }),
+    readiness,
     lineupSummary: {
       presence,
       validationStatus: row.lineup ? validation.status : null,

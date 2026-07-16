@@ -637,6 +637,16 @@ Verifier: `npm run verify:draft`
 
 ---
 
+## 7n. Contracts and Free Agency (F28)
+
+The pure `packages/engine/src/contracts/` module owns strict configuration validation, eligibility, deterministic valuation/recommendations, offer comparison, expiration classification, draft-right conversion checks, reconciliation, and stable hashes. It has no Prisma dependency.
+
+Persistence is server-only: `ContractPreset`/`ContractPresetVersion`/`ActiveContractConfiguration`; `PlayerContract`; `ContractOffer`; immutable `ContractRecommendation`; append-only `ContractTransaction`; and prepared/completed initialization and expiration runs. The F28 migration adds partial SQLite unique indexes for one ACTIVE and one FUTURE contract per Player plus range/salary checks. WorldSeason `startYear` is the canonical order and is snapshotted on terms; wall-clock dates never determine contract activity.
+
+Server services batch-load state, preserve Team-scoped F26 scouting privacy, and perform acceptance, ownership synchronization, rights conversion, competing-offer closure, expiration/future activation, and release in database transactions. Compatibility initialization and expiration create SQLite backups before publication. Commissioner Mode manages immutable configuration versions and global corrections; accepted terms are not edited in place.
+
+REST surfaces include `/api/contracts*`, Player/Team contract history/status, `/api/free-agents*`, Team offers/recommendations/releases, expiration runs, and `/api/commissioner/contracts*`. Client routes are `/contracts`, `/contracts/:id`, `/teams/:teamId/contracts`, and `/free-agency`. Payroll is informational only; F28 has no cap or trade persistence.
+
 ## 8. Why Client-Server From Day One
 
 Milestone M8 (public deployment) remains an explicit goal. See `DEPLOYMENT.md`.

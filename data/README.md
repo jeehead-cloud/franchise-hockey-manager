@@ -54,3 +54,7 @@ Lineups are **not** imported; teams start without a persisted lineup until Commi
 - Override: `FHM_DATASET_DIR` (absolute or repo-relative path)
 
 No web scraping, live APIs, or automatic roster sync.
+
+## F28 contract compatibility initialization
+
+Dataset import does not invent contracts. After world initialization, Commissioner Mode can preview and publish one deterministic one-season ACTIVE contract for each eligible team-owned Player. Publication uses the selected existing WorldSeason, creates a SQLite safety backup, is atomic, and sets `AppMeta.contractsInitializedAt`; before that marker, missing contracts are compatibility warnings, and afterward they are readiness blockers. Salary is stored as integer dollars and no salary cap is enforced.

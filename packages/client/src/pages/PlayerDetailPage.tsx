@@ -167,6 +167,9 @@ export function PlayerDetailPage() {
             <Badge tone={complete ? 'success' : 'warning'}>
               {complete ? 'Model complete' : 'Model incomplete'}
             </Badge>
+            <Link to={`/contracts?playerId=${player.id}`}>
+              <Button size="sm" variant="secondary">Contract History</Button>
+            </Link>
             {enabled ? (
               <Button size="sm" onClick={() => navigate(`/players/${player.id}/edit`)}>
                 Edit Player

@@ -35,6 +35,8 @@ import { YouthGenerationRunDetailPage } from './pages/YouthGenerationRunDetailPa
 import { CommissionerProvider } from './lib/commissioner';
 import { ScoutDetailPage, ScoutsPage, ScoutingAssignmentPage, ScoutingLandingPage, ScoutingPage, ScoutingProspectPage } from './pages/ScoutingPage';
 import { DraftDetailPage, DraftsLandingPage } from './pages/DraftsPage';
+import { ContractDetailPage, ContractsPage, TeamContractsPage } from './pages/ContractsPage';
+import { FreeAgencyPage } from './pages/FreeAgencyPage';
 
 export function App() {
   return (
@@ -63,6 +65,7 @@ export function App() {
             <Route path="/teams/:teamId/history" element={<TeamHistoryPage />} />
             <Route path="/teams/:teamId/lines/edit" element={<TeamLinesEditPage />} />
             <Route path="/teams/:teamId/scouting" element={<ScoutingPage />} />
+            <Route path="/teams/:teamId/contracts" element={<TeamContractsPage />} />
             <Route path="/teams/:teamId/scouting/assignments/:assignmentId" element={<ScoutingAssignmentPage />} />
             <Route path="/teams/:teamId/scouting/prospects/:playerId" element={<ScoutingProspectPage />} />
             <Route path="/scouting" element={<ScoutingLandingPage />} />
@@ -90,6 +93,10 @@ export function App() {
             <Route path="/drafts/:draftEventId" element={<DraftDetailPage />} />
             <Route path="/drafts/:draftEventId/room" element={<DraftDetailPage />} />
             <Route path="/drafts/:draftEventId/teams/:teamId/board" element={<DraftDetailPage />} />
+            <Route path="/contracts" element={<ContractsPage />} />
+            <Route path="/contracts/:id" element={<ContractDetailPage />} />
+            <Route path="/free-agency" element={<FreeAgencyPage />} />
+            <Route path="/contract-expiration" element={<Navigate to="/contracts?tab=expiration" replace />} />
             <Route path="/simulation-lab" element={<SimulationLabPage />} />
             <Route path="*" element={<NotFoundPage />} />
           </Route>

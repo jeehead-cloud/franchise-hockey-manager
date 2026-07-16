@@ -670,6 +670,8 @@ export {
   hashDraftResult,
 } from './draft/index.js';
 
+export * from './contracts/index.js';
+
 export type {
   DraftConfig,
   DraftLotteryConfig,

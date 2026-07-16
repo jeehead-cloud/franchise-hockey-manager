@@ -345,6 +345,19 @@ export async function updateCommissionerPlayer(
   const willGoalie = isGoaliePosition(input.identity.primaryPosition);
   const positionModelConverted = wasGoalie !== willGoalie;
   const teamChanged = (existing.currentTeamId ?? null) !== (input.identity.currentTeamId ?? null);
+  if (teamChanged) {
+    const contractState = await prisma.appMeta.findUnique({
+      where: { id: 'default' },
+      select: { contractsInitializedAt: true },
+    });
+    if (contractState?.contractsInitializedAt) {
+      throw new CommissionerHttpError(
+        409,
+        'ContractOwnershipCorrectionRequired',
+        'Team ownership is contract-authoritative after F28 initialization. Use signing, expiration, or release; accepted terms are not edited in place.',
+      );
+    }
+  }
 
   const updated = await prisma.$transaction(async (tx) => {
     await tx.player.update({

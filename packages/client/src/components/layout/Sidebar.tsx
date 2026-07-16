@@ -15,6 +15,7 @@ import {
   Users,
   UserRound,
   UsersRound,
+  FileSignature,
   type LucideIcon,
 } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
@@ -42,6 +43,7 @@ export const MAIN_NAV: NavItem[] = [
   { to: '/development', label: 'Development', icon: Sprout },
   { to: '/youth-generation', label: 'Youth Generation', icon: UsersRound },
   { to: '/drafts', label: 'Draft', icon: ClipboardList },
+  { to: '/contracts', label: 'Contracts & Free Agency', icon: FileSignature },
   { to: '/settings', label: 'Settings', icon: Settings },
   { to: '/simulation-lab', label: 'Simulation Lab', icon: FlaskConical },
 ];

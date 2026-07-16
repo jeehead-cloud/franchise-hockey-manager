@@ -95,6 +95,7 @@ npm run verify:player-development
 npm run verify:youth-generation
 npm run verify:scouting
 npm run verify:draft
+npm run verify:contracts
 ```
 
 Vitest uses isolated temporary SQLite databases for server tests (does not mutate the normal `dev.db` except when you run migrate yourself).
@@ -103,7 +104,7 @@ Vitest uses isolated temporary SQLite databases for server tests (does not mutat
 
 | Package | Role |
 |---|---|
-| `@fhm/engine` | Pure simulation/generation logic (F5 player model: attributes, ratings, roles) |
+| `@fhm/engine` | Pure simulation/generation logic, including deterministic F28 contract rules |
 | `@fhm/server` | Fastify + Prisma + SQLite REST API + world import |
 | `@fhm/client` | React + Vite shell using Atlas design tokens |
 

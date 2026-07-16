@@ -259,13 +259,21 @@ Prototype aging table in §6 remains historical reference; F24 uses `PlayerDevel
 - **F26 implemented:** scouting fog-of-war is live. What the owner sees for a prospect is a noisy, confidence-bounded estimate of the true attributes/potential — never the ground-truth values on normal APIs. See the F26 invariants above and `ARCHITECTURE.md` §7l.
 - **F27 implemented:** the annual amateur draft consumes F25 prospects and F26 team-specific scouting knowledge. Eligibility uses an explicit cutoff date (never wall clock); order and lottery are deterministic; auto-pick uses only that Team's scouting estimates; a selection creates ACTIVE draft rights, not a contract; the drafted Player remains `PROSPECT`, unsigned, and `currentTeamId = null`. See the F27 invariants above and `ARCHITECTURE.md` §7m.
 - Draft-class players come from F25 youth generation (and existing prospects already living in the world); undrafted players remain in the world.
-- Not yet implemented: contracts/entry-level signing (F28), trades and draft-pick/right transfers (F29), offseason orchestration (F30), next-WorldSeason creation.
+- F28 converts an ACTIVE draft right only when its owning Team accepts an ENTRY contract offer; rights and contracts remain distinct records.
+- Not yet implemented: trades and draft-pick/right transfers (F29), offseason orchestration (F30), next-WorldSeason creation.
 
 ---
 
-## 7. Contracts, Cap & Transactions (Milestone M6 — Not Yet Implemented)
+## 7. Contracts, Cap & Transactions (F28 Contracts Implemented)
 
-- Not yet designed. When implemented: salary cap is a hard team-level constraint, contracts have length/value/bonus structure, and trades must respect the cap for both sides. Record the actual chosen formulas here once implemented — don't leave an important rule only in chat history.
+- A Player has at most one ACTIVE contract. Its Team must equal `Player.currentTeamId`; contract acceptance and ownership update are atomic.
+- ACTIVE/FUTURE ranges use explicit existing WorldSeason references and stable start-year order snapshots. Start cannot follow end and live ranges cannot overlap. Wall-clock time never advances contracts.
+- Offers create no ownership. Acceptance creates the contract, closes competing submitted offers, and updates ownership atomically; rejected/withdrawn offers preserve history.
+- Expiration and release never delete the Player or contract history. They clear ownership unless an accepted FUTURE extension activates at the explicit boundary. Lineups are not automatically rewritten.
+- Draft rights are distinct from contracts. Only the ACTIVE rights holder may sign the prospect; accepted signing converts the right to `CONVERTED_TO_CONTRACT` and preserves DraftPick history.
+- Retired Players cannot sign. Contract operations do not alter attributes, potential, form, role, development, scouting, youth provenance, competition archives, or historical snapshots.
+- Salary is integer dollars, constant per contract season, under an immutable versioned simplified configuration. Recommendations are deterministic advice and do not use hidden true potential in normal Team context.
+- F28 enforces **no salary cap** and creates no cap hits, trades, pick/right transfers, retained salary, buyouts, waivers, arbitration, bonuses, clauses, or offer sheets.
 
 ---
 

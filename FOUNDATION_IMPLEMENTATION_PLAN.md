@@ -1521,6 +1521,8 @@ AI strategies: F27 ships a single bounded deterministic auto-pick (effectively "
 
 # 33. F28 — Contracts and Free Agency
 
+**Implementation status (2026-07-15): implemented locally, not committed.** The delivered boundary includes versioned simplified configuration, explicit-WorldSeason ACTIVE/FUTURE/history contracts, deterministic recommendations, compatibility initialization, offers/acceptance, free agency, rights-holder signing and conversion, release, idempotent expiration/future activation, append-only transactions, readiness, APIs/UI, tests, and `verify:contracts`. Salary is integer dollars with no cap enforcement. F29 trades and F30 orchestration remain deferred.
+
 ## Goal
 
 Add simplified player contracts.

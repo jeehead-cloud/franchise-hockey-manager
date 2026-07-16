@@ -1,0 +1,2 @@
+import { ContractEngineError } from './types.js';
+export function assertRightsConversion(input:{rightStatus:string;rightTeamId:string;signingTeamId:string;playerCurrentTeamId:string|null}) { if(input.rightStatus!=='ACTIVE')throw new ContractEngineError('DraftRightAlreadyConverted','Draft right is not active');if(input.rightTeamId!==input.signingTeamId)throw new ContractEngineError('DraftRightOwnedByAnotherTeam','Draft right belongs to another team');if(input.playerCurrentTeamId)throw new ContractEngineError('PlayerNotFreeAgent','Prospect is already assigned');return true; }

@@ -9,14 +9,15 @@ datasource db {
 
 /// F1 bootstrap metadata + F3 world initialization state.
 model AppMeta {
-  id                 String    @id @default("default")
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
+  id                     String    @id @default("default")
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
   /// True after a successful one-time world initialization.
-  worldInitialized   Boolean   @default(false)
-  worldDatasetId     String?
-  worldInitializedAt DateTime?
-  worldSchemaVersion Int?
+  worldInitialized       Boolean   @default(false)
+  worldDatasetId         String?
+  worldInitializedAt     DateTime?
+  worldSchemaVersion     Int?
+  contractsInitializedAt DateTime?
 }
 
 // ---------------------------------------------------------------------------
@@ -248,6 +249,10 @@ enum CommissionerAuditEntityType {
   DRAFT_LOTTERY
   DRAFT_PICK
   PLAYER_DRAFT_RIGHT
+  CONTRACT_CONFIG
+  PLAYER_CONTRACT
+  CONTRACT_OFFER
+  CONTRACT_EXPIRATION_RUN
 }
 
 enum CommissionerAuditAction {
@@ -357,6 +362,19 @@ enum CommissionerAuditAction {
   DRAFT_PICK_MADE
   DRAFT_EVENT_COMPLETED
   DRAFT_EVENT_CANCELLED
+  CONTRACT_CONFIG_CREATED
+  CONTRACT_CONFIG_VERSION_CREATED
+  CONTRACT_CONFIG_ACTIVATED
+  INITIAL_CONTRACTS_PREPARED
+  INITIAL_CONTRACTS_CREATED
+  CONTRACT_RECOMMENDATION_CREATED
+  CONTRACT_OFFER_SUBMITTED
+  CONTRACT_OFFER_WITHDRAWN
+  CONTRACT_OFFER_REJECTED
+  CONTRACT_OFFER_ACCEPTED
+  PLAYER_RELEASED
+  CONTRACT_EXPIRATION_PREPARED
+  CONTRACT_EXPIRATION_COMPLETED
 }
 
 /// F20 competition archive status.
@@ -443,13 +461,20 @@ model WorldSeason {
   createdAt     DateTime          @default(now())
   updatedAt     DateTime          @updatedAt
 
-  competitionEditions CompetitionEdition[]
-  archives            CompetitionArchive[]
-  developmentRuns     PlayerDevelopmentRun[]
-  playerSnapshots     PlayerSeasonSnapshot[]
-  youthGenerationRuns YouthGenerationRun[]
-  youthCohorts        YouthCohort[]
-  draftEvents         DraftEvent[]
+  competitionEditions        CompetitionEdition[]
+  archives                   CompetitionArchive[]
+  developmentRuns            PlayerDevelopmentRun[]
+  playerSnapshots            PlayerSeasonSnapshot[]
+  youthGenerationRuns        YouthGenerationRun[]
+  youthCohorts               YouthCohort[]
+  draftEvents                DraftEvent[]
+  contractsStarting          PlayerContract[]            @relation("ContractStartSeason")
+  contractsEnding            PlayerContract[]            @relation("ContractEndSeason")
+  offersStarting             ContractOffer[]             @relation("OfferStartSeason")
+  offersEnding               ContractOffer[]             @relation("OfferEndSeason")
+  expirationRuns             ContractExpirationRun[]
+  contractTransactions       ContractTransaction[]
+  contractInitializationRuns ContractInitializationRun[]
 }
 
 model Country {
@@ -516,25 +541,30 @@ model Team {
   country Country @relation(fields: [countryId], references: [id], onDelete: Restrict)
   league  League? @relation(fields: [leagueId], references: [id], onDelete: Restrict)
 
-  players                 Player[]
+  players                   Player[]
   /// At most one current head coach (unique on Coach.currentTeamId).
-  coach                   Coach?
-  lineup                  TeamLineup?
-  homeMatches             Match[]                      @relation("MatchHomeTeam")
-  awayMatches             Match[]                      @relation("MatchAwayTeam")
-  competitionParticipants CompetitionParticipant[]
-  nationalTeamProfile     NationalTeamProfile?
-  scoutingDepartment      ScoutingDepartment?
-  prospectKnowledge       TeamProspectKnowledge[]
-  scoutingAssignments     ScoutingAssignment[]
-  scoutingObservations    ScoutingObservation[]
-  scoutingReports         TeamScoutingReport[]
-  scoutingWatchlist       TeamProspectWatchlistEntry[]
-  draftTeamEntries        DraftTeamEntry[]
-  draftPicksAsOriginal    DraftPick[]                  @relation("DraftPickOriginalTeam")
-  draftPicksAsCurrent     DraftPick[]                  @relation("DraftPickCurrentTeam")
-  draftRights             PlayerDraftRight[]
-  draftBoardSnapshots     DraftTeamBoardSnapshot[]
+  coach                     Coach?
+  lineup                    TeamLineup?
+  homeMatches               Match[]                      @relation("MatchHomeTeam")
+  awayMatches               Match[]                      @relation("MatchAwayTeam")
+  competitionParticipants   CompetitionParticipant[]
+  nationalTeamProfile       NationalTeamProfile?
+  scoutingDepartment        ScoutingDepartment?
+  prospectKnowledge         TeamProspectKnowledge[]
+  scoutingAssignments       ScoutingAssignment[]
+  scoutingObservations      ScoutingObservation[]
+  scoutingReports           TeamScoutingReport[]
+  scoutingWatchlist         TeamProspectWatchlistEntry[]
+  draftTeamEntries          DraftTeamEntry[]
+  draftPicksAsOriginal      DraftPick[]                  @relation("DraftPickOriginalTeam")
+  draftPicksAsCurrent       DraftPick[]                  @relation("DraftPickCurrentTeam")
+  draftRights               PlayerDraftRight[]
+  draftBoardSnapshots       DraftTeamBoardSnapshot[]
+  playerContracts           PlayerContract[]
+  contractRecommendations   ContractRecommendation[]
+  contractOffers            ContractOffer[]
+  contractTransactions      ContractTransaction[]        @relation("ContractTransactionTeam")
+  otherContractTransactions ContractTransaction[]        @relation("ContractTransactionOtherTeam")
 
   @@unique([leagueId, name])
   @@unique([sourceDataset, externalId])
@@ -576,21 +606,25 @@ model Player {
   createdAt               DateTime                 @default(now())
   updatedAt               DateTime                 @updatedAt
 
-  nationality          Country                      @relation("PlayerNationality", fields: [nationalityCountryId], references: [id], onDelete: Restrict)
-  currentTeam          Team?                        @relation(fields: [currentTeamId], references: [id], onDelete: SetNull)
-  skaterAttributes     SkaterAttributes?
-  goalieAttributes     GoalieAttributes?
-  secondaryPositions   PlayerSecondaryPosition[]
-  lineupAssignments    LineupAssignment[]
-  developmentResults   PlayerDevelopmentResult[]
-  seasonSnapshots      PlayerSeasonSnapshot[]
-  youthGeneratedPlayer YouthGeneratedPlayer?
-  scoutingKnowledge    TeamProspectKnowledge[]
-  scoutingObservations ScoutingObservation[]
-  scoutingReports      TeamScoutingReport[]
-  scoutingWatchlist    TeamProspectWatchlistEntry[]
-  draftEligibleRecords DraftEligiblePlayer[]
-  draftRights          PlayerDraftRight[]
+  nationality             Country                      @relation("PlayerNationality", fields: [nationalityCountryId], references: [id], onDelete: Restrict)
+  currentTeam             Team?                        @relation(fields: [currentTeamId], references: [id], onDelete: SetNull)
+  skaterAttributes        SkaterAttributes?
+  goalieAttributes        GoalieAttributes?
+  secondaryPositions      PlayerSecondaryPosition[]
+  lineupAssignments       LineupAssignment[]
+  developmentResults      PlayerDevelopmentResult[]
+  seasonSnapshots         PlayerSeasonSnapshot[]
+  youthGeneratedPlayer    YouthGeneratedPlayer?
+  scoutingKnowledge       TeamProspectKnowledge[]
+  scoutingObservations    ScoutingObservation[]
+  scoutingReports         TeamScoutingReport[]
+  scoutingWatchlist       TeamProspectWatchlistEntry[]
+  draftEligibleRecords    DraftEligiblePlayer[]
+  draftRights             PlayerDraftRight[]
+  contracts               PlayerContract[]
+  contractRecommendations ContractRecommendation[]
+  contractOffers          ContractOffer[]
+  contractTransactions    ContractTransaction[]
 
   @@unique([sourceDataset, externalId])
   @@index([nationalityCountryId])
@@ -2866,10 +2900,13 @@ model PlayerDraftRight {
   createdAt          DateTime               @default(now())
   updatedAt          DateTime               @updatedAt
 
-  player     Player     @relation(fields: [playerId], references: [id], onDelete: Restrict)
-  team       Team       @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  draftEvent DraftEvent @relation(fields: [draftEventId], references: [id], onDelete: Restrict)
-  draftPick  DraftPick  @relation(fields: [draftPickId], references: [id], onDelete: Restrict)
+  player               Player                @relation(fields: [playerId], references: [id], onDelete: Restrict)
+  team                 Team                  @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  draftEvent           DraftEvent            @relation(fields: [draftEventId], references: [id], onDelete: Restrict)
+  draftPick            DraftPick             @relation(fields: [draftPickId], references: [id], onDelete: Restrict)
+  originatingContract  PlayerContract?
+  contractOffers       ContractOffer[]
+  contractTransactions ContractTransaction[]
 
   @@unique([playerId, status])
   @@index([playerId, status])
@@ -2891,4 +2928,294 @@ model DraftTeamBoardSnapshot {
 
   @@unique([draftEventId, teamId])
   @@index([teamId])
+}
+
+// ---------------------------------------------------------------------------
+// Contracts and free agency (F28)
+// ---------------------------------------------------------------------------
+
+enum ContractStatus {
+  FUTURE
+  ACTIVE
+  EXPIRED
+  TERMINATED
+  CANCELLED
+}
+
+enum ContractType {
+  STANDARD
+  ENTRY
+}
+
+enum ContractSource {
+  INITIAL_IMPORT
+  EXTENSION
+  FREE_AGENT
+  DRAFT_RIGHTS
+  COMMISSIONER
+}
+
+enum ContractOfferType {
+  EXTENSION
+  FREE_AGENT
+  DRAFT_RIGHTS
+}
+
+enum ContractOfferStatus {
+  DRAFT
+  SUBMITTED
+  ACCEPTED
+  REJECTED
+  WITHDRAWN
+  EXPIRED
+}
+
+enum ContractRecommendationType {
+  RECOMMEND_EXTEND
+  RECOMMEND_RELEASE
+  REVIEW
+}
+
+enum ContractTransactionType {
+  INITIAL_CONTRACT
+  EXTENSION_SIGNED
+  FREE_AGENT_SIGNED
+  DRAFT_RIGHTS_SIGNED
+  CONTRACT_EXPIRED
+  FUTURE_CONTRACT_ACTIVATED
+  PLAYER_RELEASED
+  OFFER_REJECTED
+  OFFER_WITHDRAWN
+}
+
+enum ContractExpirationRunStatus {
+  PREPARED
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum ContractInitializationRunStatus {
+  PREPARED
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+model ContractPreset {
+  id          String                  @id @default(cuid())
+  name        String                  @unique
+  description String?
+  isSystem    Boolean                 @default(false)
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
+  versions    ContractPresetVersion[]
+}
+
+model ContractPresetVersion {
+  id                 String                       @id @default(cuid())
+  presetId           String
+  versionNumber      Int
+  schemaVersion      Int
+  configJson         String
+  configHash         String
+  changeReason       String
+  createdAt          DateTime                     @default(now())
+  createdBySource    CommissionerAuditSource?
+  preset             ContractPreset               @relation(fields: [presetId], references: [id], onDelete: Restrict)
+  activeFor          ActiveContractConfiguration?
+  contracts          PlayerContract[]
+  offers             ContractOffer[]
+  recommendations    ContractRecommendation[]
+  initializationRuns ContractInitializationRun[]
+  expirationRuns     ContractExpirationRun[]
+
+  @@unique([presetId, versionNumber])
+  @@index([configHash])
+}
+
+model ActiveContractConfiguration {
+  id                    String                @id @default("default")
+  activePresetVersionId String                @unique
+  updatedAt             DateTime              @updatedAt
+  activeVersion         ContractPresetVersion @relation(fields: [activePresetVersionId], references: [id], onDelete: Restrict)
+}
+
+model PlayerContract {
+  id                       String                   @id @default(cuid())
+  playerId                 String
+  teamId                   String
+  startWorldSeasonId       String
+  endWorldSeasonId         String
+  startSeasonOrderSnapshot Int
+  endSeasonOrderSnapshot   Int
+  annualSalary             Int
+  status                   ContractStatus
+  contractType             ContractType
+  source                   ContractSource
+  signedAt                 DateTime                 @default(now())
+  activatedAt              DateTime?
+  expiredAt                DateTime?
+  terminatedAt             DateTime?
+  supersedesContractId     String?
+  originatingOfferId       String?                  @unique
+  originatingDraftRightId  String?                  @unique
+  configVersionId          String
+  configHash               String
+  playerNameSnapshot       String
+  teamNameSnapshot         String
+  termsHash                String
+  createdAt                DateTime                 @default(now())
+  updatedAt                DateTime                 @updatedAt
+  player                   Player                   @relation(fields: [playerId], references: [id], onDelete: Restrict)
+  team                     Team                     @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  startWorldSeason         WorldSeason              @relation("ContractStartSeason", fields: [startWorldSeasonId], references: [id], onDelete: Restrict)
+  endWorldSeason           WorldSeason              @relation("ContractEndSeason", fields: [endWorldSeasonId], references: [id], onDelete: Restrict)
+  configVersion            ContractPresetVersion    @relation(fields: [configVersionId], references: [id], onDelete: Restrict)
+  supersedesContract       PlayerContract?          @relation("ContractSupersession", fields: [supersedesContractId], references: [id], onDelete: Restrict)
+  supersededBy             PlayerContract[]         @relation("ContractSupersession")
+  originatingOffer         ContractOffer?           @relation("OfferResultingContract", fields: [originatingOfferId], references: [id], onDelete: Restrict)
+  originatingDraftRight    PlayerDraftRight?        @relation(fields: [originatingDraftRightId], references: [id], onDelete: Restrict)
+  extensionOffers          ContractOffer[]          @relation("OfferCurrentContract")
+  recommendations          ContractRecommendation[]
+  transactions             ContractTransaction[]
+
+  @@index([playerId, status])
+  @@index([teamId, status, endSeasonOrderSnapshot])
+  @@index([startWorldSeasonId])
+  @@index([endWorldSeasonId])
+}
+
+model ContractRecommendation {
+  id                   String                     @id @default(cuid())
+  playerId             String
+  teamId               String
+  currentContractId    String?
+  recommendationType   ContractRecommendationType
+  recommendedSalary    Int
+  recommendedTermYears Int
+  factorsText          String
+  configVersionId      String
+  configHash           String
+  inputHash            String
+  recommendationHash   String
+  createdAt            DateTime                   @default(now())
+  player               Player                     @relation(fields: [playerId], references: [id], onDelete: Restrict)
+  team                 Team                       @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  currentContract      PlayerContract?            @relation(fields: [currentContractId], references: [id], onDelete: Restrict)
+  configVersion        ContractPresetVersion      @relation(fields: [configVersionId], references: [id], onDelete: Restrict)
+
+  @@index([playerId, teamId, createdAt])
+}
+
+model ContractOffer {
+  id                   String                @id @default(cuid())
+  playerId             String
+  offeringTeamId       String
+  offerType            ContractOfferType
+  targetContractType   ContractType
+  startWorldSeasonId   String
+  endWorldSeasonId     String
+  annualSalary         Int
+  status               ContractOfferStatus   @default(DRAFT)
+  currentContractId    String?
+  draftRightId         String?
+  configVersionId      String
+  configHash           String
+  playerStateHash      String
+  termsHash            String
+  submittedAt          DateTime?
+  acceptedAt           DateTime?
+  rejectedAt           DateTime?
+  withdrawnAt          DateTime?
+  expiresAtSeasonOrder Int?
+  reason               String?
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  player               Player                @relation(fields: [playerId], references: [id], onDelete: Restrict)
+  offeringTeam         Team                  @relation(fields: [offeringTeamId], references: [id], onDelete: Restrict)
+  startWorldSeason     WorldSeason           @relation("OfferStartSeason", fields: [startWorldSeasonId], references: [id], onDelete: Restrict)
+  endWorldSeason       WorldSeason           @relation("OfferEndSeason", fields: [endWorldSeasonId], references: [id], onDelete: Restrict)
+  currentContract      PlayerContract?       @relation("OfferCurrentContract", fields: [currentContractId], references: [id], onDelete: Restrict)
+  draftRight           PlayerDraftRight?     @relation(fields: [draftRightId], references: [id], onDelete: Restrict)
+  configVersion        ContractPresetVersion @relation(fields: [configVersionId], references: [id], onDelete: Restrict)
+  resultingContract    PlayerContract?       @relation("OfferResultingContract")
+  transactions         ContractTransaction[]
+
+  @@index([playerId, status, offerType])
+  @@index([offeringTeamId, status])
+}
+
+model ContractInitializationRun {
+  id                String                          @id @default(cuid())
+  worldSeasonId     String
+  status            ContractInitializationRunStatus @default(PREPARED)
+  inputHash         String
+  resultHash        String?
+  totalContracts    Int
+  annualSalaryTotal Int
+  configVersionId   String
+  reason            String
+  createdBy         String
+  createdAt         DateTime                        @default(now())
+  completedAt       DateTime?
+  worldSeason       WorldSeason                     @relation(fields: [worldSeasonId], references: [id], onDelete: Restrict)
+  configVersion     ContractPresetVersion           @relation(fields: [configVersionId], references: [id], onDelete: Restrict)
+
+  @@index([worldSeasonId, status])
+}
+
+model ContractExpirationRun {
+  id                   String                      @id @default(cuid())
+  worldSeasonId        String
+  effectiveSeasonOrder Int
+  status               ContractExpirationRunStatus @default(PREPARED)
+  inputHash            String
+  resultHash           String?
+  totalContracts       Int
+  expiredCount         Int                         @default(0)
+  activatedFutureCount Int                         @default(0)
+  freeAgentCount       Int                         @default(0)
+  configVersionId      String
+  createdAt            DateTime                    @default(now())
+  completedAt          DateTime?
+  reason               String
+  createdBy            String
+  worldSeason          WorldSeason                 @relation(fields: [worldSeasonId], references: [id], onDelete: Restrict)
+  configVersion        ContractPresetVersion       @relation(fields: [configVersionId], references: [id], onDelete: Restrict)
+  transactions         ContractTransaction[]
+
+  @@unique([worldSeasonId, status])
+  @@index([worldSeasonId, status])
+}
+
+model ContractTransaction {
+  id                     String                  @id @default(cuid())
+  transactionType        ContractTransactionType
+  playerId               String
+  teamId                 String?
+  otherTeamId            String?
+  contractId             String?
+  offerId                String?
+  draftRightId           String?
+  expirationRunId        String?
+  effectiveWorldSeasonId String?
+  playerNameSnapshot     String
+  teamNameSnapshot       String?
+  termsSnapshotText      String?
+  reason                 String
+  source                 String
+  transactionHash        String                  @unique
+  createdAt              DateTime                @default(now())
+  player                 Player                  @relation(fields: [playerId], references: [id], onDelete: Restrict)
+  team                   Team?                   @relation("ContractTransactionTeam", fields: [teamId], references: [id], onDelete: Restrict)
+  otherTeam              Team?                   @relation("ContractTransactionOtherTeam", fields: [otherTeamId], references: [id], onDelete: Restrict)
+  contract               PlayerContract?         @relation(fields: [contractId], references: [id], onDelete: Restrict)
+  offer                  ContractOffer?          @relation(fields: [offerId], references: [id], onDelete: Restrict)
+  draftRight             PlayerDraftRight?       @relation(fields: [draftRightId], references: [id], onDelete: Restrict)
+  expirationRun          ContractExpirationRun?  @relation(fields: [expirationRunId], references: [id], onDelete: Restrict)
+  effectiveWorldSeason   WorldSeason?            @relation(fields: [effectiveWorldSeasonId], references: [id], onDelete: Restrict)
+
+  @@index([playerId, transactionType, createdAt])
+  @@index([teamId, transactionType, createdAt])
 }

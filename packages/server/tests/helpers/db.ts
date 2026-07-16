@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { closeSync, mkdtempSync, openSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -21,8 +21,10 @@ function runPrisma(args: string[], databaseUrl?: string) {
 }
 
 export function createTempDatabaseUrl(): { url: string; dir: string; dbPath: string } {
-  const dir = mkdtempSync(join(tmpdir(), 'fhm-f2-'));
+  const dir = mkdtempSync(join(process.env.FHM_TEST_TMP_DIR ?? tmpdir(), 'fhm-f2-'));
   const dbPath = join(dir, 'test.db');
+  // Prisma's Windows schema engine cannot always create a new file inside a freshly-created temp directory.
+  closeSync(openSync(dbPath, 'a'));
   const normalized = dbPath.replace(/\\/g, '/');
   const url = `file:${normalized}`;
   return { url, dir, dbPath };

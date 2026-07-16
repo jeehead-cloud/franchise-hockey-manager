@@ -1,7 +1,7 @@
 ﻿# Franchise Hockey Manager — Current Status
 
 **Status:** Active
-**Last updated:** 2026-07-15
+**Last updated:** 2026-07-16
 **Repository:** `https://github.com/jeehead-cloud/franchise-hockey-manager`
 **Local repository path:** `C:\Projects\franchise-hockey-manager`
 
@@ -12,11 +12,11 @@
 
 ## 1. Current Development Phase
 
-**F27 — NHL Draft: implemented locally (not committed).** Deterministic annual amateur draft consuming F25 prospects and F26 team-specific scouting knowledge. Versioned draft configuration (`DraftPreset`/`DraftPresetVersion`/`ActiveDraftConfiguration`); explicit-cutoff eligibility snapshots (`DraftEligiblePlayer`); reverse-standings or MANUAL order (`DraftTeamEntry`); bounded deterministic lottery (`DraftLotteryDraw`); multi-round pick slots (`DraftPick`) with original==current ownership (no pick trading); `PlayerDraftRight` (ACTIVE only in F27 — no contract, no club assignment); frozen team board snapshots at draft start (estimates only); estimate-only deterministic auto-pick; Commissioner lifecycle (create → eligibility → order → lottery → ready → start → picks → complete); pre-start SQLite backup; public draft UI (`/drafts`, `/drafts/:id` with Overview/Eligibility/Order/Lottery/Draft Room/Results/Team Board/Diagnostics tabs), team-scoped draft room with manual + auto-pick, sidebar Draft entry, and World Dashboard draft card. Player remains PROSPECT/unsigned/`currentTeamId=null`; no contracts, trades, pick transfers, club assignment, lineup mutation, or next-WorldSeason creation.
+**F28 — Contracts and Free Agency: implemented locally (not committed).** Persistent versioned configuration; active/future/historical contracts over explicit `WorldSeason` ranges; deterministic valuation and extension advice; compatibility initialization with preview/backup/atomic publication; extension, expiration/future activation, free agency, competing offers, rights-holder signing, release, append-only transactions, readiness, APIs, and UI. Salary is integer dollars and informational only: no cap enforcement. F28 creates no trades, pick/right transfers, next season, or offseason orchestration.
 
-**Next milestone: F28** (Contracts and Free Agency — do not start until requested).
+**Next milestone: F29** (Trades — do not start until requested).
 
-F1–F26 remain complete on `main`. F25 + F26 + F27 changes are uncommitted in this tree.
+F1–F24 remain complete on `main`. F25–F28 changes are uncommitted in this tree.
 
 ---
 
@@ -66,6 +66,17 @@ Implemented:
 Not in F27:
 - F28 contracts/FA; F29 trades/pick transfers; F30 offseason orchestration; next WorldSeason creation; AI general-manager strategy beyond bounded deterministic auto-pick; real-time multiplayer; authentication
 
+### F28 — Contracts and Free Agency (Done locally)
+
+Implemented:
+- Pure `packages/engine/src/contracts/` rules for strict configuration, eligibility, valuation/recommendations, offer validation/comparison, expiration, rights conversion, reconciliation, hashes, and `verify:contracts`
+- Versioned presets; `PlayerContract`, `ContractOffer`, immutable recommendation snapshots, append-only transactions, initialization/expiration runs, partial unique ACTIVE/FUTURE indexes, and migration `20260716030000_f28_contracts`
+- Compatibility initialization with backup; explicit-WorldSeason idempotent expiration; atomic acceptance/ownership synchronization; competing-offer closure; rights conversion; release; readiness; public/team/Commissioner APIs and UI
+- Team-scoped prospect recommendations use F26 estimates or conservative Unknown fallback; ordinary DTOs omit hidden truth
+
+Not in F28:
+- Trades, pick/right transfers, cap accounting, retained salary, buyouts, waivers, arbitration, bonuses/clauses, AI negotiation, next WorldSeason, F30 orchestration, or authentication
+
 ### M1–M8
 
 Unchanged.
@@ -80,21 +91,35 @@ Unchanged.
 - Scouting calibration (Scouting Default v1) is a simplified fictional preset — not tuned to any real scouting model.
 - The F27 draft lottery is a simplified fictional development lottery — **not exact NHL lottery fidelity**.
 - Team-scoped scouting/draft-board APIs use local sandbox team context (`/teams/:teamId/scouting`, `/drafts/:id/teams/:teamId/board`); there is **no authentication** — any caller passing a teamId reads that club's estimates. Commissioner header is not security.
-- Manual UI verification for F25, F26, and F27 was **NOT RUN**.
-- F25 + F26 + F27 changes not yet committed/pushed.
+- Manual UI verification for F25, F26, F27, and F28 was **NOT RUN**.
+- F25–F28 changes not yet committed/pushed.
 - Retired players may still appear on team roster lists until offseason cleanup (F30).
 
 ---
 
 ## 4. Nearest Next Steps
 
-1. Commit/push F25 + F26 + F27 when the owner requests.
-2. Manual UI pass on disposable DB (draft: Commissioner create draft → generate eligibility → generate order → run lottery → mark ready → start → manual + auto picks → completion → results/history; scouting: staff department → create scout → assignment preview/create/execute → prospects/watchlist/rankings/reports; Commissioner diagnostics true-comparison).
-3. **F28** (Contracts and Free Agency) when requested.
+1. Run the remaining disposable-database manual UI pass, including F28 initialization, extension, expiration, offers/acceptance, rights signing, release, privacy, and responsive/direct-route checks.
+2. Commit/push F25–F28 when the owner requests.
+3. **F29** only when explicitly requested.
 
 ---
 
 ## 5. Recent Changes
+
+### 2026-07-16 — F28 recovery re-verification
+
+- Re-inspected the uncommitted F28 tree (interrupted by prior token-limit sessions), saved an external recovery patch/status copy, classified every modified and untracked file, and confirmed the implementation was internally coherent → **continued rather than restarted**
+- Fixed one correctness inconsistency: `recommendExtension` used a year-only age subtraction while the rest of the contracts engine uses month/day-accurate `contractAgeOnDate`; now uses the shared helper
+- Validation (all PASS): Prisma format/validate/generate; empty-DB `migrate deploy` through F28 (23 migrations); engine tests 236 PASS (incl. 13 contracts tests); server tests 233 PASS (incl. 6 F28 tests + migration-history F1–F28); all 16 verifiers PASS incl. `verify:contracts` (500-valuation benchmark 16.88 ms); root typecheck; engine/server/client builds; `git diff --check` clean; no stray DB/backup/patch files in the repo
+- Manual UI **NOT RUN**; recovery patch/status files kept outside the repo
+- Remaining: F25–F28 uncommitted; F29 deferred
+
+### 2026-07-15 — F28 Contracts and Free Agency
+
+- Recovered and completed the intended uncommitted F28 work without resetting it: versioned rules, explicit-season contracts, compatibility initialization, deterministic advice, extensions, idempotent expiration, free agency, competing offers, rights signing, release, transactions, readiness, APIs/UI, privacy boundaries, and no-cap/no-trade scope
+- Validation includes Prisma schema/migrations, full engine/server regression suites, F28 verifier, typechecks/builds, and diff checks; exact results are recorded in the task handoff. Manual UI **NOT RUN**
+- Remaining: F25–F28 uncommitted; F29 deferred
 
 ### 2026-07-15 — F27 NHL Draft
 
@@ -129,6 +154,17 @@ Unchanged.
 ---
 
 ## 6. Significant Changes
+
+### 2026-07-15 — F28 Contracts and Free Agency (Significant)
+
+- One ACTIVE contract per Player and one FUTURE contract slot are database-enforced; services reject overlapping live ranges
+- ACTIVE contract Team is authoritative for `Player.currentTeamId`; acceptance updates both atomically, while release/expiration clear ownership unless a FUTURE contract activates
+- Offers confer no ownership before acceptance; acceptance closes competing offers and preserves immutable contract/transaction history
+- Draft rights remain distinct: only the ACTIVE rights holder may sign, and acceptance converts the right without rewriting DraftPick history
+- Boundaries use explicit existing `WorldSeason` ordering snapshots, never wall-clock time; F28 creates no season
+- Salary is integer dollars under versioned simplified rules, with no cap enforcement
+- Compatibility absence is a warning before initialization and a readiness blocker afterward; initialization and expiration require backups
+- Contract operations do not mutate Player truth, development, provenance, scouting, archives, or lineups and create no trades/transfers
 
 ### 2026-07-15 — F27 NHL Draft (Significant)
 
@@ -188,8 +224,8 @@ Unchanged.
 | Item | Value |
 |---|---|
 | Dataset schemaVersion | 5 (unchanged) |
-| Migration | `20260716020000_f27_draft` (+ `20260716000000_f26_scouting`, `20260716010000_f26_scouting_audit`) |
-| Verifier | `npm run verify:draft` |
-| Default config | Amateur Draft Default (fictional, 7 rounds) |
-| UI | `/drafts`, `/drafts/:draftEventId` (tabs: Overview/Eligibility/Order/Lottery/Draft Room/Results/Team Board/Diagnostics) |
-| Next | F28 |
+| Migration | `20260716030000_f28_contracts` |
+| Verifier | `npm run verify:contracts` |
+| Default config | Contracts Simplified Default (integer dollars; no cap) |
+| UI | `/contracts`, `/contracts/:contractId`, `/teams/:teamId/contracts`, `/free-agency` |
+| Next | F29 |
