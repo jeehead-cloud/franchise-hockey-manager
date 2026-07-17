@@ -1444,6 +1444,8 @@ export async function startInternationalTournamentSimulation(
     try {
       const backup = await createSqliteSafetyBackup({
         label: `intl-${editionId.slice(0, 8)}`,
+        sourceOperationType: 'INTERNATIONAL_TOURNAMENT',
+        sourceOperationId: editionId,
       });
       backupMeta = {
         relativeDisplayPath: backup.relativeDisplayPath,

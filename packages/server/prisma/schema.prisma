@@ -262,6 +262,9 @@ enum CommissionerAuditEntityType {
   SEASON_TRANSITION_CONFIG
   SEASON_TRANSITION_RUN
   WORLD_SEASON
+  BACKUP_CONFIG
+  DATABASE_BACKUP
+  DATABASE_RESTORE
 }
 
 enum CommissionerAuditAction {
@@ -416,6 +419,20 @@ enum CommissionerAuditAction {
   SEASON_TRANSITION_CANCELLED
   WORLD_SEASON_CREATED
   CURRENT_WORLD_SEASON_CHANGED
+  BACKUP_CONFIG_CREATED
+  BACKUP_CONFIG_VERSION_CREATED
+  BACKUP_CONFIG_ACTIVATED
+  BACKUP_CREATED
+  BACKUP_VERIFIED
+  BACKUP_PROTECTED
+  BACKUP_UNPROTECTED
+  BACKUP_PRUNED
+  BACKUP_STORAGE_SCANNED
+  RESTORE_PREPARED
+  RESTORE_STARTED
+  RESTORE_COMPLETED
+  RESTORE_FAILED
+  RESTORE_CANCELLED
 }
 
 /// F20 competition archive status.
@@ -3882,5 +3899,207 @@ model SeasonTransitionEvent {
   run SeasonTransitionRun @relation(fields: [seasonTransitionRunId], references: [id], onDelete: Cascade)
 
   @@index([seasonTransitionRunId, createdAt])
+  @@index([eventType, createdAt])
+}
+
+// ===========================================================================
+// F32 — Backup and Recovery
+// SQLite-only local world database. Engine owns policy; server owns all file
+// and database operations. Restore is restart-required (atomic replacement
+// before Prisma opens). No cloud, no incremental, no record-level restore.
+// ===========================================================================
+
+/// Backup lifecycle status. F32.
+enum BackupStatus {
+  CREATING
+  CREATED
+  VERIFYING
+  VERIFIED
+  FAILED
+  MISSING
+  CORRUPT
+  DELETED
+}
+
+/// Backup origin. F32.
+enum BackupType {
+  MANUAL
+  AUTOMATIC_OPERATION
+  PRE_RESTORE
+  RECOVERY_GENERATED
+}
+
+/// Restore run lifecycle. F32.
+enum RestoreStatus {
+  PREPARED
+  WAITING_FOR_RESTART
+  RUNNING
+  VERIFYING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+/// Restore event types (append-only history). F32.
+enum RestoreEventType {
+  RESTORE_PREPARED
+  SOURCE_VERIFIED
+  PRE_RESTORE_BACKUP_CREATED
+  MAINTENANCE_ENTERED
+  RESTART_REQUESTED
+  REPLACEMENT_STARTED
+  DATABASE_REPLACED
+  POST_RESTORE_VERIFIED
+  RESTORE_COMPLETED
+  RESTORE_FAILED
+  RESTORE_CANCELLED
+}
+
+/// Named backup preset (system default or owner duplicate). F32.
+model BackupPreset {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  isSystem    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  versions BackupPresetVersion[]
+}
+
+/// Immutable backup configuration snapshot. F32.
+model BackupPresetVersion {
+  id              String                   @id @default(cuid())
+  presetId        String
+  versionNumber   Int
+  schemaVersion   Int
+  configJson      String
+  configHash      String
+  changeReason    String
+  createdAt       DateTime                 @default(now())
+  createdBySource CommissionerAuditSource?
+
+  preset              BackupPreset               @relation(fields: [presetId], references: [id], onDelete: Restrict)
+  activeFor           ActiveBackupConfiguration?
+  backups             DatabaseBackup[]
+  databaseRestoreRuns DatabaseRestoreRun[]
+
+  @@unique([presetId, versionNumber])
+  @@index([configHash])
+}
+
+/// Singleton pointing at the active backup configuration version. F32.
+model ActiveBackupConfiguration {
+  id                    String   @id @default("default")
+  activePresetVersionId String   @unique
+  updatedAt             DateTime @updatedAt
+
+  activeVersion BackupPresetVersion @relation(fields: [activePresetVersionId], references: [id], onDelete: Restrict)
+}
+
+/// Persistent backup record. One row per created backup. F32.
+/// Files live under the configured backup directory; only the relative path
+/// is stored here (never absolute, never secrets). Absolute paths are never
+/// exposed through public APIs.
+model DatabaseBackup {
+  id                             String       @id @default(cuid())
+  status                         BackupStatus
+  backupType                     BackupType
+  reasonCode                     String
+  reasonText                     String       @default("")
+  /// Snapshot of the source DATABASE_URL basename at backup time (basename only).
+  sourceDatabasePathSnapshot     String
+  /// Path relative to the configured backup directory.
+  relativeFilePath               String
+  manifestRelativePath           String?
+  fileName                       String
+  fileSizeBytes                  Int?
+  fileSha256                     String?
+  manifestSha256                 String?
+  databaseFingerprint            String?
+  schemaMigrationCount           Int?
+  latestMigrationName            String?
+  worldSeasonIdSnapshot          String?
+  currentWorldSeasonNameSnapshot String?
+  sourceOperationType            String?
+  sourceOperationId              String?
+  sourceEntityType               String?
+  sourceEntityId                 String?
+  protected                      Boolean      @default(false)
+  protectionReason               String?
+  configVersionId                String
+  configHash                     String
+  createdBy                      String       @default("system")
+  startedAt                      DateTime     @default(now())
+  completedAt                    DateTime?
+  verifiedAt                     DateTime?
+  failedAt                       DateTime?
+  failureCode                    String?
+  failureMessage                 String?
+  createdAt                      DateTime     @default(now())
+  updatedAt                      DateTime     @updatedAt
+
+  configVersion BackupPresetVersion  @relation(fields: [configVersionId], references: [id], onDelete: Restrict)
+  preRestoreFor DatabaseRestoreRun[] @relation("PreRestoreBackupFor")
+  sourceFor     DatabaseRestoreRun[] @relation("SourceBackupFor")
+
+  @@index([status])
+  @@index([backupType])
+  @@index([reasonCode])
+  @@index([createdAt])
+  @@index([protected])
+  @@index([sourceOperationType, sourceOperationId])
+  @@index([configVersionId])
+}
+
+/// Restore run (restart-required atomic database replacement). F32.
+model DatabaseRestoreRun {
+  id                               String        @id @default(cuid())
+  status                           RestoreStatus
+  sourceBackupId                   String
+  preRestoreBackupId               String?
+  sourceBackupFingerprint          String
+  expectedCurrentFingerprint       String
+  currentDatabaseFingerprintBefore String?
+  restoredDatabaseFingerprintAfter String?
+  configVersionId                  String
+  configHash                       String
+  restartRequired                  Boolean       @default(true)
+  requestedBy                      String
+  reason                           String
+  preparedAt                       DateTime      @default(now())
+  startedAt                        DateTime?
+  completedAt                      DateTime?
+  failedAt                         DateTime?
+  failureCode                      String?
+  failureMessage                   String?
+  createdAt                        DateTime      @default(now())
+  updatedAt                        DateTime      @updatedAt
+
+  sourceBackup     DatabaseBackup         @relation("SourceBackupFor", fields: [sourceBackupId], references: [id], onDelete: Restrict)
+  preRestoreBackup DatabaseBackup?        @relation("PreRestoreBackupFor", fields: [preRestoreBackupId], references: [id], onDelete: SetNull)
+  configVersion    BackupPresetVersion    @relation(fields: [configVersionId], references: [id], onDelete: Restrict)
+  events           DatabaseRestoreEvent[]
+
+  @@index([status])
+  @@index([createdAt])
+  @@index([sourceBackupId])
+}
+
+/// Append-only restore history (survives replacement; also reconciled from
+/// the external recovery journal). F32.
+model DatabaseRestoreEvent {
+  id           String           @id @default(cuid())
+  restoreRunId String
+  eventType    RestoreEventType
+  statusBefore String?
+  statusAfter  String?
+  summaryText  String
+  eventHash    String
+  createdAt    DateTime         @default(now())
+
+  run DatabaseRestoreRun @relation(fields: [restoreRunId], references: [id], onDelete: Cascade)
+
+  @@index([restoreRunId, createdAt])
   @@index([eventType, createdAt])
 }

@@ -1,70 +1,72 @@
-import fs from 'node:fs';
 import path from 'node:path';
-import { prisma } from '../db/client.js';
+import type { BackupType, ReasonCode } from '@fhm/engine';
+import { createDatabaseBackup } from './backup-creation.js';
 
 export interface SqliteBackupResult {
   backupPath: string;
   relativeDisplayPath: string;
   createdAt: string;
   bytes: number;
+  /** F32 centralized backup record id (for operation linking). */
+  backupId?: string;
 }
 
 /**
- * Interim F18 pre-run safety snapshot (not F32 recovery UI).
- * Uses SQLite VACUUM INTO for a consistent copy of the open database.
+ * F32-integrated SQLite safety backup.
+ *
+ * Previously an ad-hoc VACUUM-INTO helper; now a thin adapter that delegates
+ * to the centralized {@link createDatabaseBackup} service so every operation
+ * backup gets a manifest, file SHA-256, database fingerprint, integrity
+ * verification, VERIFIED status, retention protection, and audit. The original
+ * return shape (`relativeDisplayPath`/`createdAt`/`bytes`) is preserved so
+ * existing F18–F31 callers keep working.
+ *
+ * The `label` is mapped to a reason code; callers may pass `sourceOperation*`
+ * for centralized idempotency + operation linking.
  */
 export async function createSqliteSafetyBackup(opts?: {
   label?: string;
   backupRoot?: string;
+  /** Override the configured backup root (test isolation). */
+  sourceOperationType?: string;
+  sourceOperationId?: string;
+  backupType?: BackupType;
+  reasonCode?: ReasonCode;
 }): Promise<SqliteBackupResult> {
-  const databaseUrl = process.env.DATABASE_URL ?? '';
-  if (!databaseUrl.startsWith('file:')) {
-    throw Object.assign(new Error('Safety backups are only supported for local SQLite file databases'), {
-      statusCode: 503,
-      code: 'BackupFailed',
-      name: 'BackupFailed',
-    });
-  }
-
-  const dbPath = databaseUrl.slice('file:'.length);
-  const resolvedDb = path.isAbsolute(dbPath)
-    ? dbPath
-    : path.resolve(process.cwd(), dbPath);
-  if (!fs.existsSync(resolvedDb)) {
-    throw Object.assign(new Error('Database file not found for backup'), {
-      statusCode: 503,
-      code: 'BackupFailed',
-      name: 'BackupFailed',
-    });
-  }
-
-  const root =
-    opts?.backupRoot ??
-    process.env.FHM_BACKUP_DIR ??
-    path.resolve(process.cwd(), '..', '..', '.fhm-backups');
-  fs.mkdirSync(root, { recursive: true });
-
-  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-  const label = (opts?.label ?? 'regular-season').replace(/[^a-zA-Z0-9_-]/g, '_');
-  const fileName = `f18-${label}-${stamp}.db`;
-  const backupPath = path.join(root, fileName);
-
-  // Escape single quotes for SQL string literal
-  const escaped = backupPath.replace(/'/g, "''");
-  try {
-    await prisma.$executeRawUnsafe(`VACUUM INTO '${escaped}'`);
-  } catch (err) {
-    throw Object.assign(
-      new Error(err instanceof Error ? err.message : 'SQLite VACUUM INTO backup failed'),
-      { statusCode: 503, code: 'BackupFailed', name: 'BackupFailed' },
-    );
-  }
-
-  const stat = fs.statSync(backupPath);
+  const label = opts?.label ?? 'regular-season';
+  const reasonCode = (opts?.reasonCode ?? labelToReasonCode(label)) as ReasonCode;
+  const result = await createDatabaseBackup({
+    backupType: opts?.backupType ?? 'AUTOMATIC_OPERATION',
+    reasonCode,
+    reasonText: label,
+    sourceOperationType: opts?.sourceOperationType ?? null,
+    sourceOperationId: opts?.sourceOperationId ?? null,
+  });
+  const backup = result.backup;
+  const size = backup.fileSizeBytes ?? 0;
   return {
-    backupPath,
-    relativeDisplayPath: path.join('.fhm-backups', fileName),
-    createdAt: new Date().toISOString(),
-    bytes: stat.size,
+    backupPath: backup.relativeFilePath,
+    relativeDisplayPath: path.join('.fhm-backups', backup.fileName),
+    createdAt: backup.startedAt.toISOString(),
+    bytes: size,
+    backupId: backup.id,
   };
+}
+
+/** Best-effort mapping from a legacy label to a F32 reason code. */
+function labelToReasonCode(label: string): ReasonCode {
+  const l = label.toLowerCase();
+  if (l.includes('regular') || l.startsWith('stage-')) return 'REGULAR_SEASON_SIMULATION';
+  if (l.includes('playoff')) return 'PLAYOFF_SIMULATION';
+  if (l.includes('archive') || l.includes('f20')) return 'COMPETITION_ARCHIVE';
+  if (l.includes('aggregat') || l.includes('f21')) return 'AGGREGATED_SIMULATION';
+  if (l.startsWith('intl-')) return 'INTERNATIONAL_TOURNAMENT';
+  if (l.includes('development') || l.includes('f24')) return 'PLAYER_DEVELOPMENT';
+  if (l.includes('youth') || l.includes('f25')) return 'YOUTH_GENERATION';
+  if (l.includes('draft') || l.includes('f27')) return 'DRAFT_START';
+  if (l.includes('trade')) return 'TRADE_ACCEPTANCE';
+  if (l.includes('contracts-initial')) return 'CONTRACT_INITIALIZATION';
+  if (l.includes('contracts-expiration')) return 'CONTRACT_EXPIRATION';
+  if (l.includes('season-transition')) return 'SEASON_TRANSITION';
+  return 'OTHER';
 }

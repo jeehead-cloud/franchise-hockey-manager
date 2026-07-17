@@ -313,7 +313,27 @@ Prototype aging table in §6 remains historical reference; F24 uses `PlayerDevel
 - Target CompetitionEditions are new PLANNED records: rules snapshots + hashes are copied into new rows (later Competition.defaultRulesJson edits do not rewrite them); stage templates are copied with source-stage dependencies remapped and re-validated for acyclicity; confirmed participants are copied with fresh snapshots. No schedules, Matches, standings, brackets, PlayoffSeries, AggregatedSeasonRun, awards, champions, or stats are copied — those remain in F20 archives/history.
 - Domestic competitions recur automatically when they had a source edition. International tournaments are carried only with an explicit recurrence flag (manual warning otherwise); no real Olympic cycles are hardcoded.
 - F31 does **not** replay F24 development, F25 youth generation, F27 draft, F28 contract expiration, or F29 trades. It does **not** auto-activate FUTURE contracts (resolve through F28), auto-rebuild club lineups, or reuse locked F22 national-team rosters. Players are not duplicated or mutated; birth dates never change (age remains derived from birth date + target-season dates). ACTIVE/FUTURE contract semantics remain consistent; `Player.currentTeamId` stays synchronized with the ACTIVE contract. Draft rights remain with their holder. Scouting reports remain Team-private (F26 owns staleness; F31 reports advisory counts only).
-- Normal mode is read-only; Commissioner Mode is required for every transition mutation (prepare/execute/cancel/retry, config version activate). F31 audit records orchestration only (one row per run event, never one per Player/Team/edition). F31 creates one pre-execute SQLite safety snapshot but offers no restore UI — full backup/recovery remains F32.
+- Normal mode is read-only; Commissioner Mode is required for every transition mutation (prepare/execute/cancel/retry, config version activate). F31 audit records orchestration only (one row per run event, never one per Player/Team/edition). F31 creates one pre-execute SQLite safety snapshot but offers no restore UI — full backup/recovery is now F32.
+
+---
+
+## 7e. Backup and Recovery (F32 Implemented)
+
+F32 is the single centralized, persistent, auditable, Commissioner-controlled backup/recovery layer for the entire local world database. SQLite-only and local-only — no cloud/off-site durability, encryption, incremental backups, point-in-time recovery, record-level restore, PostgreSQL tooling, or production disaster recovery.
+
+Stable invariants:
+- **Backup creation never mutates world data.** It uses SQLite `VACUUM INTO` plus a dedicated read-only connection for verification.
+- **Only VERIFIED backups are restorable.** A backup is not VERIFIED until file SHA-256, canonical manifest SHA-256, `PRAGMA integrity_check`, migration-table presence, and a recomputed database fingerprint all pass. Failed backups are never presented as restorable; a previously VERIFIED backup may later be detected MISSING or CORRUPT.
+- **Restore is explicit and Commissioner-gated.** It is always restart-required (in-process hot restore is unsafe given the Prisma singleton and is explicitly not supported).
+- **Restore creates a pre-restore backup** (mandatory, protected) of the current database before any replacement.
+- **Restore replaces the complete world database.** F32 does not merge or import individual records. An older backup is restored to exact bytes, then pending additive migrations run forward through the current chain; a backup with migrations absent from the active chain is a BLOCKER.
+- **Restore revalidates integrity and migrations** after replacement; failure rolls back to an emergency copy and halts startup with explicit recovery instructions (the marker is preserved on failure).
+- **Protected backups cannot be pruned** (manual, pre-restore, restore-source, Commissioner-protected). Backups referenced by active restores cannot be pruned. The default never deletes the only verified backup. Pruning never deletes outside the configured backup root and never deletes the active database.
+- **Paths remain within the configured backup storage.** `..`/symlink-escape rejected; allowlisted extensions; filenames generated server-side; resolved path verified inside the root on every read; no user-supplied filenames or arbitrary-path deletion. Absolute paths are never exposed through public APIs, error payloads, or the UI (only filenames and hash prefixes).
+- **Automatic critical-operation backups use the centralized F32 service.** Every world-mutating operation (F18/F19/F20/F21/F23/F24/F25/F27/F28×2/F29/F31) passes source-operation type+id, blocks when its required backup fails, and reuses an existing VERIFIED operation-linked backup idempotently on retry. No scattered direct SQLite backup logic remains except as the internal implementation of F32.
+- **Recovery history survives database replacement through an external journal** (file-based, in the backup directory), because restoring an older database may delete the restore-run row that requested the restore.
+- **F32 does not merge/import individual records** and does not provide record-level restore.
+- **Public health is bounded.** `/health` and `/api/system/backup-status` expose only configured/verified-count/last-verified-age/maintenance/pending-restore — never filenames, paths, hashes, fingerprints, or operation details. Normal mode is read-only.
 
 ---
 

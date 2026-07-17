@@ -33,6 +33,8 @@ import { registerOffseasonRoutes } from './routes/offseason.js';
 import { registerCommissionerOffseasonRoutes } from './routes/commissioner-offseason.js';
 import { registerSeasonTransitionRoutes } from './routes/season-transition.js';
 import { registerCommissionerSeasonTransitionRoutes } from './routes/commissioner-season-transition.js';
+import { registerBackupRecoveryRoutes } from './routes/backup-recovery.js';
+import { registerCommissionerBackupRecoveryRoutes } from './routes/commissioner-backup-recovery.js';
 
 export async function buildApp(options?: { logger?: boolean }) {
   const app = Fastify({ logger: options?.logger ?? true });
@@ -82,6 +84,8 @@ export async function buildApp(options?: { logger?: boolean }) {
   await registerCommissionerOffseasonRoutes(app);
   await registerSeasonTransitionRoutes(app);
   await registerCommissionerSeasonTransitionRoutes(app);
+  await registerBackupRecoveryRoutes(app);
+  await registerCommissionerBackupRecoveryRoutes(app);
   await registerCommissionerRoutes(app);
 
   return app;
@@ -115,4 +119,6 @@ export async function ensureAppMeta() {
   await bootstrapOffseasonConfiguration(prisma);
   const { bootstrapSeasonTransitionConfiguration } = await import('./services/season-transition-config.js');
   await bootstrapSeasonTransitionConfiguration(prisma);
+  const { bootstrapBackupConfiguration } = await import('./services/backup-config.js');
+  await bootstrapBackupConfiguration(prisma);
 }

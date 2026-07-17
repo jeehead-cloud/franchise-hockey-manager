@@ -44,7 +44,8 @@
     "verify:contracts": "npm run verify:contracts --workspace=@fhm/engine",
     "verify:trades": "npm run verify:trades --workspace=@fhm/engine",
     "verify:offseason": "npm run verify:offseason --workspace=@fhm/engine",
-    "verify:season-transition": "npm run verify:season-transition --workspace=@fhm/engine"
+    "verify:season-transition": "npm run verify:season-transition --workspace=@fhm/engine",
+    "verify:backup-recovery": "npm run verify:backup-recovery --workspace=@fhm/engine"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

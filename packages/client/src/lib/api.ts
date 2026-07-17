@@ -4873,3 +4873,126 @@ export const createSeasonTransitionConfiguration = (payload: { name: string; des
   commissionerWrite<{ item: SeasonTransitionConfigItem }>('/api/commissioner/season-transition-configurations', 'POST', payload);
 export const activateSeasonTransitionConfiguration = (versionId: string, reason: string) =>
   commissionerWrite<{ item: unknown }>(`/api/commissioner/season-transition-configuration-versions/${versionId}/activate`, 'POST', { reason });
+
+// ---------------------------------------------------------------------------
+// F32 — Backup and Recovery
+// ---------------------------------------------------------------------------
+
+export interface BackupStatusPublic {
+  configured: boolean;
+  verifiedBackupCount: number;
+  lastVerifiedBackupAt: string | null;
+  lastVerifiedBackupAgeDays: number | null;
+  corruptOrMissingCount: number;
+  maintenanceMode: boolean;
+  pendingRestore: boolean;
+}
+
+export interface BackupItem {
+  id: string;
+  status: string;
+  backupType: string;
+  reasonCode: string;
+  reasonText: string;
+  sourceDatabaseFileName: string;
+  fileName: string;
+  fileSizeBytes: number | null;
+  fileSha256Prefix: string | null;
+  manifestSha256Prefix: string | null;
+  databaseFingerprint: string | null;
+  schemaMigrationCount: number | null;
+  latestMigrationName: string | null;
+  worldSeasonIdSnapshot: string | null;
+  currentWorldSeasonNameSnapshot: string | null;
+  sourceOperationType: string | null;
+  sourceOperationId: string | null;
+  protected: boolean;
+  protectionReason: string | null;
+  createdBy: string;
+  startedAt: string;
+  completedAt: string | null;
+  verifiedAt: string | null;
+  createdAt: string;
+}
+
+export interface RestoreRunItem {
+  id: string;
+  status: string;
+  sourceBackupId: string;
+  preRestoreBackupId: string | null;
+  restartRequired: boolean;
+  requestedBy: string;
+  reason: string;
+  preparedAt: string;
+  completedAt: string | null;
+  failedAt: string | null;
+  failureCode: string | null;
+  failureMessage: string | null;
+}
+
+export interface RetentionPreviewPlan {
+  plan: { pruneIds: string[]; keepIds: string[]; reasons: Record<string, string>; protectedIds: string[] };
+}
+
+export interface StorageScanResult {
+  rootOk: boolean;
+  findings: Array<{ kind: string; fileName: string; relativePath: string | null; backupId: string | null; message: string }>;
+  totalFiles: number;
+  totalMetadataRows: number;
+}
+
+export interface RestorePreviewResult {
+  backup: BackupItem;
+  compatibility: { severity: string; compatible: boolean; checks: Array<{ code: string; severity: string; message: string }> };
+  readiness: { ready: boolean; checks: Array<{ code: string; severity: string; message: string }> };
+  currentFingerprint: string;
+  targetFingerprint: string;
+  dataLossWarning: { currentNewerOperationCount: number; latestOperations: string[] };
+  restartRequired: boolean;
+  preRestoreBackupRequired: boolean;
+  allowedAction: 'PREPARE' | 'BLOCKED';
+}
+
+export const fetchBackupStatusPublic = () =>
+  getJson<{ item: BackupStatusPublic }>('/api/system/backup-status');
+export const fetchBackups = (filter?: Record<string, string | boolean>) => {
+  const qs = new URLSearchParams();
+  if (filter) for (const [k, v] of Object.entries(filter)) qs.set(k, String(v));
+  const q = qs.toString();
+  return commissionerGetJson<{ items: BackupItem[] }>(`/api/commissioner/backups${q ? `?${q}` : ''}`);
+};
+export const fetchBackupDetail = (id: string) =>
+  commissionerGetJson<{ item: BackupItem & { manifest: unknown | null; restoreRuns: unknown[] } }>(`/api/commissioner/backups/${id}`);
+export const createManualBackup = (payload: { reasonCode?: string; reasonText?: string; protected?: boolean }) =>
+  commissionerWrite<{ item: { backup: BackupItem; reused: boolean } }>('/api/commissioner/backups', 'POST', {
+    backupType: 'MANUAL',
+    reasonCode: payload.reasonCode ?? 'MANUAL',
+    reasonText: payload.reasonText ?? '',
+    protected: payload.protected ?? true,
+  });
+export const verifyBackup = (id: string) =>
+  commissionerWrite<{ item: { outcome: string; failureMessage: string | null } }>(`/api/commissioner/backups/${id}/verify`, 'POST', {});
+export const protectBackup = (id: string, reason: string) =>
+  commissionerWrite<{ item: BackupItem }>(`/api/commissioner/backups/${id}/protect`, 'POST', { reason });
+export const unprotectBackup = (id: string, reason: string) =>
+  commissionerWrite<{ item: BackupItem }>(`/api/commissioner/backups/${id}/unprotect`, 'POST', { reason });
+export const previewRetention = () =>
+  commissionerWrite<RetentionPreviewPlan>('/api/commissioner/backups/prune-preview', 'POST', {});
+export const executePrune = (reason: string, restrictToIds?: string[]) =>
+  commissionerWrite<{ item: { pruned: BackupItem[]; skippedProtected: string[] } }>('/api/commissioner/backups/prune', 'POST', { reason, restrictToIds });
+export const scanStorage = () =>
+  commissionerWrite<{ item: StorageScanResult }>('/api/commissioner/backups/storage-scan', 'POST', {});
+export const previewRestore = (backupId: string) =>
+  commissionerWrite<{ item: RestorePreviewResult }>(`/api/commissioner/backups/${backupId}/restore-preview`, 'POST', {});
+export const prepareRestore = (backupId: string, payload: { expectedBackupUpdatedAt: string; expectedCurrentDatabaseFingerprint: string; reason: string }) =>
+  commissionerWrite<{ item: { runId: string; status: string; restartRequired: boolean; confirmationPhrase: string } }>(`/api/commissioner/backups/${backupId}/restore-prepare`, 'POST', { ...payload, requestedBy: 'ui' });
+export const requestRestart = (runId: string, confirmationPhrase: string) =>
+  commissionerWrite<{ item: { runId: string; status: string; restartRequired: boolean } }>(`/api/commissioner/restores/${runId}/request-restart`, 'POST', { confirmationPhrase });
+export const cancelRestore = (runId: string, reason: string) =>
+  commissionerWrite<{ item: RestoreRunItem }>(`/api/commissioner/restores/${runId}/cancel`, 'POST', { reason });
+export const fetchRestoreRuns = () =>
+  commissionerGetJson<{ items: RestoreRunItem[] }>('/api/commissioner/restores');
+export const fetchRestoreRun = (id: string) =>
+  commissionerGetJson<{ item: RestoreRunItem & { events: unknown[] } }>(`/api/commissioner/restores/${id}`);
+export const fetchRecoveryJournal = () =>
+  commissionerGetJson<{ items: unknown[] }>('/api/commissioner/recovery-journal');

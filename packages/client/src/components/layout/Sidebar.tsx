@@ -19,6 +19,7 @@ import {
   ArrowLeftRight,
   CalendarClock,
   CalendarDays,
+  DatabaseBackup,
   type LucideIcon,
 } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
@@ -50,6 +51,7 @@ export const MAIN_NAV: NavItem[] = [
   { to: '/trades', label: 'Trade Center', icon: ArrowLeftRight },
   { to: '/offseason', label: 'Offseason', icon: CalendarClock },
   { to: '/seasons', label: 'Seasons', icon: CalendarDays },
+  { to: '/backup-recovery', label: 'Backup & Recovery', icon: DatabaseBackup },
   { to: '/settings', label: 'Settings', icon: Settings },
   { to: '/simulation-lab', label: 'Simulation Lab', icon: FlaskConical },
 ];

@@ -143,7 +143,8 @@ describe('Migrations', () => {
     expect(names.some((n) => n.includes('f29_trades'))).toBe(true);
     expect(names.some((n) => n.includes('f30_offseason'))).toBe(true);
     expect(names.some((n) => n.includes('f31_season_transition'))).toBe(true);
-    expect(names).toHaveLength(26);
+    expect(names.some((n) => n.includes('f32_backup_recovery'))).toBe(true);
+    expect(names).toHaveLength(27);
       expect(names.some((n) => n.includes('f1_bootstrap'))).toBe(true);
       expect(names.some((n) => n.includes('f2_core_domain'))).toBe(true);
       expect(names.some((n) => n.includes('f3_source_metadata_and_init'))).toBe(true);

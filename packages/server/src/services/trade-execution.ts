@@ -24,7 +24,7 @@ export async function acceptTrade(proposal: LoadedProposal, reason: string): Pro
   if (!proposal.assets.length) throw new TradeHttpError(422, 'TradeNotReady', 'Proposal has no assets');
 
   // Pre-trade safety backup (one per accepted proposal; failure blocks acceptance).
-  await createSqliteSafetyBackup({ label: `trade-accept-${proposal.id}` });
+  await createSqliteSafetyBackup({ label: `trade-accept-${proposal.id}`, sourceOperationType: 'TRADE_ACCEPTANCE', sourceOperationId: proposal.id });
 
   const transfers: AcceptanceResult['transfers'] = [];
 

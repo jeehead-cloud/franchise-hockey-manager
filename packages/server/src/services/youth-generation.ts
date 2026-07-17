@@ -688,7 +688,7 @@ export async function executeYouthGenerationRun(
 
   let backupPath: string | null = null;
   try {
-    const backup = await createSqliteSafetyBackup({ label: 'f25-youth-generation' });
+    const backup = await createSqliteSafetyBackup({ label: 'f25-youth-generation', sourceOperationType: 'YOUTH_GENERATION', sourceOperationId: run.id });
     backupPath = backup.relativeDisplayPath;
   } catch (err) {
     throw new YouthGenerationHttpError(

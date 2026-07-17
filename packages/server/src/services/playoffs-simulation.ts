@@ -135,7 +135,7 @@ export async function startFullPlayoffsSimulation(
   let backupMeta: StageRunRecord['backup'] = null;
   if (anyCompleted === 0) {
     try {
-      const backup = await createSqliteSafetyBackup({ label: `playoffs-${stageId.slice(0, 8)}` });
+      const backup = await createSqliteSafetyBackup({ label: `playoffs-${stageId.slice(0, 8)}`, sourceOperationType: 'PLAYOFF_SIMULATION', sourceOperationId: stageId });
       backupMeta = {
         relativeDisplayPath: backup.relativeDisplayPath,
         createdAt: backup.createdAt,

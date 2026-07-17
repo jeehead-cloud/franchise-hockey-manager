@@ -67,10 +67,14 @@ npm run setup:status
 
 **F18 regular season (local):**
 
-- `FHM_BACKUP_DIR` — optional override for interim SQLite safety snapshots used by F18/F19/F20/F21/F23/F24/F25 (default `.fhm-backups/` at repo root; gitignored). F25 creates a pre-execute backup before publishing official youth cohorts.
-- Backups use SQLite `VACUUM INTO` before the first match of a full-stage simulation; failure blocks the run
-- Not F32 recovery UI — no restore endpoint
-- Verify: `npm run verify:regular-season`
+- `FHM_BACKUP_DIR` — backup directory for the centralized F32 backup/recovery subsystem (default `.fhm-backups/` at repo root; gitignored). Holds all managed backup databases, manifests, the external recovery journal (`recovery-journal.json`), the maintenance marker (`maintenance.json`), and the pending-restore marker (`pending-restore.json`). All world-mutating operations (F18/F19/F20/F21/F23/F24/F25/F27/F28/F29/F31) route their pre-operation safety backups through this single F32 service.
+- **F32 is SQLite-only and local-only.** No cloud/off-site durability, encryption, incremental backups, point-in-time recovery, record-level restore, or PostgreSQL tooling. Do not rely on F32 for production disaster recovery.
+- **Filesystem permissions:** the server process needs read+write access to `FHM_BACKUP_DIR` and the active SQLite database file. The directory should be on the same volume as the active database so restore replacement is atomic (same-volume rename/copy).
+- **Required free disk space:** at minimum, enough for several full database copies (each backup is a full `VACUUM INTO` snapshot) plus one pre-restore backup and one emergency-copy during restore. A safe floor is `5 × active_db_size`.
+- **Restore is restart-required.** In-process hot restore is unsafe (the Prisma client is a module-level singleton held open for the process lifetime). Restore flow: Commissioner prepares (creates a pre-restore backup + external journal + restore marker) → requests restart → the operator stops and restarts the server → a pre-Prisma startup bootstrap performs the atomic database replacement, runs pending additive migrations, verifies the fingerprint, reconciles history, and clears the marker only after success. While a restore is pending/running, mutating APIs return 503.
+- **Recovery journal path:** `<FHM_BACKUP_DIR>/recovery-journal.json` (canonical JSON, survives database replacement because restoring an older DB may delete the in-DB restore-run row). The pending-restore marker is `<FHM_BACKUP_DIR>/pending-restore.json`; the maintenance marker is `<FHM_BACKUP_DIR>/maintenance.json`.
+- **Manual emergency recovery:** if a startup restore fails, the bootstrap rolls back to the emergency copy (`<active_db>.emergency-<timestamp>`), preserves the restore marker, and halts the process with explicit instructions. To recover manually: inspect `recovery-journal.json` + the failed run, ensure the pre-restore backup (type `PRE_RESTORE`) is intact, then either delete `pending-restore.json` to abort the restore (keeping the rolled-back DB) or re-prepare a new restore from a known-good backup. Never delete `pending-restore.json` after a partial replacement without first confirming the active database opens and passes integrity_check.
+- **Backup files are excluded from Git** (`.fhm-backups/` and `*.db` are gitignored). Never commit backup databases, manifests, journals, or markers.
 
 There is no staging environment, no production environment, and no CI/CD pipeline yet.
 

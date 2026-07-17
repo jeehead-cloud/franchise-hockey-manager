@@ -825,7 +825,7 @@ export async function executeDevelopmentRun(
 
   let backupPath: string | null = null;
   try {
-    const backup = await createSqliteSafetyBackup({ label: 'f24-development' });
+    const backup = await createSqliteSafetyBackup({ label: 'f24-development', sourceOperationType: 'PLAYER_DEVELOPMENT', sourceOperationId: run.id });
     backupPath = backup.relativeDisplayPath;
   } catch (err) {
     throw new DevelopmentHttpError(

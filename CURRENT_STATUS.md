@@ -1,7 +1,7 @@
 ﻿# Franchise Hockey Manager — Current Status
 
 **Status:** Active
-**Last updated:** 2026-07-17 (F31)
+**Last updated:** 2026-07-17 (F32)
 **Repository:** `https://github.com/jeehead-cloud/franchise-hockey-manager`
 **Local repository path:** `C:\Projects\franchise-hockey-manager`
 
@@ -12,11 +12,11 @@
 
 ## 1. Current Development Phase
 
-**F31 — Season Transition and Next WorldSeason Creation: implemented locally (not committed).** Persistent, deterministic, Commissioner-controlled season-rollover workflow that consumes a completed F30 OffseasonRun and creates exactly one next WorldSeason (plus its CompetitionEditions, stages, and confirmed participants) in one atomic transaction. Pure engine module (`packages/engine/src/season-transition/`) owns strict versioned configuration validation, deterministic target-season identity/order/date calculation, display-name derivation, carry-forward plan construction from domain-neutral inputs, readiness aggregation, transition result reconciliation, and deterministic hashes (no Prisma). Persistence adds `SeasonTransitionPreset`/immutable `SeasonTransitionPresetVersion`/singleton `ActiveSeasonTransitionConfiguration`, `SeasonTransitionRun` (PREPARED/RUNNING/COMPLETED/FAILED/CANCELLED — one active per source season, service-enforced; one source per target via unique `targetWorldSeasonId`), `SeasonTransitionEntityRecord` (aggregate summary only — never one row per Player), and append-only `SeasonTransitionEvent` history; `WorldSeason` gains `createdSeasonTransition`/`seasonTransitionsAsSource` relations; migration `20260718000000_f31_season_transition` is additive. Server services (`season-transition-config`/`-readiness`/`-runs`/`commissioner-season-transition`) handle bootstrap, preview (no writes), prepare (freeze input + plan hashes), stale-input proof, pre-execute SQLite safety backup, atomic execution (target season + current-season designation + editions + stages + participants + entity records + COMPLETED in one transaction), idempotent re-execute, cancel/retry, config CRUD, and audit at the orchestration level only. Public read + Commissioner command APIs (no arbitrary status PATCH); client routes `/seasons`, `/seasons/:worldSeasonId`, `/season-transition`, `/season-transition/runs/:runId` plus a sidebar Seasons entry. Boundaries: F31 does **not** generate schedules, Matches, standings, or brackets; does **not** replay F24 development / F25 youth / F27 draft / F28 expiration / F29 trades; does **not** auto-activate FUTURE contracts, auto-rebuild lineups, or reuse locked national-team rosters; completed transitions are immutable (correction requires F32 recovery). Exactly one current (ACTIVE) WorldSeason after completion; `startYear` remains the canonical season order; Player birth dates never change and age remains derived.
+**F32 — Backup and Recovery: implemented locally (not committed).** One persistent, auditable, Commissioner-controlled backup/recovery layer for the entire local world database (SQLite-only). Replaces the scattered pre-F18–F31 ad-hoc `VACUUM INTO` safety-snapshot calls with one centralized service (`packages/server/src/services/backup-*`) that every world-mutating operation now routes through. Pure engine module (`packages/engine/src/backup/`) owns strict versioned configuration validation, deterministic retention-plan calculation, backup/restore status transitions, restore-readiness aggregation, compatibility-result aggregation, reconciliation, and normalized manifest/database-fingerprint hashing inputs (no Prisma, no fs, no SQLite). Server owns all file/DB operations: SQLite-safe `VACUUM INTO` snapshot, file SHA-256, canonical-JSON sidecar manifest (+ manifest SHA-256), deterministic database fingerprint (migration history + AppMeta + current WorldSeason + bounded table counts + `user_version`), `PRAGMA integrity_check`, migration-table verification, collision-safe server-generated filenames, and path-traversal/symlink-escape confinement to the configured backup root. Backup creation never mutates world data; a backup is not VERIFIED until integrity + hash + fingerprint + manifest checks pass; failed backups are never restorable. Persistence adds `BackupPreset`/immutable `BackupPresetVersion`/singleton `ActiveBackupConfiguration`, `DatabaseBackup` (CREATING/CREATED/VERIFYING/VERIFIED/FAILED/MISSING/CORRUPT/DELETED), `DatabaseRestoreRun` (PREPARED/WAITING_FOR_RESTART/RUNNING/VERIFYING/COMPLETED/FAILED/CANCELLED), and append-only `DatabaseRestoreEvent`; migration `20260719000000_f32_backup_recovery` is additive (no backup/marker created during migration). Restore is **restart-required** (in-process hot restore is unsafe given the eagerly-imported Prisma singleton): restore-prepare re-verifies the source, confirms the current fingerprint, creates a mandatory protected PRE_RESTORE backup, and writes an external recovery journal + restore marker; `request-restart` enters maintenance mode and returns `RESTART_REQUIRED`; a pre-Prisma startup bootstrap reads the marker, re-verifies, atomically replaces the DB file (emergency-copy rollback on failure), runs pending additive migrations, verifies the fingerprint, reconciles history, and clears the marker only after success. Recovery history survives database replacement through an external file-based journal because restoring an older DB may delete the restore-run row that requested it. Centralized operation integration: all 12 prior call sites (F18/F19/F20/F21/F23/F24/F25/F27×2/F28×2/F29/F31) pass source-operation type+id, block on a VERIFIED backup, and reuse a VERIFIED linked backup idempotently on retry. Retention is deterministic (age/max-count/min-keep/latest-per-reason/protection); protected backups (manual, pre-restore, restore-source, Commissioner-protected) cannot be pruned; the default never deletes the only verified backup. Path safety: canonicalize/reject `..`/symlink-escape, allowlist `.sqlite`/`.json`, filenames generated server-side, resolved path verified inside the root on every read, no user-supplied filenames, no arbitrary-path deletion. Public `/health` + `/api/system/backup-status` expose only bounded metadata (configured, verified count, last-verified age, maintenance/pending-restore) — no filenames, paths, hashes, fingerprints, or operation details. Commissioner routes cover inventory/detail/preview/create/verify/download/storage-scan/prune-preview/prune/protect/unprotect/restore-preview/restore-prepare/restores/restores-cancel/recovery-journal/backup-configurations; all writes require the Commissioner header + audit. Client `/backup-recovery` page (Overview/Backups/Create/Restore/Retention/Storage Scan tabs) + sidebar entry; normal-mode users see only bounded status.
 
-**Next milestone: F32** (Backup and Recovery — do not start until requested).
+**Next milestone: F33** (Data import/export maintenance — do not start until requested).
 
-F1–F30 are committed on `main`. F31 changes are uncommitted in this tree.
+F1–F31 are committed on `main`. F32 changes are uncommitted in this tree.
 
 ---
 
@@ -117,6 +117,20 @@ Implemented:
 Not in F31:
 - F32 backup/recovery manager (F31 creates one pre-execute SQLite safety snapshot but offers no restore UI); F33 import/export; automatic schedules, Matches, development, youth generation, draft, contract offers, free-agent signings, trades, scouting assignments, national-team roster selection; FUTURE-contract auto-activation (warned only — resolve through F28); promotion/relegation; league restructuring; expansion; salary cap; AI general managers; authentication; deployment
 
+### F32 — Backup and Recovery (Done locally)
+
+Implemented:
+- Pure engine `packages/engine/src/backup/` — strict versioned `BackupConfig` (schemaVersion 1: storage/creation/retention/restore/limits), default config, deterministic retention-plan calculation (age/max-count/min-keep/latest-per-reason/protection; never prunes protected; never deletes the only verified backup), backup + restore status-transition tables, restore-readiness aggregation, compatibility aggregation (forward-migratable older backups OK; unknown migrations BLOCKER; backend/path/source-equals-active/another-restore checks), reconciliation, normalized manifest + database-fingerprint hashing inputs, config/manifest digest (no node:crypto in engine exports); `verify:backup-recovery` (11 checks incl. 100-candidate retention benchmark)
+- Prisma: `BackupPreset`/immutable `BackupPresetVersion`/singleton `ActiveBackupConfiguration`, `DatabaseBackup` (8-state lifecycle), `DatabaseRestoreRun` (7-state lifecycle), append-only `DatabaseRestoreEvent`; migration `20260719000000_f32_backup_recovery` (additive, nullable/default-safe, indexes; no backup/marker created during migration); audit enums `BACKUP_*`/`DATABASE_BACKUP`/`DATABASE_RESTORE`
+- Server: `node:sqlite` read-only connection wrapper (`sqlite-readonly.ts`) for verification/fingerprint/integrity; centralized `createDatabaseBackup` (VACUUM INTO → file SHA-256 → manifest write + hash → integrity_check → migration table → fingerprint → VERIFIED); 12+1 services (`backup-config`/`-paths`/`-manifest`/`-fingerprint`/`-verification`/`-creation`/`-retention`/`-restore`/`-history`/`-storage-scan`/`-startup`/`commissioner-backups`/`-errors`/`recovery-journal`/`maintenance-mode`/`restore-marker`); `sqlite-backup.ts` is now a thin adapter so all F18–F31 callers route through the central service with source-operation type+id + idempotency; restart-required restore with pre-Prisma startup bootstrap (atomic file replacement + emergency-copy rollback + additive migration + fingerprint verification + journal reconciliation); external file-based recovery journal + maintenance marker + restore marker (survive DB replacement)
+- Boundaries (honest): F32 is **SQLite-only** and **local-only** — no cloud/off-site durability, no encryption, no incremental backups, no point-in-time recovery, no record-level restore, no PostgreSQL tooling, no auth/deployment. In-process hot restore is NOT supported (Prisma singleton) — restore is restart-required by design. All testing uses disposable temp SQLite DBs with isolated backup dirs.
+- Centralized operation integration: F18 regular-season, F19 playoffs, F20 archive, F21 aggregated, F23 international tournament, F24 development, F25 youth, F27 draft, F28 contract initialization + expiration, F29 trade acceptance, F31 season transition all pass source-operation type+id, block on VERIFIED, and reuse VERIFIED linked backups idempotently on retry
+- APIs: public `/api/system/backup-status`, bounded `/health` backup block; Commissioner `/api/commissioner/backups*` (inventory/detail/preview/create/verify/download/storage-scan/prune-preview/prune/protect/unprotect/restore-preview/restore-prepare), `/api/commissioner/restores*` (list/detail/request-restart/cancel), `/api/commissioner/recovery-journal`, `/api/commissioner/backup-configurations*`
+- Client: `/backup-recovery` page (Overview/Backups/Create Backup/Restore/Retention/Storage Scan tabs), sidebar Backup & Recovery entry; normal-mode users see only bounded system status (no filenames/paths/hashes)
+
+Not in F32:
+- F33 import/export; record-level restore; cloud/S3; remote sync; encryption; incremental backups; PostgreSQL tooling; scheduled jobs; production HA; authentication; deployment automation
+
 ### M1–M8
 
 Unchanged.
@@ -131,8 +145,10 @@ Unchanged.
 - Scouting calibration (Scouting Default v1) is a simplified fictional preset — not tuned to any real scouting model.
 - The F27 draft lottery is a simplified fictional development lottery — **not exact NHL lottery fidelity**.
 - Team-scoped scouting/draft-board/trade APIs use local sandbox team context (`/teams/:teamId/scouting`, `/drafts/:id/teams/:teamId/board`, `/api/teams/:teamId/trade-proposals`); there is **no authentication** — any caller passing a teamId reads that club's estimates. Commissioner header is not security.
-- Manual UI verification for F25, F26, F27, F28, F29, F30, and F31 was **NOT RUN**.
-- F30 + F31 changes not yet committed/pushed.
+- Manual UI verification for F25, F26, F27, F28, F29, F30, F31, and F32 was **NOT RUN**.
+- F30 + F31 are committed/pushed on `main`. F32 changes not yet committed/pushed.
+- F32 backup/recovery is **SQLite-only and local-only** — no cloud/off-site durability, encryption, incremental backups, point-in-time recovery, or record-level restore. Restore is restart-required (in-process hot restore is unsupported given the Prisma singleton).
+- F32 recovery journal / maintenance marker / restore marker live as files in the configured backup directory (`FHM_BACKUP_DIR` / `.fhm-backups/`) — they are gitignored and must not be committed.
 - F31 scouting-staleness counts in readiness are advisory upper bounds (F26 owns the precise stale-vs-fresh classification against the player-state hash; F31 reports the count only and never rewrites historical reports).
 - F31 international-tournament carry-forward defaults to "manual" unless the Competition definition carries an explicit recurrence flag (no recurrence metadata is modelled yet, so international tournaments are intentionally omitted from the plan and surfaced as a warning).
 - Retired players may still appear on team roster lists until offseason cleanup (Roster Review phase surfaces this as a blocker; F30 does not auto-release).
@@ -141,13 +157,28 @@ Unchanged.
 
 ## 4. Nearest Next Steps
 
-1. Run the remaining disposable-database manual UI pass, including F30 Offseason and F31 Season Transition: seasons timeline, current/historical season labels, F30 completed prerequisite, transition preview (deterministic target identity + carry-forward list + stage templates + participants + contract/right summary + lineup review warning + national-team roster non-reuse), prepare, confirm no target before execute, execute + backup, target becomes current, source becomes historical, new CompetitionEditions are PLANNED, no schedules/Matches exist, repeated execute safe, second transition blocked, target-season readiness, dashboard switches current season, direct routes/refresh, responsive tables/cards, normal mode read-only, Commissioner diagnostics.
-2. Commit/push F30 + F31 when the owner requests.
-3. **F32** (Backup and Recovery) only when explicitly requested.
+1. Run the remaining disposable-database manual UI pass, including F32 Backup & Recovery: backup overview, manual backup, inventory, manifest detail, verify action, protect/unprotect, retention preview, prune, storage scan, missing-file detection, corruption detection, restore preview, data-loss summary, prepare restore, pre-restore backup, restart-required flow, server restart, restored world state, recovery journal, failed-restore behavior, maintenance UI, operation-linked backups, no absolute-path exposure, direct routes/refresh, responsive tables/forms, normal-mode read-only.
+2. Commit/push F32 when the owner requests.
+3. **F33** (Data import/export maintenance) only when explicitly requested.
 
 ---
 
 ## 5. Recent Changes
+
+### 2026-07-17 — F32 Backup and Recovery
+
+- Implemented one persistent, auditable, Commissioner-controlled backup/recovery layer for the entire local world database (SQLite-only), replacing the scattered pre-F18–F31 ad-hoc `VACUUM INTO` safety-snapshot calls
+- Pure engine `packages/engine/src/backup/` owns strict versioned config validation, deterministic retention-plan calculation, backup/restore status transitions, restore-readiness aggregation, compatibility aggregation, reconciliation, and normalized manifest/database-fingerprint hashing inputs (no Prisma, no fs, no SQLite)
+- Prisma: `BackupPreset`/immutable `BackupPresetVersion`/singleton `ActiveBackupConfiguration`, `DatabaseBackup` (CREATING→…→VERIFIED/FAILED/MISSING/CORRUPT/DELETED), `DatabaseRestoreRun` (PREPARED→WAITING_FOR_RESTART→RUNNING→VERIFYING→COMPLETED/FAILED/CANCELLED), append-only `DatabaseRestoreEvent`; migration `20260719000000_f32_backup_recovery` (additive); audit enums `BACKUP_*`/`DATABASE_BACKUP`/`DATABASE_RESTORE`
+- Server: centralized `createDatabaseBackup` (VACUUM INTO → file SHA-256 → canonical manifest + hash → `PRAGMA integrity_check` → migration table → deterministic database fingerprint → VERIFIED); 12+1 backup services; `node:sqlite` read-only wrapper for verification/fingerprint/integrity; `sqlite-backup.ts` is now a thin adapter so all 12 prior F18–F31 callers (F18/F19/F20/F21/F23/F24/F25/F27×2/F28×2/F29/F31) route through the central service with source-operation type+id + idempotent VERIFIED-linked-backup reuse on retry
+- Restart-required restore (in-process hot restore is unsafe given the eagerly-imported Prisma singleton): restore-prepare re-verifies source + current fingerprint + creates a mandatory protected PRE_RESTORE backup + writes external recovery journal + restore marker; request-restart enters maintenance mode + returns RESTART_REQUIRED; a pre-Prisma startup bootstrap atomically replaces the DB file (emergency-copy rollback on failure), runs pending additive migrations, verifies the fingerprint, reconciles history, and clears the marker only after success
+- Recovery history survives database replacement through an external file-based journal (because restoring an older DB may delete the restore-run row that requested it); maintenance marker + restore marker also live outside the DB
+- Path safety: canonicalize/reject `..`/symlink-escape, allowlist `.sqlite`/`.json`, server-generated collision-safe filenames, resolved path verified inside the configured root on every read, no user-supplied filenames, no arbitrary-path deletion; public `/health` + `/api/system/backup-status` expose only bounded metadata (no filenames/paths/hashes/fingerprints/operation details)
+- Client `/backup-recovery` page (Overview/Backups/Create/Restore/Retention/Storage Scan tabs) + sidebar Backup & Recovery entry; typed restore confirmation phrase `RESTORE <short id>` required
+- Boundaries (honest): SQLite-only and local-only — no cloud/off-site durability, encryption, incremental backups, point-in-time recovery, or record-level restore; restore is restart-required by design; manual UI NOT RUN
+- Validation (all PASS): Prisma format/validate/generate; empty-DB `migrate deploy` through F32 (27 migrations) + F31→F32 incremental; engine tests 422 PASS (incl. 40 backup tests); server tests 302 PASS (incl. 19 F32 server tests + migration-history F1–F32 update); all 20 verifiers PASS incl. `verify:backup-recovery` (100-candidate retention benchmark ~0.2ms); root typecheck; engine/server/client builds; `git diff --check` clean
+- Manual UI **NOT RUN**
+- Remaining: F32 uncommitted; F33 deferred
 
 ### 2026-07-17 — F31 Season Transition and Next WorldSeason Creation
 
@@ -230,6 +261,20 @@ Unchanged.
 ---
 
 ## 6. Significant Changes
+
+### 2026-07-17 — F32 Backup and Recovery (Significant)
+
+- F32 is the **single centralized** backup/recovery layer for the entire local world database. It replaces every prior ad-hoc pre-operation `VACUUM INTO` safety snapshot (F18–F31) with one Commissioner-controlled service that every world-mutating operation now routes through. No scattered direct SQLite backup logic remains except as the internal implementation of F32.
+- SQLite-only and local-only by design. F32 does **not** provide cloud/off-site durability, encryption, incremental backups, point-in-time recovery, record-level restore, PostgreSQL tooling, or production disaster recovery — and does not pretend to.
+- Backup creation **never mutates world data**. It uses SQLite `VACUUM INTO` (the SQLite-recommended online-backup mechanism) plus a dedicated read-only connection for verification. A backup is not marked VERIFIED until file SHA-256, canonical manifest SHA-256, `PRAGMA integrity_check`, migration-table presence, and a recomputed database fingerprint all pass. Failed backups are never presented as restorable; a previously VERIFIED backup may later be detected MISSING or CORRUPT.
+- Every successful backup has: a collision-safe server-generated filename, a canonical-JSON sidecar manifest, a file SHA-256 (proves bytes), and a deterministic database fingerprint (proves semantic state: migration history + AppMeta/world identifiers + current WorldSeason + bounded key-entity counts + `user_version`). The fingerprint excludes absolute path, backup timestamp, and backup ID.
+- The 12 world-mutating operations (F18/F19/F20/F21/F23/F24/F25/F27/F28×2/F29/F31) all pass source-operation type+id, **block when their required backup fails**, and reuse an existing VERIFIED operation-linked backup idempotently on retry (a MISSING/CORRUPT/FAILED linked backup triggers a new one).
+- Restore is **always explicit, Commissioner-gated, and restart-required**. In-process hot restore is unsafe (the Prisma client is an eagerly-imported module-level singleton held open for the process lifetime with no in-process reconnect path) and is explicitly not supported. Restore flow: preview (no writes) → prepare (re-verify source, confirm current fingerprint, create mandatory protected PRE_RESTORE backup, write external recovery journal + restore marker) → request-restart (enter maintenance mode, return RESTART_REQUIRED) → user restarts → pre-Prisma startup bootstrap performs atomic file replacement (emergency-copy rollback on failure), additive migration of the restored (possibly older) DB, fingerprint verification, history reconciliation, and clears the marker **only after success**.
+- Restore **replaces the entire world database** — it does not merge or import individual records. An older backup is restored to exact bytes, then pending additive migrations run forward through the current chain (pre/post-migration fingerprints recorded). A backup containing migrations absent from the active chain is a BLOCKER (the current code cannot read it). Destructive/backward-schema restore is not allowed.
+- Recovery history **survives database replacement** through an external file-based recovery journal in the backup directory, because restoring an older database may delete the restore-run row that requested the restore. The journal stores no secrets; startup reads/updates it around replacement and reconciles the completed summary into the restored DB.
+- Retention is deterministic (age/max-count/min-keep/latest-per-reason/protection). Protected backups (manual, pre-restore, restore-source, Commissioner-protected) **cannot be pruned**; backups referenced by active restores cannot be pruned; the default never deletes the only verified backup; pruning never deletes outside the configured backup root and never deletes the active database.
+- Path safety: all paths canonicalized; `..` and symlink-escape rejected where detectable; allowlisted extensions (`.sqlite`/`.json`); filenames generated server-side (no user-supplied filenames); resolved path verified inside the configured root on every read; no arbitrary-path deletion. Absolute database/backup paths are never exposed through public APIs, error payloads, or the UI (only filenames and hash prefixes).
+- Normal mode is read-only; Commissioner Mode is required for every backup/restore mutation. Public `/health` and `/api/system/backup-status` expose only bounded metadata (subsystem configured, verified count, last-verified age, maintenance/pending-restore) — never filenames, paths, hashes, fingerprints, or operation details.
 
 ### 2026-07-17 — F31 Season Transition and Next WorldSeason Creation (Significant)
 
@@ -342,8 +387,8 @@ Unchanged.
 | Item | Value |
 |---|---|
 | Dataset schemaVersion | 5 (unchanged) |
-| Migration | `20260718000000_f31_season_transition` |
-| Verifier | `npm run verify:season-transition` |
-| Default config | Season Transition Default (creates one next WorldSeason; no schedules/Matches) |
-| UI | `/seasons`, `/seasons/:worldSeasonId`, `/season-transition`, `/season-transition/runs/:runId` |
-| Next | F32 |
+| Migration | `20260719000000_f32_backup_recovery` |
+| Verifier | `npm run verify:backup-recovery` |
+| Default config | Backup Default (SQLite-only; VACUUM INTO; deterministic retention; restart-required restore) |
+| UI | `/backup-recovery` (Overview/Backups/Create/Restore/Retention/Storage Scan) |
+| Next | F33 |

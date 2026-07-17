@@ -1,7 +1,7 @@
 # Franchise Hockey Manager — Architecture
 
 **Status:** Active
-**Last updated:** 2026-07-17 (F31)
+**Last updated:** 2026-07-17 (F32)
 **Repository:** `https://github.com/jeehead-cloud/franchise-hockey-manager`
 
 > Technical source of truth for stack, monorepo structure, data flow, and config-driven balance.
@@ -719,6 +719,45 @@ Boundaries (highest-priority invariants):
 APIs: `/api/world-seasons/current`, `/api/world-seasons/:id/readiness`, `/api/season-transitions/status|configurations|runs|:runId|:runId/readiness|plan|history|result|preview` (public reads) and `/api/commissioner/season-transitions/preview|prepare|:runId/execute|:runId` DELETE cancel/`:runId/retry`/`:runId/diagnostics`, `/api/commissioner/season-transition-configurations` CRUD + version activate (Commissioner writes). Client routes are `/seasons`, `/seasons/:worldSeasonId`, `/season-transition`, `/season-transition/runs/:runId`; sidebar Seasons entry.
 
 Verifier: `npm run verify:season-transition`
+
+## 7r. Backup and Recovery (F32)
+
+One persistent, auditable, Commissioner-controlled backup/recovery layer for the entire local world database. SQLite-only and local-only — F32 does **not** provide cloud/off-site durability, encryption, incremental backups, point-in-time recovery, record-level restore, PostgreSQL tooling, or production disaster recovery.
+
+Pure engine (`packages/engine/src/backup/`):
+- Strict versioned `BackupConfig` (schemaVersion 1: storage/creation/retention/restore/limits); deterministic retention-plan calculation (age/max-count/min-keep/latest-per-reason/protection; never prunes protected; never deletes the only verified backup)
+- Backup status-transition table (CREATING→CREATED→VERIFYING→VERIFIED | FAILED; VERIFIED→MISSING/CORRUPT/DELETED) and restore status-transition table (PREPARED→WAITING_FOR_RESTART→RUNNING→VERIFYING→COMPLETED | FAILED | CANCELLED)
+- Compatibility aggregation (forward-migratable older backups OK; migrations unknown to the active chain = BLOCKER; backend/path/source-equals-active/another-restore checks); restore-readiness aggregation; reconciliation; normalized manifest + database-fingerprint hashing inputs
+- No Prisma, no fs, no SQLite, no node:crypto in engine exports
+
+Persistence (server-only):
+- `BackupPreset` / immutable `BackupPresetVersion` / singleton `ActiveBackupConfiguration` (mirrors the SeasonTransitionPreset pattern); `DatabaseBackup` (8-state lifecycle, manifest/hash/fingerprint/migration/snapshot/protection fields); `DatabaseRestoreRun` (7-state lifecycle); append-only `DatabaseRestoreEvent`; migration `20260719000000_f32_backup_recovery` (additive, nullable/default-safe, indexes; no backup/marker created during migration)
+- External file-based recovery journal + maintenance marker + restore marker live in the configured backup directory (gitignored) because they must survive database replacement
+
+Backup creation (centralized `createDatabaseBackup`):
+- `VACUUM INTO` snapshot (SQLite online-backup; destination must not pre-exist) → file SHA-256 → canonical-JSON sidecar manifest + manifest SHA-256 → dedicated read-only connection runs `PRAGMA integrity_check` + migration-table check → deterministic database fingerprint → VERIFIED
+- Collision-safe server-generated filenames; resolved path verified inside the configured backup root on every read
+- **All 12 prior F18–F31 call sites now route through this service** (F18/F19/F20/F21/F23/F24/F25/F27×2/F28×2/F29/F31), passing source-operation type+id, blocking on a VERIFIED backup, and reusing an existing VERIFIED operation-linked backup idempotently on retry
+
+Restart-required restore (in-process hot restore is unsafe given the eagerly-imported Prisma singleton — explicitly not supported):
+- restore-prepare: re-verify source + confirm current fingerprint + create mandatory protected PRE_RESTORE backup + write external recovery journal + restore marker
+- request-restart: enter maintenance mode, return RESTART_REQUIRED (503 on mutating APIs while active)
+- pre-Prisma startup bootstrap: read marker → re-verify source → atomic file replacement (emergency-copy rollback on failure) → pending additive migrations → fingerprint verification → history reconciliation → clear marker **only after success**
+- An older backup is restored to exact bytes, then pending additive migrations run forward through the current chain; a backup containing migrations absent from the active chain is a BLOCKER
+
+Boundaries (highest-priority invariants):
+- Backup creation never mutates world data; only VERIFIED backups are restorable; failed backups are never restorable
+- Restore is always explicit + Commissioner-gated; replaces the entire world database; creates a pre-restore backup; revalidates integrity + migrations; never partially replaces
+- Restore failure leaves the current database usable whenever possible (emergency-copy rollback); the marker is preserved on failure and startup halts with explicit recovery instructions
+- Protected backups (manual, pre-restore, restore-source, Commissioner-protected) cannot be pruned; backups referenced by active restores cannot be pruned; the default never deletes the only verified backup; pruning never deletes outside the backup root or the active database
+- Recovery history survives database replacement through the external journal (restoring an older DB may delete the restore-run row that requested it)
+- Path safety: canonicalize/reject `..`/symlink-escape, allowlist `.sqlite`/`.json`, server-generated filenames, resolved path verified inside root on every read; no user-supplied filenames or arbitrary-path deletion; absolute paths never exposed through public APIs/errors/UI (only filenames + hash prefixes)
+- Public `/health` + `/api/system/backup-status` expose only bounded metadata (configured, verified count, last-verified age, maintenance/pending-restore) — no filenames/paths/hashes/fingerprints/operation details
+- Normal mode read-only; Commissioner Mode required for every backup/restore mutation
+
+APIs: `/api/system/backup-status` (public), bounded `/health` backup block; Commissioner `/api/commissioner/backups*` (inventory/detail/preview/create/verify/download/storage-scan/prune-preview/prune/protect/unprotect/restore-preview/restore-prepare), `/api/commissioner/restores*` (list/detail/request-restart/cancel), `/api/commissioner/recovery-journal`, `/api/commissioner/backup-configurations*`. Client: `/backup-recovery` page (Overview/Backups/Create/Restore/Retention/Storage Scan tabs); sidebar Backup & Recovery entry.
+
+Verifier: `npm run verify:backup-recovery`
 
 ## 8. Why Client-Server From Day One
 

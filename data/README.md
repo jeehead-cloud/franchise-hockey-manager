@@ -16,6 +16,8 @@ F17 requires **`schemaVersion: 5`**. Earlier versions are rejected rather than s
 
 F22 does **not** require a `national-teams.json` import file; national-team definitions are created via Commissioner APIs. schemaVersion remains **5**.
 
+F32 (backup/recovery) requires **no dataset change** — schemaVersion remains **5**. The F32 bootstrap creates only the default backup configuration (`Backup Default`) idempotently on server startup; it does **not** create an automatic backup during setup (the UI shows "No verified backups yet" until the Commissioner creates one).
+
 Required manifest keys include `datasetId`, `datasetName`, `schemaVersion`, `sourceName`, `sourceUpdatedAt`, `worldSeasonLabel`, `worldSeasonStartYear`, `worldSeasonEndYear`, and `files`.
 
 Entity JSON files reference each other by **externalId**, never by database IDs.

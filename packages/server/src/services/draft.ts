@@ -753,7 +753,7 @@ export async function startDraft(
   // Safety backup before the first pick (not before every pick).
   let backupPath: string | null = null;
   try {
-    const backup = await createSqliteSafetyBackup({ label: 'f27-draft' });
+    const backup = await createSqliteSafetyBackup({ label: 'f27-draft', sourceOperationType: 'DRAFT_START', sourceOperationId: draftEventId });
     backupPath = backup.relativeDisplayPath;
   } catch (err) {
     throw new DraftHttpError(503, 'BackupFailed', err instanceof Error ? err.message : 'Backup failed');

@@ -92,7 +92,7 @@ export async function startRegularSeasonSimulation(
   let backupMeta: StageRunRecord['backup'] = null;
   if (anyCompleted === 0) {
     try {
-      const backup = await createSqliteSafetyBackup({ label: `stage-${stageId.slice(0, 8)}` });
+      const backup = await createSqliteSafetyBackup({ label: `stage-${stageId.slice(0, 8)}`, sourceOperationType: 'REGULAR_SEASON_SIMULATION', sourceOperationId: stageId });
       backupMeta = {
         relativeDisplayPath: backup.relativeDisplayPath,
         createdAt: backup.createdAt,

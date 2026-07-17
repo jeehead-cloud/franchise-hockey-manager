@@ -45,6 +45,7 @@ import { SeasonsPage } from './pages/SeasonsPage';
 import { SeasonDetailPage } from './pages/SeasonDetailPage';
 import { SeasonTransitionPage } from './pages/SeasonTransitionPage';
 import { SeasonTransitionRunDetailPage } from './pages/SeasonTransitionRunDetailPage';
+import { BackupRecoveryPage } from './pages/BackupRecoveryPage';
 
 export function App() {
   return (
@@ -115,6 +116,7 @@ export function App() {
             <Route path="/seasons/:worldSeasonId" element={<SeasonDetailPage />} />
             <Route path="/season-transition" element={<SeasonTransitionPage />} />
             <Route path="/season-transition/runs/:runId" element={<SeasonTransitionRunDetailPage />} />
+            <Route path="/backup-recovery" element={<BackupRecoveryPage />} />
             <Route path="/contract-expiration" element={<Navigate to="/contracts?tab=expiration" replace />} />
             <Route path="/simulation-lab" element={<SimulationLabPage />} />
             <Route path="*" element={<NotFoundPage />} />

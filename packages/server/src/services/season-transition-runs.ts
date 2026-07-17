@@ -254,7 +254,7 @@ export async function executeSeasonTransitionRun(runId: string, options: { expec
   // Pre-execution safety backup (required; not F32 restore).
   let backupMetadata: { backupPath: string; relativeDisplayPath: string; createdAt: string; bytes: number } | null = null;
   try {
-    backupMetadata = await createSqliteSafetyBackup({ label: `season-transition-${run.id}` });
+    backupMetadata = await createSqliteSafetyBackup({ label: `season-transition-${run.id}`, sourceOperationType: 'SEASON_TRANSITION', sourceOperationId: run.id });
   } catch (e) {
     const code = (e as { code?: string })?.code ?? 'BackupFailed';
     throw new SeasonTransitionHttpError(503, code, (e as Error).message ?? 'Backup failed');

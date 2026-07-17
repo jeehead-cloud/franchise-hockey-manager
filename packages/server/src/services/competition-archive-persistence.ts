@@ -328,7 +328,7 @@ export async function archiveCompetitionEdition(
 
   let backup;
   try {
-    backup = await createSqliteSafetyBackup({ label: 'f20-archive' });
+    backup = await createSqliteSafetyBackup({ label: 'f20-archive', sourceOperationType: 'COMPETITION_ARCHIVE', sourceOperationId: editionId });
   } catch (err) {
     throw new CommissionerHttpError(
       503,

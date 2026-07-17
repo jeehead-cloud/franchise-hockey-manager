@@ -505,7 +505,7 @@ export async function simulateAggregatedSeason(
 
   let backup;
   try {
-    backup = await createSqliteSafetyBackup({ label: 'f21-aggregated' });
+    backup = await createSqliteSafetyBackup({ label: 'f21-aggregated', sourceOperationType: 'AGGREGATED_SIMULATION', sourceOperationId: run.id });
   } catch (err) {
     throw new AggregatedHttpError(
       503,
