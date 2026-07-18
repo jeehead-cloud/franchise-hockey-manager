@@ -152,6 +152,7 @@ Unchanged.
 - Scoring rates remain high in detailed F14 (~10 goals/game).
 - International templates and youth profiles are simplified hobby presets — **not real-world calibrated**.
 - Default youth name pools are fictional development examples for fixture countries only.
+- The Youth Generation default configuration is **deferred until Setup World completes**: on a fresh migrated-but-uninitialized database the youth bootstrap returns a documented `deferred` result (no NAV/SGL rows invented, no crash) and is completed by `initializeSetup` once fixture countries exist. An *initialized* world that is missing required fixture countries is treated as corruption (the bootstrap throws explicitly, never silently deferred).
 - Scouting calibration (Scouting Default v1) is a simplified fictional preset — not tuned to any real scouting model.
 - The F27 draft lottery is a simplified fictional development lottery — **not exact NHL lottery fidelity**.
 - Team-scoped scouting/draft-board/trade APIs use local sandbox team context (`/teams/:teamId/scouting`, `/drafts/:id/teams/:teamId/board`, `/api/teams/:teamId/trade-proposals`); there is **no authentication** — any caller passing a teamId reads that club's estimates. Commissioner header is not security.
@@ -177,6 +178,22 @@ Unchanged.
 ---
 
 ## 5. Recent Changes
+
+### 2026-07-19 — Empty-database startup lifecycle fix
+
+- **Bug:** the server could not start against a fresh migrated but uninitialized SQLite database. `ensureAppMeta()` (run from `index.ts` at startup) called `bootstrapYouthGenerationConfiguration()`, which threw `Bootstrap requires NAV/SGL fixture countries` because the required fixture countries only exist after Setup World — so the server crashed before `/setup` was reachable.
+- **Root cause:** the youth-generation bootstrap is the only *world-dependent* config bootstrap (all other 10 — balance, player-development, scouting, draft, contract, trade, offseason, season-transition, backup, maintenance — are pure app-level preset bootstraps). It unconditionally threw when fixture countries were absent, with no distinction between an ordinary empty/uninitialized world and an initialized-but-corrupt one. Setup also never completed the youth bootstrap itself; it relied on the next `ensureAppMeta()` run.
+- **Fix design — deferred world-dependent configuration bootstrap:**
+  - `bootstrapYouthGenerationConfiguration` now returns a documented `{ deferred: true, reason: 'deferred-uninitialized' }` result when the world is not initialized (no `worldInitialized` flag and no countries) — no throw, no invented rows. It throws *explicitly* (distinguishable message) only when the world **is** marked initialized but required fixture countries are missing, so corruption is never silently masked as an ordinary empty-world state.
+  - `initializeSetup` now completes the deferred bootstrap immediately after a successful world import (right after the balance bootstrap), so the required default youth configuration exists the moment setup finishes — no longer dependent on a restart. Idempotent: the existing `anyProfileSet` early-return still guarantees owner-created configuration is never overwritten.
+  - `getActiveYouthSnapshot()` lazy-bootstrap surfaces a clean `503 YouthGenerationNotReady` if a pre-setup request arrives, instead of crashing with the raw bootstrap error.
+  - `ensureAppMeta()` is unchanged structurally: it still calls every bootstrap on every restart; the youth bootstrap simply defers on an uninitialized DB and no-ops once the default exists.
+- **Invariants preserved:** empty migrated DB boots (`/health`, `/api/setup/status`, `/api/setup/preview`, `/setup` all reachable); world stays `worldInitialized: false`; startup never invents NAV/SGL or marks the world initialized; setup remains explicit and idempotent; owner configuration is never replaced; restarts are idempotent; initialized worlds behave exactly as before.
+- **Regression tests:** new `packages/server/tests/empty-db-startup.test.ts` (10 tests across 5 scenarios, each on a disposable migrated DB): (1) fresh empty DB boots — `ensureAppMeta` no throw, `/health` 200 + `database: ok`, `/api/setup/status` 200 uninitialized, zero countries / zero youth config, bootstrap returns `deferred`; (2) successful setup imports fixture countries and creates the youth default + active pointer, snapshot resolves; (3) restart after setup is idempotent (no duplicate preset/version/config); (4) initialized-but-corrupt world (marked initialized, no fixture countries) throws explicitly rather than deferring; (5) existing owner configuration is never replaced.
+- **Side fix:** `tests/setup.test.ts` country-cleanup blocks now delete youth tables (created by `initializeSetup`) before countries to satisfy FK order — previously those tables did not exist post-setup.
+- **Validation (all PASS):** Prisma validate; fresh empty-DB `migrate deploy` through F33 (28 migrations); empty-DB startup regression test (10/10); F25 + setup tests (38/38); full server test suite **339/339** (34 files; +10 new); root typecheck; server build; `git diff --check` clean. Prisma `generate` hit a transient Windows DLL lock (EPERM on `query_engine-windows.dll.node`) unrelated to code — the generated client is present and all tests pass against it.
+- **Classification:** Recent only. This fixes a lifecycle bug and tightens a bootstrap boundary; it does not establish a new durable architecture rule warranting a Significant entry.
+- Not committed.
 
 ### 2026-07-18 — F33 Import, Export, and Database Maintenance
 

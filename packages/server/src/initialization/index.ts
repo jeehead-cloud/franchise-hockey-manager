@@ -99,6 +99,15 @@ export async function initializeSetup(
     const result = await persistWorld(prisma, dataset, { failAfter: options?.failAfter });
     const { bootstrapBalanceConfiguration } = await import('../services/balance-config.js');
     await bootstrapBalanceConfiguration(prisma);
+    // Complete the deferred world-dependent bootstrap now that fixture
+    // countries (NAV/SGL) exist. Idempotent: never overrides an existing
+    // active configuration. Must not throw on success — if the just-imported
+    // world is missing required fixture countries, that is a dataset bug and
+    // should surface here rather than silently leaving no default config.
+    const { bootstrapYouthGenerationConfiguration } = await import(
+      '../services/youth-generation-config.js'
+    );
+    await bootstrapYouthGenerationConfiguration(prisma);
     log('initialization completed', {
       datasetId: result.datasetId,
       created: result.created,

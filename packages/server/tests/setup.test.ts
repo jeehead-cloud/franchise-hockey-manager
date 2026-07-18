@@ -308,6 +308,14 @@ describe('F3 preview / initialize / idempotency', () => {
     await prisma.player.deleteMany();
     await prisma.team.deleteMany();
     await prisma.league.deleteMany();
+    // initializeSetup now bootstraps youth config (F25 name pools/profiles
+    // reference Country); clear these before countries to satisfy FK order.
+    await prisma.activeYouthGenerationConfiguration.deleteMany();
+    await prisma.countryYouthProfileVersion.deleteMany();
+    await prisma.youthGenerationProfileSetVersion.deleteMany();
+    await prisma.youthGenerationProfileSet.deleteMany();
+    await prisma.countryNamePoolVersion.deleteMany();
+    await prisma.countryNamePool.deleteMany();
     await prisma.country.deleteMany();
     await prisma.worldSeason.deleteMany();
     await prisma.appMeta.deleteMany();
@@ -478,6 +486,13 @@ describe('F3 setup API', () => {
     await prisma.player.deleteMany();
     await prisma.team.deleteMany();
     await prisma.league.deleteMany();
+    // Clear youth tables (created by initializeSetup) before countries.
+    await prisma.activeYouthGenerationConfiguration.deleteMany();
+    await prisma.countryYouthProfileVersion.deleteMany();
+    await prisma.youthGenerationProfileSetVersion.deleteMany();
+    await prisma.youthGenerationProfileSet.deleteMany();
+    await prisma.countryNamePoolVersion.deleteMany();
+    await prisma.countryNamePool.deleteMany();
     await prisma.country.deleteMany();
     await prisma.worldSeason.deleteMany();
     await prisma.appMeta.update({
@@ -517,6 +532,13 @@ describe('F3 setup API', () => {
       await prisma.player.deleteMany();
       await prisma.team.deleteMany();
       await prisma.league.deleteMany();
+      // Clear youth tables (created by initializeSetup) before countries.
+      await prisma.activeYouthGenerationConfiguration.deleteMany();
+      await prisma.countryYouthProfileVersion.deleteMany();
+      await prisma.youthGenerationProfileSetVersion.deleteMany();
+      await prisma.youthGenerationProfileSet.deleteMany();
+      await prisma.countryNamePoolVersion.deleteMany();
+      await prisma.countryNamePool.deleteMany();
       await prisma.country.deleteMany();
       await prisma.worldSeason.deleteMany();
       await prisma.appMeta.update({

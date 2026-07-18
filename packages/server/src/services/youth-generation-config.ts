@@ -286,15 +286,49 @@ async function createNamePoolWithVersion(
 }
 
 /**
- * Idempotent bootstrap of Youth Profiles Default v1 + active pointer.
- * Only runs when no profile set exists; never overrides existing active config.
+ * Result of a youth-generation configuration bootstrap.
+ *
+ * - `active`: a default profile set + active pointer exist (either already
+ *   present or just created). `created`/`activated` distinguish creation from
+ *   a no-op rerun.
+ * - `deferred`: the bootstrap intentionally did nothing because the world is
+ *   not initialized yet (no AppMeta `worldInitialized` flag and no countries).
+ *   The deferred bootstrap is completed by `initializeSetup` after a
+ *   successful world import. This lets the server boot on a fresh migrated
+ *   but uninitialized database without requiring fixture countries that only
+ *   exist after Setup World.
+ *
+ * An initialized world that is *missing* required fixture countries is treated
+ * as corruption: the bootstrap throws rather than returning `deferred`, so the
+ * problem is never silently masked as an ordinary empty-world state.
  */
-export async function bootstrapYouthGenerationConfiguration(db?: DbClient): Promise<{
+export type BootstrapYouthGenerationConfigurationResult = {
+  deferred: boolean;
+  reason: 'active' | 'deferred-uninitialized';
   created: boolean;
   activated: boolean;
   profileSetId: string;
   versionId: string;
-}> {
+};
+
+/**
+ * Idempotent bootstrap of Youth Profiles Default v1 + active pointer.
+ *
+ * On an uninitialized world (no countries and AppMeta not marking the world
+ * initialized), returns a documented deferred result instead of throwing, so
+ * that `ensureAppMeta` can run on a fresh migrated database before Setup World
+ * has been performed. The deferred bootstrap is completed by `initializeSetup`
+ * once fixture countries exist.
+ *
+ * On an *initialized* world that is missing the required fixture countries,
+ * throws explicitly — this is corruption, not an ordinary empty-world state,
+ * and must not be silently deferred.
+ *
+ * Never overrides an existing active configuration on rerun.
+ */
+export async function bootstrapYouthGenerationConfiguration(
+  db?: DbClient,
+): Promise<BootstrapYouthGenerationConfigurationResult> {
   const client = db ?? (await getPrisma());
   const anyProfileSet = await client.youthGenerationProfileSet.findFirst();
   if (anyProfileSet) {
@@ -302,6 +336,8 @@ export async function bootstrapYouthGenerationConfiguration(db?: DbClient): Prom
       where: { id: 'default' },
     });
     return {
+      deferred: false,
+      reason: 'active',
       created: false,
       activated: false,
       profileSetId: anyProfileSet.id,
@@ -311,7 +347,25 @@ export async function bootstrapYouthGenerationConfiguration(db?: DbClient): Prom
 
   const countries = await resolveFixtureCountries(client);
   if (countries.length === 0) {
-    throw new Error('Bootstrap requires NAV/SGL fixture countries');
+    // Distinguish an ordinary uninitialized world (defer) from an initialized
+    // world whose required fixture data is missing (corruption — throw).
+    const meta = await client.appMeta.findUnique({ where: { id: 'default' } });
+    const worldInitialized = meta?.worldInitialized === true;
+    const countryCount = await client.country.count();
+    if (!worldInitialized && countryCount === 0) {
+      return {
+        deferred: true,
+        reason: 'deferred-uninitialized',
+        created: false,
+        activated: false,
+        profileSetId: '',
+        versionId: '',
+      };
+    }
+    throw new Error(
+      'Youth generation bootstrap cannot proceed: required fixture countries (NAV/SGL) are missing' +
+        (worldInitialized ? ' although the world is marked initialized' : ' and partial world data is present'),
+    );
   }
 
   let created = false;
@@ -401,6 +455,8 @@ export async function bootstrapYouthGenerationConfiguration(db?: DbClient): Prom
   });
 
   return {
+    deferred: false,
+    reason: 'active',
     created,
     activated,
     profileSetId: profileSet.id,
@@ -416,7 +472,14 @@ export async function getActiveYouthSnapshot(): Promise<ActiveYouthSnapshot> {
 
   let snapshot = await loadActiveSnapshotFromDb(prisma);
   if (!snapshot) {
-    await bootstrapYouthGenerationConfiguration(prisma);
+    const result = await bootstrapYouthGenerationConfiguration(prisma);
+    if (result.deferred) {
+      throw new CommissionerHttpError(
+        503,
+        'YouthGenerationNotReady',
+        'Youth generation configuration is not ready until the world is initialized',
+      );
+    }
     snapshot = await loadActiveSnapshotFromDb(prisma);
   }
   if (!snapshot) {
