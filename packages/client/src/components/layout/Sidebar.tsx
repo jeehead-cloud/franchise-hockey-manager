@@ -20,6 +20,7 @@ import {
   CalendarClock,
   CalendarDays,
   DatabaseBackup,
+  DatabaseZap,
   type LucideIcon,
 } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
@@ -52,6 +53,7 @@ export const MAIN_NAV: NavItem[] = [
   { to: '/offseason', label: 'Offseason', icon: CalendarClock },
   { to: '/seasons', label: 'Seasons', icon: CalendarDays },
   { to: '/backup-recovery', label: 'Backup & Recovery', icon: DatabaseBackup },
+  { to: '/maintenance', label: 'Data & Maintenance', icon: DatabaseZap },
   { to: '/settings', label: 'Settings', icon: Settings },
   { to: '/simulation-lab', label: 'Simulation Lab', icon: FlaskConical },
 ];

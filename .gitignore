@@ -13,3 +13,5 @@ coverage/
 .turbo/
 *.tsbuildinfo
 .fhm-backups/
+.fhm-exports/
+.zcode/

@@ -1,7 +1,7 @@
 # Franchise Hockey Manager — Product Rules
 
 **Status:** Active
-**Last updated:** 2026-07-17 (F31)
+**Last updated:** 2026-07-18 (F33)
 **Repository:** `https://github.com/jeehead-cloud/franchise-hockey-manager`
 
 > This document defines game-design invariants: rules that must remain true across the generator, the chemistry/tactics engine, and the season simulation.
@@ -334,6 +334,26 @@ Stable invariants:
 - **Recovery history survives database replacement through an external journal** (file-based, in the backup directory), because restoring an older database may delete the restore-run row that requested the restore.
 - **F32 does not merge/import individual records** and does not provide record-level restore.
 - **Public health is bounded.** `/health` and `/api/system/backup-status` expose only configured/verified-count/last-verified-age/maintenance/pending-restore — never filenames, paths, hashes, fingerprints, or operation details. Normal mode is read-only.
+
+---
+
+## 7f. Import, Export, and Maintenance (F33 Implemented)
+
+F33 is the **final milestone** of the F1–F33 foundation plan — a safe, Commissioner-controlled maintenance center for the local SQLite world. Stable invariants:
+
+- **Exports never mutate world data.** Every export type has an explicit schema, stable column list, supported filters, privacy level, deterministic ordering, row-count preview, and a manifest + SHA-256 (file + manifest). Filenames are server-generated; downloads are by run ID only with the resolved path re-verified inside the configured export root on every read
+- **Public-safe exports omit hidden/private truth.** `PLAYERS_PUBLIC_*` strictly excludes `potentialFloor`, `potentialCeiling`, `developmentRate`, `developmentRisk`, `currentAbility`, `qualityTier`, private scouting notes, and Commissioner diagnostics. `PLAYERS_COMMISSIONER_*` reveals hidden truth but is Commissioner-gated, warning-bannered, and audited. `FULL_DATABASE_PACKAGE` is Commissioner-only
+- **Truth exports require Commissioner Mode.** No truth export is reachable in normal mode; every truth export carries a UI warning and an audit row
+- **Imports always preview and validate first.** Upload (multipart, bounded size, allowlisted extension/content-type, SHA-256, isolated staging) → preview (parse + every row + duplicate/conflict classification + `previewHash`, no writes) → apply (explicit `expectedPreviewHash` + VERIFIED F32 backup + revalidate + atomic bulk-create + audit). Imports do not partially apply; failure preserves existing DB state
+- **Imports apply atomically.** Either every validated row is created in one transaction or none are
+- **Preset imports create immutable versions.** They never edit existing versions, never auto-activate (activation is a separate explicit endpoint), and reject unknown fields / wrong preset types / payloadHash mismatches
+- **Name-pool imports never modify existing Players.** They affect only future generation; they never delete existing name-pool entries
+- **Destructive maintenance requires a VERIFIED F32 backup.** Import apply, reset execute, and full-DB package creation all route through the centralized F32 `createDatabaseBackup` and block on a VERIFIED backup
+- **Database validation never silently repairs.** It runs `PRAGMA integrity_check` + migration table + F32 database fingerprint + grouped checks; results are persisted with a deterministic `resultHash` and downloadable as JSON
+- **Full DB export does not bypass F32 restore.** The package is a portability `.zip` (SQLite + manifests + checksums + README). Importing/restoring into a live DB is **not** performed here — restore remains an F32 workflow
+- **Reset is explicit and cannot delete backups.** `RESET_SETUP_STATE_ONLY` clears AppMeta flags when world tables are empty; `RESET_WORLD_TO_EMPTY` requires Commissioner + typed phrase `RESET WORLD <short id>` + fingerprint confirmation + no running op + no pending restore + mandatory protected F32 backup + atomic FK-safe deletion. Reset preserves migrations, F32 backups, export files, `*Preset*`/`Active*Configuration` tables, CommissionerAuditLog, and MaintenanceEvent history. Reset is a transaction deleting rows (no DB file replacement, no restart required)
+- **Maintenance paths stay inside configured storage.** Canonicalize `.fhm-exports` root (honors `FHM_EXPORT_DIR`), reject `..`/symlink-escape, allowlist `.csv`/`.json`/`.zip`, server-generated filenames, resolved path verified inside root on every read, no user-supplied filenames, sanitize `Content-Disposition`. Absolute paths are never exposed through public APIs/errors/UI
+- Normal mode is read-only; Commissioner Mode is required for every maintenance mutation. Public `/api/system/maintenance-status` exposes only bounded metadata (configured, completed exports, pending imports, last full-DB-package age, last validation status/age)
 
 ---
 

@@ -265,6 +265,11 @@ enum CommissionerAuditEntityType {
   BACKUP_CONFIG
   DATABASE_BACKUP
   DATABASE_RESTORE
+  MAINTENANCE_CONFIG
+  MAINTENANCE_EXPORT
+  MAINTENANCE_IMPORT
+  MAINTENANCE_VALIDATION
+  INITIALIZATION_RESET
 }
 
 enum CommissionerAuditAction {
@@ -433,6 +438,21 @@ enum CommissionerAuditAction {
   RESTORE_COMPLETED
   RESTORE_FAILED
   RESTORE_CANCELLED
+  MAINTENANCE_CONFIG_CREATED
+  MAINTENANCE_CONFIG_VERSION_CREATED
+  MAINTENANCE_CONFIG_ACTIVATED
+  EXPORT_CREATED
+  EXPORT_DOWNLOADED
+  EXPORT_DELETED
+  IMPORT_PREVIEWED
+  IMPORT_APPLIED
+  IMPORT_FAILED
+  IMPORT_CANCELLED
+  DATABASE_VALIDATED
+  RESET_PREPARED
+  RESET_COMPLETED
+  RESET_FAILED
+  RESET_CANCELLED
 }
 
 /// F20 competition archive status.
@@ -4102,4 +4122,205 @@ model DatabaseRestoreEvent {
 
   @@index([restoreRunId, createdAt])
   @@index([eventType, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// F33 — Import, Export, and Database Maintenance
+// ---------------------------------------------------------------------------
+
+/// Named maintenance configuration preset (system default or owner duplicate). F33.
+model MaintenancePreset {
+  id          String                     @id @default(cuid())
+  name        String                     @unique
+  description String?
+  isSystem    Boolean                    @default(false)
+  createdAt   DateTime                   @default(now())
+  updatedAt   DateTime                   @updatedAt
+  versions    MaintenancePresetVersion[]
+}
+
+/// Immutable maintenance configuration snapshot. F33.
+model MaintenancePresetVersion {
+  id                             String                          @id @default(cuid())
+  presetId                       String
+  versionNumber                  Int
+  schemaVersion                  Int
+  configJson                     String
+  configHash                     String
+  changeReason                   String
+  createdAt                      DateTime                        @default(now())
+  createdBySource                CommissionerAuditSource?
+  preset                         MaintenancePreset               @relation(fields: [presetId], references: [id], onDelete: Restrict)
+  activeMaintenanceConfiguration ActiveMaintenanceConfiguration?
+  maintenanceExportRuns          MaintenanceExportRun[]
+  maintenanceImportRuns          MaintenanceImportRun[]
+  maintenanceValidationRuns      MaintenanceValidationRun[]
+
+  @@unique([presetId, versionNumber])
+  @@index([configHash])
+}
+
+/// Singleton pointing at the active maintenance configuration version. F33.
+model ActiveMaintenanceConfiguration {
+  id                    String                   @id @default("default")
+  activePresetVersionId String                   @unique
+  updatedAt             DateTime                 @updatedAt
+  activeVersion         MaintenancePresetVersion @relation(fields: [activePresetVersionId], references: [id], onDelete: Restrict)
+}
+
+/// Persistent export run record. One row per generated export artifact. F33.
+/// Files live under the configured export directory; only the relative path is
+/// persisted. Absolute paths never appear in DTOs or error payloads.
+model MaintenanceExportRun {
+  id                   String                   @id @default(cuid())
+  exportType           String
+  status               String
+  format               String
+  scopeText            String
+  filterText           String
+  privacyLevel         String
+  configVersionId      String
+  configHash           String
+  schemaVersion        Int
+  outputRelativePath   String?
+  manifestRelativePath String?
+  rowCount             Int?
+  fileSizeBytes        Int?
+  fileSha256           String?
+  manifestSha256       String?
+  inputHash            String
+  resultHash           String?
+  requestedBy          String                   @default("system")
+  reason               String                   @default("")
+  startedAt            DateTime                 @default(now())
+  completedAt          DateTime?
+  failedAt             DateTime?
+  failureCode          String?
+  failureMessage       String?
+  createdAt            DateTime                 @default(now())
+  updatedAt            DateTime                 @updatedAt
+  configVersion        MaintenancePresetVersion @relation(fields: [configVersionId], references: [id], onDelete: Restrict)
+
+  @@index([exportType])
+  @@index([status])
+  @@index([createdAt])
+  @@index([privacyLevel])
+}
+
+/// Persistent import run record. F33.
+model MaintenanceImportRun {
+  id                  String                   @id @default(cuid())
+  importType          String
+  status              String
+  sourceFileName      String
+  sourceFileSizeBytes Int
+  sourceFileSha256    String
+  schemaVersion       Int
+  configVersionId     String
+  configHash          String
+  previewSnapshotText String
+  previewHash         String
+  totalRows           Int
+  validRows           Int
+  warningRows         Int
+  invalidRows         Int
+  appliedRows         Int?
+  skippedRows         Int?
+  backupId            String?
+  requestedBy         String                   @default("system")
+  reason              String                   @default("")
+  preparedAt          DateTime                 @default(now())
+  startedAt           DateTime?
+  completedAt         DateTime?
+  failedAt            DateTime?
+  createdAt           DateTime                 @default(now())
+  updatedAt           DateTime                 @updatedAt
+  configVersion       MaintenancePresetVersion @relation(fields: [configVersionId], references: [id], onDelete: Restrict)
+  issues              MaintenanceImportIssue[]
+
+  @@index([importType])
+  @@index([status])
+  @@index([createdAt])
+}
+
+/// Row/file-level issues from an import preview. F33.
+model MaintenanceImportIssue {
+  id              String               @id @default(cuid())
+  importRunId     String
+  rowNumber       Int?
+  fieldName       String?
+  severity        String
+  code            String
+  message         String
+  normalizedValue String?
+  createdAt       DateTime             @default(now())
+  importRun       MaintenanceImportRun @relation(fields: [importRunId], references: [id], onDelete: Cascade)
+
+  @@index([importRunId, rowNumber])
+  @@index([severity])
+}
+
+/// Persistent database validation run record. F33.
+model MaintenanceValidationRun {
+  id                  String                   @id @default(cuid())
+  status              String
+  scope               String                   @default("FULL")
+  configVersionId     String
+  configHash          String
+  databaseFingerprint String
+  checkCount          Int
+  blockerCount        Int
+  warningCount        Int
+  resultSnapshotText  String
+  resultHash          String
+  requestedBy         String                   @default("system")
+  reason              String                   @default("")
+  startedAt           DateTime                 @default(now())
+  completedAt         DateTime?
+  failedAt            DateTime?
+  createdAt           DateTime                 @default(now())
+  configVersion       MaintenancePresetVersion @relation(fields: [configVersionId], references: [id], onDelete: Restrict)
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+/// Initialization reset run record. F33.
+model InitializationResetRun {
+  id                  String    @id @default(cuid())
+  status              String
+  resetMode           String
+  backupId            String?
+  previewSnapshotText String
+  previewHash         String
+  confirmationHash    String
+  requestedBy         String    @default("system")
+  reason              String    @default("")
+  preparedAt          DateTime  @default(now())
+  startedAt           DateTime?
+  completedAt         DateTime?
+  failedAt            DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@index([status])
+  @@index([resetMode])
+  @@index([createdAt])
+}
+
+/// Append-only maintenance event log. F33.
+model MaintenanceEvent {
+  id           String   @id @default(cuid())
+  entityType   String
+  entityId     String
+  eventType    String
+  statusBefore String?
+  statusAfter  String?
+  summaryText  String
+  eventHash    String
+  createdAt    DateTime @default(now())
+
+  @@index([entityType, entityId, createdAt])
+  @@index([eventType, createdAt])
+  @@index([createdAt])
 }

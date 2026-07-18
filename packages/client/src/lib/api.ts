@@ -4996,3 +4996,43 @@ export const fetchRestoreRun = (id: string) =>
   commissionerGetJson<{ item: RestoreRunItem & { events: unknown[] } }>(`/api/commissioner/restores/${id}`);
 export const fetchRecoveryJournal = () =>
   commissionerGetJson<{ items: unknown[] }>('/api/commissioner/recovery-journal');
+
+// F33 — Data & Maintenance
+export interface MaintenanceStatusPublic {
+  configured: boolean;
+  completedExports: number;
+  pendingImports: number;
+  hasFullDatabasePackage: boolean;
+  lastFullDatabasePackageAgeDays: number | null;
+  lastValidationStatus: 'PASS' | 'WARNING' | 'FAIL' | null;
+  lastValidationAgeDays: number | null;
+}
+export const fetchMaintenanceStatusPublic = (signal?: AbortSignal) =>
+  getJson<{ item: MaintenanceStatusPublic }>('/api/system/maintenance-status', signal);
+export const fetchMaintenanceExports = () =>
+  commissionerGetJson<{ items: any[] }>('/api/commissioner/maintenance/exports?limit=50');
+export const fetchMaintenanceImports = () =>
+  commissionerGetJson<{ items: any[] }>('/api/commissioner/maintenance/imports?limit=50');
+export const fetchMaintenanceValidationRuns = () =>
+  commissionerGetJson<{ items: any[] }>('/api/commissioner/maintenance/validation-runs?limit=10');
+export const fetchMaintenanceEvents = () =>
+  commissionerGetJson<{ items: any[] }>('/api/commissioner/maintenance/events?limit=30');
+export const fetchMaintenanceConfigurations = () =>
+  commissionerGetJson<{ items: any[] }>('/api/commissioner/maintenance/configurations');
+export const createMaintenanceExport = (payload: { exportType: string; filters: Record<string, unknown>; reason: string }) =>
+  commissionerWrite<{ item: any }>('/api/commissioner/maintenance/exports', 'POST', payload);
+export const deleteMaintenanceExport = (id: string) =>
+  commissionerDelete<{ item: any }>(`/api/commissioner/maintenance/exports/${id}`);
+export const runMaintenanceValidation = (reason: string) =>
+  commissionerWrite<{ item: any }>('/api/commissioner/maintenance/validation-runs', 'POST', { reason });
+export const fetchMaintenanceValidationDetail = (id: string) =>
+  commissionerGetJson<{ item: any }>(`/api/commissioner/maintenance/validation-runs/${id}`);
+export const previewMaintenanceReset = (mode: string) =>
+  commissionerWrite<{ item: any }>('/api/commissioner/maintenance/reset/preview', 'POST', { mode });
+export const prepareMaintenanceReset = (mode: string, reason: string) =>
+  commissionerWrite<{ item: { runId: string } }>('/api/commissioner/maintenance/reset/prepare', 'POST', { mode, reason });
+export const executeMaintenanceReset = (runId: string, payload: { typedConfirmation: string; expectedPreviewHash: string; currentDatabaseFingerprint: string; reason: string }) =>
+  commissionerWrite<{ item: any }>(`/api/commissioner/maintenance/reset/${runId}/execute`, 'POST', payload);
+export function maintenanceDownloadUrl(runId: string): string {
+  return `${apiBase()}/api/commissioner/maintenance/exports/${runId}/download`;
+}

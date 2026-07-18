@@ -1,7 +1,7 @@
 # Franchise Hockey Manager — Architecture
 
 **Status:** Active
-**Last updated:** 2026-07-17 (F32)
+**Last updated:** 2026-07-18 (F33)
 **Repository:** `https://github.com/jeehead-cloud/franchise-hockey-manager`
 
 > Technical source of truth for stack, monorepo structure, data flow, and config-driven balance.
@@ -46,6 +46,8 @@ F9 chemistry remains derived on read and now consumes the active preset chemistr
 | Simulation logic | Plain TypeScript in `packages/engine` | testable; no Fastify/Prisma/React |
 | Server tests | Vitest + temp SQLite | schema/API/migration/setup checks (F2+) |
 | Validation | Zod (engine balance + server requests) | F3 datasets; F10 balance schema; commissioner payloads |
+| File uploads (F33) | `@fastify/multipart` | Commissioner maintenance imports (CSV/JSON name pools, preset envelopes) |
+| Archive (F33) | `archiver` | Real `.zip` full-database export packages |
 There is **no backend-less/client-only mode** — client-server from day one (see §7).
 
 ---
@@ -758,6 +760,48 @@ Boundaries (highest-priority invariants):
 APIs: `/api/system/backup-status` (public), bounded `/health` backup block; Commissioner `/api/commissioner/backups*` (inventory/detail/preview/create/verify/download/storage-scan/prune-preview/prune/protect/unprotect/restore-preview/restore-prepare), `/api/commissioner/restores*` (list/detail/request-restart/cancel), `/api/commissioner/recovery-journal`, `/api/commissioner/backup-configurations*`. Client: `/backup-recovery` page (Overview/Backups/Create/Restore/Retention/Storage Scan tabs); sidebar Backup & Recovery entry.
 
 Verifier: `npm run verify:backup-recovery`
+
+## 7s. Import, Export, and Database Maintenance (F33)
+
+F33 is the **final milestone** of the F1–F33 foundation plan — a safe, Commissioner-controlled maintenance center for the local SQLite world. SQLite-only and local-only: no cloud sync, no real-world roster scraping, no full-DB-package import into a live DB, no record-level restore, no arbitrary SQL console, no save slots.
+
+Pure engine (`packages/engine/src/maintenance/`):
+- Strict versioned `MaintenanceConfig` (schemaVersion 1: storage/csv/json/limits/privacy/retention); default config; strict validation (rejects unknown fields, path traversal, unsupported CSV delimiters/encodings, invalid privacy modes, schema-version mismatches)
+- 16 typed export schemas — each with explicit stable column list, supported filters, privacy level (PUBLIC_SAFE / COMMISSIONER_TRUTH / NEUTRAL), `revealsHiddenTruth` flag, deterministic ordering contract, and file extension. Public-safe Player columns omit hidden truth; Commissioner columns include it
+- CSV escaping (`csvEscape`/`toCsv`/`csvHeaderOnly` — RFC-4180 compatible; mirrors F15 match-export escape rule), LF endings
+- Row-level name-pool validation + duplicate classification (IDENTICAL/CONFLICT/NEW) + duplicate-policy decision (SKIP_IDENTICAL/REJECT_CONFLICT/ADD_NEW) + import-plan generation with deterministic `previewHash`
+- Preset envelope validation (`{schemaVersion, presetType, presetName, versionName, payloadSchemaVersion, payload, payloadHash, exportedAt}`); payloadHash recomputed from canonical payload and excludes `exportedAt`
+- Database-check aggregation from domain-neutral inputs (SQLite integrity/migrations, world/season, players/teams, contracts, draft, trades, competitions, statistics, scouting, offseason/transitions, backups, maintenance-stuck-runs) → `{status, checks, blockers, warnings, databaseFingerprint, resultHash}`; never silently repairs
+- Status-transition tables for export/import/validation/reset runs; reconciliation; reset-readiness classification
+- Deterministic hashes (canonical config, manifest, preset payload, preset envelope, import preview, export input, reset preview) via the engine-wide `stableDigest`/`sortJsonValue` family — no `node:crypto` in engine exports
+- `verify:maintenance` (90 checks incl. 10k-row name-pool import-preview benchmark)
+
+Persistence (server-only):
+- `MaintenancePreset` / immutable `MaintenancePresetVersion` / singleton `ActiveMaintenanceConfiguration` (mirrors the BackupPreset pattern); `MaintenanceExportRun`, `MaintenanceImportRun` / `MaintenanceImportIssue`, `MaintenanceValidationRun`, `InitializationResetRun`, append-only `MaintenanceEvent`; migration `20260720000000_f33_import_export_database_maintenance` is additive (no domain operations, no export/reset created during migration)
+- Audit enums gain `MAINTENANCE_CONFIG`/`MAINTENANCE_EXPORT`/`MAINTENANCE_IMPORT`/`MAINTENANCE_VALIDATION`/`INITIALIZATION_RESET` entity types and 15 actions
+- External file-based `maintenance-reset-journal.json` lives in the export directory (survives reset because deleting the world may delete the reset-run row that requested it)
+
+Server services (`packages/server/src/services/`):
+- `maintenance-errors` (`MaintenanceHttpError` + every stable code from the spec — 400/403/404/409/422/500/503); `maintenance-paths` (canonicalize `.fhm-exports` root honoring `FHM_EXPORT_DIR`, reject `..`/symlink-escape, allowlist `.csv`/`.json`/`.zip`, server-generated filenames, resolved path verified inside root on every read, sanitize display filenames, safe remove); `maintenance-config` (idempotent bootstrap of Maintenance Default preset/version 1/active singleton; CRUD + activate); `maintenance-history` (audit helper tx-aware + append-only event writer + pagination)
+- `maintenance-exports` — per-type preview (no-write) + generate (load rows in deterministic order → serialize safely → file SHA-256 → canonical manifest + manifest SHA-256 → reconcile → COMPLETED → audit → retention); on failure mark FAILED + safe-remove incomplete artifacts + no world mutation. Public-safe Player export strictly omits hidden truth (verified by privacy tests). Inventory/detail/download-by-run-id/delete/prune with bounded retention
+- `maintenance-imports` — `@fastify/multipart` upload (bounded size, allowlisted extension/content-type, SHA-256, isolated `.staging/` subdir, sanitized display name) → preview (parse + every row + duplicate/conflict + `previewHash`, no writes) → apply (explicit `expectedPreviewHash` + create VERIFIED F32 backup via existing `createDatabaseBackup` + revalidate + atomic bulk-create + audit). Name-pool apply never touches existing Players; preset apply creates a new immutable version and never auto-activates
+- `maintenance-validation` — read-only validation; uses `node:sqlite` read-only wrapper for `PRAGMA integrity_check` + migration table + F32 database fingerprint; aggregates the engine `aggregateDatabaseValidation` result; persists `MaintenanceValidationRun` with `resultHash`; JSON diagnostic download; never silently repairs
+- `maintenance-package` — full-database export: invokes centralized F32 `createDatabaseBackup` (requires VERIFIED SQLite snapshot) → packages into `.fhm-exports/` as a real `.zip` via `archiver` containing SQLite + F32 backup manifest + FHM export manifest + app/data schema versions + migration list + checksums + bounded world summary + README/import-warning. **Does not implement package import into a live DB** — restore remains an F32 workflow
+- `maintenance-reset` — `RESET_SETUP_STATE_ONLY` (clears AppMeta init flags when world tables empty — no data deleted) and `RESET_WORLD_TO_EMPTY` (Commissioner + typed phrase `RESET WORLD <short id>` + fingerprint confirmation + no running op + no pending restore + mandatory protected F32 backup + atomic FK-safe deletion in dependency order + retains migrations + preserves F32 backups + preserves/maintains external maintenance journal). RESET_WORLD_TO_EMPTY is a transaction deleting rows, **not** a DB file replacement — no restart required
+- `commissioner-maintenance` — route-facing Commissioner config CRUD (preset/version create + activate); `maintenance-status-utils` — consolidates the F32 maintenance/restore-mode check
+
+Boundaries (highest-priority invariants):
+- Exports never mutate world data; public-safe exports omit hidden/private truth; truth exports require Commissioner Mode
+- Imports always preview and validate first; apply atomically; preset imports create immutable versions; name-pool imports never modify existing Players
+- Destructive maintenance (import apply / reset execute / full-DB package) requires a VERIFIED F32 backup; database validation never silently repairs
+- Full DB export does not bypass F32 restore (package import into a live DB is not implemented)
+- Reset is explicit, requires typed confirmation + fingerprint, never deletes backups/migrations/export files/audit history/configuration presets; RESET_WORLD_TO_EMPTY is row-transactional (no restart)
+- Paths stay inside configured storage; absolute paths never exposed through public APIs/errors/UI (only filenames + hash prefixes); no arbitrary SQL
+- Normal mode is read-only; Commissioner Mode is required for every maintenance mutation; public `/api/system/maintenance-status` exposes only bounded metadata
+
+APIs: public `/api/system/maintenance-status`; Commissioner `/api/commissioner/maintenance/exports*` (preview/create/list/detail/download/delete/prune), `/api/commissioner/maintenance/imports*` (upload/preview/apply/cancel/list/detail/issues), `/api/commissioner/maintenance/validation-runs*` (create/list/detail/download), `/api/commissioner/maintenance/reset*` (preview/prepare/:id/execute/:id/cancel/list/detail), `/api/commissioner/maintenance/events`, `/api/commissioner/maintenance/configurations*` (CRUD + version activate). Client: `/maintenance` page (Overview/Export/Import/Database Validation/Initialization Reset/History/Configuration tabs); sidebar "Data & Maintenance" entry; normal-mode users see only bounded status.
+
+Verifier: `npm run verify:maintenance`
 
 ## 8. Why Client-Server From Day One
 

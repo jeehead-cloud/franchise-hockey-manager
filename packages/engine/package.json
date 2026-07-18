@@ -35,7 +35,8 @@
     "verify:trades": "tsx src/trades/verify-trades.ts",
     "verify:offseason": "tsx src/offseason/verify-offseason.ts",
     "verify:season-transition": "tsx src/season-transition/verify-season-transition.ts",
-    "verify:backup-recovery": "tsx src/backup/verify-backup.ts"
+    "verify:backup-recovery": "tsx src/backup/verify-backup.ts",
+    "verify:maintenance": "tsx src/maintenance/verify-maintenance.ts"
   },
   "devDependencies": {
     "typescript": "^5.8.2",

@@ -1,5 +1,6 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
+import multipart from '@fastify/multipart';
 import { prisma } from './db/client.js';
 import { registerHealthRoute } from './routes/health.js';
 import { registerDomainRoutes } from './routes/domain.js';
@@ -35,12 +36,19 @@ import { registerSeasonTransitionRoutes } from './routes/season-transition.js';
 import { registerCommissionerSeasonTransitionRoutes } from './routes/commissioner-season-transition.js';
 import { registerBackupRecoveryRoutes } from './routes/backup-recovery.js';
 import { registerCommissionerBackupRecoveryRoutes } from './routes/commissioner-backup-recovery.js';
+import { registerMaintenanceRoutes } from './routes/maintenance.js';
+import { registerCommissionerMaintenanceRoutes } from './routes/commissioner-maintenance.js';
 
 export async function buildApp(options?: { logger?: boolean }) {
   const app = Fastify({ logger: options?.logger ?? true });
 
   await app.register(cors, {
     origin: true,
+  });
+  // F33: multipart for maintenance import uploads. Bounded to 100 MiB per
+  // request (maintenance config limits.maximumImportBytes default).
+  await app.register(multipart, {
+    limits: { fileSize: 104_857_600 },
   });
 
   app.setErrorHandler((error, _request, reply) => {
@@ -86,6 +94,8 @@ export async function buildApp(options?: { logger?: boolean }) {
   await registerCommissionerSeasonTransitionRoutes(app);
   await registerBackupRecoveryRoutes(app);
   await registerCommissionerBackupRecoveryRoutes(app);
+  await registerMaintenanceRoutes(app);
+  await registerCommissionerMaintenanceRoutes(app);
   await registerCommissionerRoutes(app);
 
   return app;
@@ -121,4 +131,6 @@ export async function ensureAppMeta() {
   await bootstrapSeasonTransitionConfiguration(prisma);
   const { bootstrapBackupConfiguration } = await import('./services/backup-config.js');
   await bootstrapBackupConfiguration(prisma);
+  const { bootstrapMaintenanceConfiguration } = await import('./services/maintenance-config.js');
+  await bootstrapMaintenanceConfiguration(prisma);
 }

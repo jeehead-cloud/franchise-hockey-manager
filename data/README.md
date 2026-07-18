@@ -18,6 +18,8 @@ F22 does **not** require a `national-teams.json` import file; national-team defi
 
 F32 (backup/recovery) requires **no dataset change** — schemaVersion remains **5**. The F32 bootstrap creates only the default backup configuration (`Backup Default`) idempotently on server startup; it does **not** create an automatic backup during setup (the UI shows "No verified backups yet" until the Commissioner creates one).
 
+F33 (import/export maintenance) requires **no dataset change** — schemaVersion remains **5**. The F33 bootstrap creates only the default maintenance configuration (`Maintenance Default`) idempotently on server startup. F33 exports never mutate world data; imports (name pools, configuration presets) always preview first and apply atomically after a VERIFIED F32 backup; database validation never silently repairs; initialization reset requires Commissioner + typed confirmation + fingerprint + mandatory F32 backup and preserves migrations + backups. No data files are required.
+
 Required manifest keys include `datasetId`, `datasetName`, `schemaVersion`, `sourceName`, `sourceUpdatedAt`, `worldSeasonLabel`, `worldSeasonStartYear`, `worldSeasonEndYear`, and `files`.
 
 Entity JSON files reference each other by **externalId**, never by database IDs.

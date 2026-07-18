@@ -97,6 +97,10 @@ npm run verify:scouting
 npm run verify:draft
 npm run verify:contracts
 npm run verify:trades
+npm run verify:offseason
+npm run verify:season-transition
+npm run verify:backup-recovery
+npm run verify:maintenance
 ```
 
 Vitest uses isolated temporary SQLite databases for server tests (does not mutate the normal `dev.db` except when you run migrate yourself).
@@ -105,7 +109,7 @@ Vitest uses isolated temporary SQLite databases for server tests (does not mutat
 
 | Package | Role |
 |---|---|
-| `@fhm/engine` | Pure simulation/generation logic, including deterministic F28 contract, F29 trade, F30 offseason orchestration, F31 season-transition rules, and F32 backup/recovery policy (config/retention/compatibility/hashing) |
+| `@fhm/engine` | Pure simulation/generation logic, including deterministic F28 contract, F29 trade, F30 offseason orchestration, F31 season-transition rules, F32 backup/recovery policy (config/retention/compatibility/hashing), and F33 import/export maintenance policy (config/export schemas/CSV/import validation/database checks/hashing) |
 | `@fhm/server` | Fastify + Prisma + SQLite REST API + world import |
 | `@fhm/client` | React + Vite shell using Atlas design tokens |
 
