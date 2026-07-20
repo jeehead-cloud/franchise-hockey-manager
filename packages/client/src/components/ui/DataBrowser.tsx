@@ -1,4 +1,5 @@
 import type { CSSProperties, ReactNode } from 'react';
+import { ArrowDown, ArrowUp, ChevronsUpDown } from 'lucide-react';
 import { Button } from './Button';
 
 const thStyle: CSSProperties = {
@@ -19,23 +20,86 @@ const tdStyle: CSSProperties = {
   borderBottom: '1px solid var(--border-subtle)',
 };
 
+export interface DataTableHeader {
+  key: string;
+  label: string;
+  width?: string;
+  /** When set, the header becomes a sortable control bound to this sort key.
+   *  The actual sort is performed by `onSort`; the table only renders the
+   *  affordance and the active-direction indicator. */
+  sortKey?: string;
+}
+
+export interface DataTableSortState {
+  sort: string;
+  direction: 'asc' | 'desc';
+}
+
 export function DataTable({
   headers,
   children,
+  sort,
+  onSort,
 }: {
-  headers: Array<{ key: string; label: string; width?: string }>;
+  headers: Array<DataTableHeader>;
   children: ReactNode;
+  /** Active sort state — when a header's sortKey matches `sort.sort`, the
+   *  active direction indicator is shown. */
+  sort?: DataTableSortState;
+  /** Called when a sortable header is clicked. Toggling direction is the
+   *  caller's responsibility (so URL state stays the source of truth). */
+  onSort?: (sortKey: string) => void;
 }) {
   return (
     <div style={{ overflowX: 'auto' }}>
       <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 640 }}>
         <thead>
           <tr>
-            {headers.map((h) => (
-              <th key={h.key} scope="col" style={{ ...thStyle, width: h.width }}>
-                {h.label}
-              </th>
-            ))}
+            {headers.map((h) => {
+              const sortable = Boolean(h.sortKey) && Boolean(onSort);
+              const isActive = sortable && sort?.sort === h.sortKey;
+              const dir = isActive ? sort?.direction : undefined;
+              return (
+                <th key={h.key} scope="col" style={{ ...thStyle, width: h.width }}>
+                  {sortable ? (
+                    <button
+                      type="button"
+                      onClick={() => onSort?.(h.sortKey!)}
+                      title={`Sort by ${h.label}`}
+                      aria-label={`Sort by ${h.label}${isActive ? `, current ${dir === 'asc' ? 'ascending' : 'descending'}` : ''}`}
+                      aria-sort={isActive ? (dir === 'asc' ? 'ascending' : 'descending') : 'none'}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 4,
+                        background: 'transparent',
+                        border: 'none',
+                        padding: 0,
+                        margin: 0,
+                        cursor: 'pointer',
+                        font: 'inherit',
+                        letterSpacing: 'inherit',
+                        textTransform: 'inherit',
+                        color: isActive ? 'var(--text-primary)' : 'var(--text-tertiary)',
+                      }}
+                    >
+                      <span>{h.label}</span>
+                      {isActive ? (
+                        dir === 'asc' ? (
+                          <ArrowUp size={12} aria-hidden />
+                        ) : (
+                          <ArrowDown size={12} aria-hidden />
+                        )
+                      ) : (
+                        <ChevronsUpDown size={12} aria-hidden style={{ opacity: 0.6 }} />
+                      )}
+                    </button>
+                  ) : (
+                    h.label
+                  )}
+                </th>
+              );
+            })}
           </tr>
         </thead>
         <tbody>{children}</tbody>

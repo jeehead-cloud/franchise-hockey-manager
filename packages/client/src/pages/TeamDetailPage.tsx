@@ -6,11 +6,9 @@ import { Button } from '../components/ui/Button';
 import {
   DataRow,
   DataTable,
-  Field,
   Td,
-  TextInput,
 } from '../components/ui/DataBrowser';
-import { Dialog } from '../components/ui/Dialog';
+import { AutoLineupConfirmDialog, type LineupActionMode } from '../components/teams/AutoLineupConfirmDialog';
 import { EmptyState, ErrorState, LoadingState } from '../components/ui/EmptyState';
 import {
   ChemistryOverallPanel,
@@ -18,6 +16,7 @@ import {
 } from '../components/ui/ChemistrySummary';
 import { LineupBoard, type AssignmentMap } from '../components/ui/LineupBoard';
 import { Panel } from '../components/ui/Panel';
+import { TeamSetupPanel } from '../components/teams/TeamSetupPanel';
 import { BackLink, RecordNotFound } from '../components/ui/RecordStates';
 import { Tabs } from '../components/ui/Tabs';
 import {
@@ -35,8 +34,6 @@ import { useCommissioner } from '../lib/commissioner';
 import { playerLabel } from '../lib/listQuery';
 import { presenceTone, secondaryLabel, validationTone } from '../lib/lineupUi';
 
-type ConfirmKind = 'REPLACE' | 'FILL_EMPTY' | 'CLEAR';
-
 export function TeamDetailPage() {
   const { teamId = '' } = useParams();
   const navigate = useNavigate();
@@ -51,7 +48,7 @@ export function TeamDetailPage() {
   const [lineupError, setLineupError] = useState<string | null>(null);
   const [chemistry, setChemistry] = useState<LineupChemistrySummary | null>(null);
   const [chemistryError, setChemistryError] = useState<string | null>(null);
-  const [confirmKind, setConfirmKind] = useState<ConfirmKind | null>(null);
+  const [confirmKind, setConfirmKind] = useState<LineupActionMode | null>(null);
   const [actionReason, setActionReason] = useState('');
   const [actionBusy, setActionBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -350,13 +347,11 @@ export function TeamDetailPage() {
           </DataTable>
         )}
       </Panel> : null}
-      {tab === 'setup' ? <Panel title="Team setup">
-        <Row label="Tactical style" value={team.tacticalStyle ?? 'Not configured'} />
-        <Row label="Head coach" value={team.coach ? `${team.coach.firstName} ${team.coach.lastName}` : 'Unassigned'} />
-        <p style={{ margin: '12px 0 0', font: 'var(--text-body-sm)', color: 'var(--text-tertiary)' }}>
-          Enable Commissioner Mode to change tactics, head coach assignment, or player roster status.
-        </p>
-      </Panel> : null}
+      {tab === 'setup' ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <TeamSetupPanel teamId={teamId} team={team} onTeamChanged={setTeam} />
+        </div>
+      ) : null}
 
       {tab === 'lines' ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -434,43 +429,20 @@ export function TeamDetailPage() {
         </div>
       ) : null}
 
-      <Dialog
+      <AutoLineupConfirmDialog
         open={confirmKind !== null}
-        title={
-          confirmKind === 'CLEAR'
-            ? 'Clear lineup?'
-            : confirmKind === 'REPLACE'
-              ? 'Run Auto-Lineup (REPLACE)?'
-              : 'Fill empty slots?'
-        }
-        confirmLabel="Confirm"
-        confirmVariant={confirmKind === 'CLEAR' ? 'danger' : 'primary'}
+        mode={confirmKind}
+        targetName={team?.name ?? 'team'}
+        reason={actionReason}
+        onReasonChange={setActionReason}
         busy={actionBusy}
+        reasonError={actionError}
         onClose={() => {
           setConfirmKind(null);
           setActionError(null);
         }}
         onConfirm={() => void runConfirmedAction()}
-      >
-        <p style={{ marginTop: 0 }}>
-          {confirmKind === 'CLEAR'
-            ? 'Removes all assignments and saves immediately.'
-            : confirmKind === 'REPLACE'
-              ? 'Replaces the entire lineup using auto-lineup rules and saves immediately.'
-              : 'Fills empty slots only and saves immediately.'}
-        </p>
-        <Field label="Reason" htmlFor="lineup-action-reason">
-          <TextInput
-            id="lineup-action-reason"
-            value={actionReason}
-            onChange={(e) => setActionReason(e.target.value)}
-            placeholder="Required audit reason"
-          />
-        </Field>
-        {actionError ? (
-          <p style={{ color: 'var(--accent-danger)', font: 'var(--text-body-sm)' }}>{actionError}</p>
-        ) : null}
-      </Dialog>
+      />
     </div>
   );
 }

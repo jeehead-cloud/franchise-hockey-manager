@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { PageHeader } from '../components/layout/PageHeader';
 import { Badge } from '../components/ui/Badge';
-import { EmptyState, ErrorState, LoadingState } from '../components/ui/EmptyState';
+import { ErrorState, LoadingState } from '../components/ui/EmptyState';
 import { Panel } from '../components/ui/Panel';
 import { getCompetition, getCompetitions, type CompetitionListItem } from '../lib/api';
 
@@ -67,10 +67,32 @@ export function InternationalTournamentsPage() {
       {error ? <ErrorState description={error} /> : null}
       {loading ? <LoadingState label="Loading tournaments…" /> : null}
       {!loading && items.length === 0 ? (
-        <EmptyState
-          title="No international editions"
-          description="Create an INTERNATIONAL_TOURNAMENT competition and edition, lock national teams (F22), then prepare the tournament."
-        />
+        <Panel title="No international tournament editions yet">
+          <p style={{ margin: 0, font: 'var(--text-body-sm)', color: 'var(--text-secondary)' }}>
+            An international tournament requires: a Competition definition of type
+            INTERNATIONAL_TOURNAMENT → a CompetitionEdition → locked national-team rosters (F22) →
+            tournament preparation (F23). The minimal development fixture ships without any
+            international competitions or national teams, so none exist here yet.
+          </p>
+          <p style={{ margin: '12px 0 0', font: 'var(--text-body-sm)', color: 'var(--text-secondary)' }}>
+            <strong>Next:</strong> in Commissioner Mode, create national teams from existing countries
+            first, then prepare and lock their tournament rosters. A Commissioner competition-creation
+            endpoint is not part of the completed foundation (competitions are defined by the dataset),
+            so international competitions are added by extending the dataset or via Data &amp; Maintenance
+            rather than a one-click UI action here.
+          </p>
+          <div style={{ marginTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <Link to="/national-teams">
+              <EmptyStateLink label="Open National Teams" />
+            </Link>
+            <Link to="/competitions?type=INTERNATIONAL_TOURNAMENT">
+              <EmptyStateLink label="Open Competitions" />
+            </Link>
+            <Link to="/maintenance">
+              <EmptyStateLink label="Open Data & Maintenance" />
+            </Link>
+          </div>
+        </Panel>
       ) : null}
       {!loading && items.length > 0 ? (
         <Panel>
@@ -100,5 +122,28 @@ export function InternationalTournamentsPage() {
         </Panel>
       ) : null}
     </div>
+  );
+}
+
+/** Compact link-styled button used inside the empty-state guidance panel. */
+function EmptyStateLink({ label }: { label: string }) {
+  return (
+    <span
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        padding: '0 12px',
+        height: 32,
+        borderRadius: 'var(--radius-md)',
+        border: '1px solid var(--border-default)',
+        background: 'transparent',
+        color: 'var(--text-secondary)',
+        font: '600 var(--text-size-sm)/1 var(--font-sans)',
+        textDecoration: 'none',
+        cursor: 'pointer',
+      }}
+    >
+      {label}
+    </span>
   );
 }

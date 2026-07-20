@@ -86,6 +86,17 @@ export function PlayersPage() {
     return () => controller.abort();
   }, [state]);
 
+  // Sort toggle bound to URL query state (survives refresh + Back/Forward).
+  // Same column click flips direction; new column starts ascending.
+  function toggleSort(sortKey: string) {
+    const currentSort = state.sort || 'lastName';
+    if (currentSort === sortKey) {
+      setMany({ sort: sortKey, direction: state.direction === 'asc' ? 'desc' : 'asc' });
+    } else {
+      setMany({ sort: sortKey, direction: 'asc' });
+    }
+  }
+
   return (
     <div style={{ padding: 20 }}>
       <PageHeader
@@ -192,10 +203,12 @@ export function PlayersPage() {
       {!loading && !error && data && data.items.length > 0 ? (
         <Panel>
           <DataTable
+            sort={{ sort: state.sort || 'lastName', direction: state.direction }}
+            onSort={(k) => toggleSort(k)}
             headers={[
-              { key: 'player', label: 'Player' },
-              { key: 'pos', label: 'Pos' },
-              { key: 'team', label: 'Team' },
+              { key: 'player', label: 'Player', sortKey: 'lastName' },
+              { key: 'pos', label: 'Pos', sortKey: 'primaryPosition' },
+              { key: 'team', label: 'Team', sortKey: 'team' },
               { key: 'ca', label: 'CA' },
               { key: 'role', label: 'Role' },
               { key: 'rr', label: 'Role rating' },

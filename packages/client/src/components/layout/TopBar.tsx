@@ -1,6 +1,7 @@
 import { Calendar, ChevronRight } from 'lucide-react';
 import { Badge } from '../ui/Badge';
 import { useCurrentWorldSeason } from '../../lib/useCurrentWorldSeason';
+import { CommissionerToggle } from './CommissionerToggle';
 
 function phaseTone(status: string): 'neutral' | 'success' | 'info' | 'warning' {
   switch (status) {
@@ -73,6 +74,9 @@ export function TopBar({ title }: { title: string }) {
           <ChevronRight size={12} aria-hidden style={{ flexShrink: 0 }} />
           <span>{title}</span>
         </div>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+        <CommissionerToggle />
       </div>
     </header>
   );

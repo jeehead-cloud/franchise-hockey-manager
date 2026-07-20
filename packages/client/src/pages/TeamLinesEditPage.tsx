@@ -18,12 +18,13 @@ import {
   type LineupSlot,
 } from '@fhm/engine';
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useBlocker, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { PageHeader } from '../components/layout/PageHeader';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
 import { Field, SelectInput, TextInput } from '../components/ui/DataBrowser';
 import { Dialog } from '../components/ui/Dialog';
+import { AutoLineupConfirmDialog } from '../components/teams/AutoLineupConfirmDialog';
 import { EmptyState, ErrorState, LoadingState } from '../components/ui/EmptyState';
 import { Panel } from '../components/ui/Panel';
 import { BackLink, RecordNotFound } from '../components/ui/RecordStates';
@@ -319,20 +320,30 @@ export function TeamLinesEditPage() {
     return () => registerDirtyGuard(null);
   }, [dirty, registerDirtyGuard]);
 
-  useBlocker(({ currentLocation, nextLocation }) => {
-    if (!dirty) return false;
-    if (currentLocation.pathname === nextLocation.pathname) return false;
-    return !window.confirm('You have unsaved lineup edits. Leave this page?');
-  });
-
+  // Dirty-form navigation guard — beforeunload + popstate only.
+  // NOT React Router's useBlocker: the app uses the declarative <BrowserRouter>
+  // and useBlocker throws "must be used within a data router" at render time
+  // (see first stabilization iteration / ErrorBoundary). This page previously
+  // had a useBlocker call that would have blanked /teams/:id/lines/edit the
+  // same way PlayerEditPage did before the first iteration fixed it.
   useEffect(() => {
     const onBeforeUnload = (e: BeforeUnloadEvent) => {
       if (!dirty) return;
       e.preventDefault();
       e.returnValue = '';
     };
+    const onPopState = () => {
+      if (!dirty) return;
+      if (!window.confirm('You have unsaved lineup edits. Leave this page?')) {
+        window.history.pushState(null, '', window.location.href);
+      }
+    };
     window.addEventListener('beforeunload', onBeforeUnload);
-    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+    window.addEventListener('popstate', onPopState);
+    return () => {
+      window.removeEventListener('beforeunload', onBeforeUnload);
+      window.removeEventListener('popstate', onPopState);
+    };
   }, [dirty]);
 
   function applyItem(next: CommissionerTeamLineup) {
@@ -909,32 +920,16 @@ export function TeamLinesEditPage() {
         then re-apply your changes.
       </Dialog>
 
-      <Dialog
+      <AutoLineupConfirmDialog
         open={confirmAction !== null}
-        title={
-          confirmAction === 'CLEAR'
-            ? 'Clear lineup?'
-            : confirmAction === 'REPLACE'
-              ? 'Auto-fill (REPLACE)?'
-              : 'Auto-fill (FILL_EMPTY)?'
-        }
-        confirmLabel="Confirm"
-        confirmVariant={confirmAction === 'CLEAR' ? 'danger' : 'primary'}
+        mode={confirmAction}
+        targetName={item?.team.name ?? 'team'}
+        reason={reason}
+        onReasonChange={setReason}
         busy={saving}
         onClose={() => setConfirmAction(null)}
         onConfirm={() => void runConfirmedAction()}
-      >
-        {confirmAction === 'CLEAR'
-          ? 'This removes all assignments and saves immediately.'
-          : confirmAction === 'REPLACE'
-            ? 'This replaces the entire lineup using auto-lineup rules and saves immediately.'
-            : 'This fills empty slots only, keeps existing assignments, and saves immediately.'}
-        {!reason.trim() ? (
-          <p style={{ color: 'var(--accent-warning)', marginBottom: 0 }}>
-            Enter an edit reason above before confirming.
-          </p>
-        ) : null}
-      </Dialog>
+      />
     </div>
   );
 }

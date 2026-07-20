@@ -78,6 +78,40 @@ function lifecycleBanner(status: string): string {
   }
 }
 
+/**
+ * Plain-language explanation of why Schedule / Standings / Statistics are
+ * unavailable for an edition that hasn't produced authoritative match data yet,
+ * and the next step to take. Returned as null when the edition is in a state
+ * where these tabs would have data (ACTIVE/COMPLETED/ARCHIVED) — so the card
+ * only appears when it's actually informative. Does NOT weaken lifecycle
+ * checks or auto-advance anything.
+ */
+function nextStepForDataTabs(status: string, hasRegularSeasonStage: boolean): { title: string; body: string } | null {
+  switch (status) {
+    case 'PLANNED':
+    case 'PREPARING':
+      return {
+        title: hasRegularSeasonStage
+          ? 'Schedule is unavailable until the edition is activated'
+          : 'Schedule is unavailable because this edition is still planned',
+        body: hasRegularSeasonStage
+          ? 'Prepare the competition structure (participants, stages, rules) and validate readiness, then a Commissioner can mark the edition Ready and Activate it. Schedules, standings, and statistics appear only after the edition is Active.'
+          : 'Add a REGULAR_SEASON (detailed) stage while the edition is editable, prepare participants and rules, then activate. Standings appear after matches are recorded; statistics appear after match results are persisted.',
+      };
+    case 'READY':
+      return {
+        title: 'Schedule is unavailable because the edition is not Active yet',
+        body: 'This edition is validated and locked pending activation. A Commissioner can Activate it from the Readiness tab. Schedule generation, standings, and statistics become available once the edition is Active.',
+      };
+    case 'COMPLETED':
+    case 'ARCHIVED':
+    case 'ACTIVE':
+    case 'CANCELLED':
+    default:
+      return null;
+  }
+}
+
 export function CompetitionEditionPage() {
   const { competitionId = '', editionId = '' } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -726,6 +760,24 @@ export function CompetitionEditionPage() {
           {(() => {
             const rs = item.stages.find((s) => s.stageType === 'REGULAR_SEASON');
             const isAggregated = item.competition?.simulationLevel === 'AGGREGATED';
+            const next = nextStepForDataTabs(item.status, Boolean(rs));
+            if (next) {
+              return (
+                <Panel title={next.title}>
+                  <p style={{ margin: 0, font: 'var(--text-body-sm)', color: 'var(--text-secondary)' }}>
+                    {next.body}
+                  </p>
+                  <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <Link to={`/competitions/${competitionId}/editions/${editionId}?tab=readiness`}>
+                      <Button variant="secondary" size="sm">Open Readiness</Button>
+                    </Link>
+                    <Link to={`/competitions/${competitionId}/editions/${editionId}?tab=stages`}>
+                      <Button variant="secondary" size="sm">Open Stages</Button>
+                    </Link>
+                  </div>
+                </Panel>
+              );
+            }
             if (!rs) {
               return (
                 <EmptyState

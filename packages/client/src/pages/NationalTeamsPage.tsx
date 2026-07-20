@@ -13,7 +13,7 @@ import {
   Td,
   TextInput,
 } from '../components/ui/DataBrowser';
-import { EmptyState, ErrorState, LoadingState } from '../components/ui/EmptyState';
+import { ErrorState, LoadingState } from '../components/ui/EmptyState';
 import { Panel } from '../components/ui/Panel';
 import {
   createNationalTeam,
@@ -145,10 +145,28 @@ export function NationalTeamsPage() {
       {loading ? <LoadingState label="Loading national teams…" /> : null}
 
       {!loading && data && data.items.length === 0 ? (
-        <EmptyState
-          title="No national teams"
-          description="Create a country/category profile in Commissioner Mode."
-        />
+        <Panel title="No national teams yet">
+          <p style={{ margin: 0, font: 'var(--text-body-sm)', color: 'var(--text-secondary)' }}>
+            The minimal development fixture ships without national teams. A national team is created
+            from an existing Country (SENIOR_MEN or JUNIOR_U20 category); after creation, open the
+            team to prepare its F22 tournament roster.
+          </p>
+          <p style={{ margin: '12px 0 0', font: 'var(--text-body-sm)', color: 'var(--text-secondary)' }}>
+            <strong>Available countries:</strong>{' '}
+            {countries.length > 0
+              ? countries.map((c) => c.name).join(', ')
+              : 'none loaded (initialize the world or extend the dataset).'}
+          </p>
+          {commissioner.enabled ? (
+            <p style={{ margin: '12px 0 0', font: 'var(--text-body-sm)', color: 'var(--text-secondary)' }}>
+              Use the <strong>Create national team</strong> form below.
+            </p>
+          ) : (
+            <p style={{ margin: '12px 0 0', font: 'var(--text-body-sm)', color: 'var(--text-tertiary)' }}>
+              Enable Commissioner Mode (top bar) to reveal the create form.
+            </p>
+          )}
+        </Panel>
       ) : null}
 
       {!loading && data && data.items.length > 0 ? (

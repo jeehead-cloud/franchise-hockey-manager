@@ -31,7 +31,20 @@ const playerInclude = {
   secondaryPositions: { select: { position: true } },
 } as const;
 
-const PLAYER_SORTS = ['lastName', 'firstName', 'dateOfBirth', 'primaryPosition', 'createdAt'] as const;
+const PLAYER_SORTS = [
+  'lastName',
+  'firstName',
+  'dateOfBirth',
+  'primaryPosition',
+  'rosterStatus',
+  'nationality',
+  'team',
+  'createdAt',
+  // `age` sorts by dateOfBirth with inverted direction (younger players have
+  // later birth dates). Exposed as a user-facing alias only; the underlying
+  // column is dateOfBirth.
+  'age',
+] as const;
 const POSITIONS = ['LW', 'RW', 'C', 'LD', 'RD', 'G'] as const;
 const SOURCES = ['REAL_INITIAL_DATA', 'GENERATED_YOUTH', 'MANUAL', 'IMPORTED'] as const;
 const ROSTER = ['ACTIVE', 'RESERVE', 'PROSPECT', 'UNAVAILABLE'] as const;
@@ -110,10 +123,27 @@ export async function listPlayers(query: Record<string, unknown> = {}) {
     }
   }
 
-  const orderBy: Prisma.PlayerOrderByWithRelationInput[] =
-    sortRaw === 'lastName'
-      ? [{ lastName: direction }, { firstName: direction }]
-      : [{ [sortRaw]: direction }];
+  // Build the orderBy. `age` sorts by dateOfBirth with inverted direction
+  // (younger players have later birth dates). `lastName` adds a firstName
+  // tie-breaker. Every sort gets a stable secondary `id` order so rows do not
+  // move between pages when the primary key ties.
+  const orderBy: Prisma.PlayerOrderByWithRelationInput[] = [];
+  if (sortRaw === 'age') {
+    // direction is the user's requested direction for age; dateOfBirth uses the
+    // opposite because age↑ == dateOfBirth↓.
+    const dobDirection = direction === 'asc' ? 'desc' : 'asc';
+    orderBy.push({ dateOfBirth: dobDirection });
+  } else if (sortRaw === 'lastName') {
+    orderBy.push({ lastName: direction }, { firstName: direction });
+  } else if (sortRaw === 'nationality') {
+    orderBy.push({ nationality: { name: direction } });
+  } else if (sortRaw === 'team') {
+    orderBy.push({ currentTeam: { name: direction } });
+  } else {
+    orderBy.push({ [sortRaw]: direction } as Prisma.PlayerOrderByWithRelationInput);
+  }
+  // Stable secondary order — never tie-break on a non-unique field.
+  orderBy.push({ id: direction });
 
   const [total, rows, seasonStartYear] = await Promise.all([
     prisma.player.count({ where }),

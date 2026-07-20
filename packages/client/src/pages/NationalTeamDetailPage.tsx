@@ -8,6 +8,7 @@ import { Panel } from '../components/ui/Panel';
 import { Field, TextInput } from '../components/ui/DataBrowser';
 import { Tabs } from '../components/ui/Tabs';
 import { BackLink, RecordNotFound } from '../components/ui/RecordStates';
+import { AutoLineupConfirmDialog } from '../components/teams/AutoLineupConfirmDialog';
 import { useCommissioner } from '../lib/commissioner';
 import {
   autoNationalTeamLineup,
@@ -63,6 +64,8 @@ export function NationalTeamDetailPage() {
   const [coachId, setCoachId] = useState('');
   const [tacticalStyle, setTacticalStyle] = useState('SYSTEM');
   const [prepareEditionId, setPrepareEditionId] = useState('');
+  const [ntAutoOpen, setNtAutoOpen] = useState(false);
+  const [ntAutoReason, setNtAutoReason] = useState('');
 
   const reloadTeam = useCallback(async () => {
     setLoading(true);
@@ -497,14 +500,10 @@ export function NationalTeamDetailPage() {
             <Button
               type="button"
               disabled={busy}
-              onClick={() =>
-                void runAction(() =>
-                  autoNationalTeamLineup(String(edition.id), {
-                    expectedUpdatedAt: updatedAt,
-                    reason,
-                  }),
-                )
-              }
+              onClick={() => {
+                setNtAutoReason('');
+                setNtAutoOpen(true);
+              }}
             >
               Auto-Lineup
             </Button>
@@ -514,6 +513,25 @@ export function NationalTeamDetailPage() {
           </pre>
         </Panel>
       ) : null}
+
+      <AutoLineupConfirmDialog
+        open={ntAutoOpen}
+        mode={ntAutoOpen ? 'REPLACE' : null}
+        targetName={edition ? String(item?.displayName ?? 'national team') : 'national team'}
+        reason={ntAutoReason}
+        onReasonChange={setNtAutoReason}
+        busy={busy}
+        onClose={() => setNtAutoOpen(false)}
+        onConfirm={() => {
+          setNtAutoOpen(false);
+          void runAction(async () => {
+            await autoNationalTeamLineup(String(edition!.id), {
+              expectedUpdatedAt: updatedAt,
+              reason: ntAutoReason.trim() || reason,
+            });
+          });
+        }}
+      />
 
       {edition && tab === 'readiness' ? (
         <Panel title="Readiness">
