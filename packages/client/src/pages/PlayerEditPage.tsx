@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useBlocker, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { PageHeader } from '../components/layout/PageHeader';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
@@ -115,20 +115,45 @@ export function PlayerEditPage() {
     return () => registerDirtyGuard(null);
   }, [dirty, registerDirtyGuard]);
 
-  useBlocker(({ currentLocation, nextLocation }) => {
-    if (!dirty) return false;
-    if (currentLocation.pathname === nextLocation.pathname) return false;
-    return !window.confirm('You have unsaved Commissioner edits. Leave this page?');
-  });
-
+  // Navigation guard for unsaved Commissioner edits.
+  //
+  // The previous implementation used React Router's `useBlocker`, but that hook
+  // REQUIRES a data router (`createBrowserRouter` + `RouterProvider`). This app
+  // uses the declarative `<BrowserRouter>`, so `useBlocker` threw
+  // "useBlocker must be used within a data router" during render. With no error
+  // boundary in the tree, that exception unmounted the entire app — producing a
+  // blank /players/:id/edit page (Defect 5) and, because the whole tree
+  // (including CommissionerProvider) remounted on Back, losing Commissioner
+  // Mode (Defect 6).
+  //
+  // This replacement guards browser-level navigation (tab close, refresh,
+  // Back/Forward to another document) via `beforeunload`, and browser
+  // Back/Forward within the SPA via `popstate`. It does NOT intercept in-app
+  // `<Link>` clicks (a broader data-router migration is deferred); the Cancel
+  // button and the Commissioner disable dirty-guard still cover explicit
+  // leaving.
   useEffect(() => {
     const onBeforeUnload = (e: BeforeUnloadEvent) => {
       if (!dirty) return;
       e.preventDefault();
       e.returnValue = '';
     };
+    const onPopState = (e: PopStateEvent) => {
+      if (!dirty) return;
+      if (!window.confirm('You have unsaved Commissioner edits. Leave this page?')) {
+        // Re-push the current entry so the user stays on the editor.
+        window.history.pushState(null, '', window.location.href);
+        return;
+      }
+      // User accepted: let the navigation proceed.
+      void e;
+    };
     window.addEventListener('beforeunload', onBeforeUnload);
-    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+    window.addEventListener('popstate', onPopState);
+    return () => {
+      window.removeEventListener('beforeunload', onBeforeUnload);
+      window.removeEventListener('popstate', onPopState);
+    };
   }, [dirty]);
 
   useEffect(() => {

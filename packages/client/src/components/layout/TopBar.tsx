@@ -1,7 +1,27 @@
 import { Calendar, ChevronRight } from 'lucide-react';
 import { Badge } from '../ui/Badge';
+import { useCurrentWorldSeason } from '../../lib/useCurrentWorldSeason';
+
+function phaseTone(status: string): 'neutral' | 'success' | 'info' | 'warning' {
+  switch (status) {
+    case 'ACTIVE':
+      return 'success';
+    case 'COMPLETED':
+      return 'info';
+    case 'ARCHIVED':
+      return 'neutral';
+    case 'PLANNED':
+      return 'warning';
+    default:
+      return 'neutral';
+  }
+}
 
 export function TopBar({ title }: { title: string }) {
+  const { season, loading } = useCurrentWorldSeason();
+
+  const seasonLabel = season ? season.label : loading ? '—' : null;
+
   return (
     <header
       style={{
@@ -29,9 +49,15 @@ export function TopBar({ title }: { title: string }) {
           className="max-sm:hidden"
         >
           <Calendar size={14} aria-hidden />
-          <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>—</span>
+          <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{seasonLabel ?? 'No season'}</span>
         </div>
-        <Badge tone="neutral">No world</Badge>
+        {season ? (
+          <Badge tone={phaseTone(season.status)}>
+            {season.status} · {season.phase.replaceAll('_', ' ').toLowerCase()}
+          </Badge>
+        ) : (
+          <Badge tone="neutral">No world</Badge>
+        )}
         <div
           style={{
             display: 'flex',

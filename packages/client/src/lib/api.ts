@@ -32,6 +32,25 @@ async function getJson<T>(path: string, signal?: AbortSignal): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+/**
+ * Recognizes a request abort caused by `AbortController.abort()` — navigation,
+ * React lifecycle (Strict Mode double-invoke), component unmount, or a
+ * superseded duplicate request. These must NOT surface as user-facing errors.
+ *
+ * Narrow by design: only the standard `DOMException` name `AbortError`, a
+ * flagged `signal.aborted`, or the exact Fetch/undici abort message are
+ * recognized. Genuine request failures (network errors, non-2xx responses,
+ * JSON parse errors) are left untouched.
+ */
+export function isAbortError(err: unknown, signal?: AbortSignal): boolean {
+  if (signal?.aborted) return true;
+  if (err instanceof DOMException && err.name === 'AbortError') return true;
+  if (err instanceof Error) {
+    return err.name === 'AbortError' || /aborted/i.test(err.message);
+  }
+  return false;
+}
+
 export async function fetchHealth(signal?: AbortSignal): Promise<HealthResponse> {
   return getJson<HealthResponse>('/health', signal);
 }
@@ -715,6 +734,31 @@ export async function getTeams(
   signal?: AbortSignal,
 ): Promise<Paginated<TeamListItem>> {
   return getJson(`/api/teams${qs(params)}`, signal);
+}
+
+/**
+ * Fetch ALL teams by paginating through `/api/teams` with the maximum valid
+ * server pageSize (100). Use this when a caller needs a complete team list
+ * (e.g. a dropdown selector) — never pass pageSize > 100, which the server
+ * rejects with `pageSize must be an integer between 1 and 100`.
+ *
+ * Honours an AbortSignal across every page request. Bounded by `maxPages`
+ * (default 20 → up to 2000 teams) as a safety net against runaway loops.
+ */
+export async function getAllTeams(
+  params: Record<string, string | number | undefined | null> = {},
+  signal?: AbortSignal,
+  maxPages = 20,
+): Promise<TeamListItem[]> {
+  const base = { ...params, page: 1, pageSize: 100 };
+  const first = await getTeams(base, signal);
+  const all: TeamListItem[] = [...first.items];
+  const totalPages = Math.min(first.totalPages, maxPages);
+  for (let page = 2; page <= totalPages; page += 1) {
+    const next = await getTeams({ ...base, page }, signal);
+    all.push(...next.items);
+  }
+  return all;
 }
 
 export async function getTeam(id: string, signal?: AbortSignal): Promise<{ item: TeamDetail }> {

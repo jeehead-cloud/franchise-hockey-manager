@@ -9,7 +9,7 @@ import { Panel } from '../components/ui/Panel';
 import {
   createMatch,
   getActiveBalance,
-  getTeams,
+  getAllTeams,
   simulateMatch,
   type ActiveBalanceSnapshot,
   type TeamListItem,
@@ -45,11 +45,11 @@ export function NewMatchPage() {
     const controller = new AbortController();
     setLoading(true);
     Promise.all([
-      getTeams({ page: 1, pageSize: 200, sort: 'name', direction: 'asc' }, controller.signal),
+      getAllTeams({ sort: 'name', direction: 'asc' }, controller.signal),
       getActiveBalance(controller.signal),
     ])
-      .then(([teamRes, balanceRes]) => {
-        setTeams(teamRes.items);
+      .then(([teamsRes, balanceRes]) => {
+        setTeams(teamsRes);
         setBalance(balanceRes.item);
         setError(null);
       })

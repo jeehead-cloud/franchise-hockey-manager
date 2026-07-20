@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type { BackupConfig } from '@fhm/engine';
 import { backupErrors } from './backup-errors.js';
+import { resolveSqliteUrlPath } from './database-paths.js';
 
 /** Allowed file extensions for backup artifacts. */
 export const ALLOWED_BACKUP_EXTENSIONS = new Set(['.sqlite', '.json']);
@@ -124,18 +125,16 @@ export function sanitizeReasonForFilename(reason: string): string {
 }
 
 /**
- * Resolve the active SQLite database file path from DATABASE_URL. Throws an
- * unsupported-backend error for non-`file:` URLs.
+ * Resolve the active SQLite database file path from DATABASE_URL using Prisma's
+ * relative-path semantics (relative URLs resolve against the schema directory,
+ * NOT the server's CWD). Throws an unsupported-backend error for non-`file:` URLs.
  */
 export function resolveActiveDatabasePath(): { dbPath: string; fileName: string } {
   const databaseUrl = process.env.DATABASE_URL ?? '';
   if (!databaseUrl.startsWith('file:')) {
     throw backupErrors.unsupportedBackend();
   }
-  const raw = databaseUrl.slice('file:'.length);
-  const dbPath = path.isAbsolute(raw) ? raw : path.resolve(process.cwd(), raw);
-  const fileName = path.basename(dbPath);
-  return { dbPath, fileName };
+  return resolveSqliteUrlPath(databaseUrl);
 }
 
 /** Compute the relative-to-root display path (basename of the relative path). */

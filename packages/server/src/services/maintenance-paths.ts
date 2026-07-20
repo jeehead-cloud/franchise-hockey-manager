@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type { MaintenanceConfig } from '@fhm/engine';
 import { maintenanceErrors } from './maintenance-errors.js';
+import { resolveSqliteUrlPath } from './database-paths.js';
 
 /** Allowed file extensions for export artifacts. */
 export const ALLOWED_EXPORT_EXTENSIONS = new Set(['.csv', '.json', '.zip']);
@@ -142,14 +143,16 @@ export function safeRemove(filePath: string): void {
   }
 }
 
-/** Resolve the active SQLite database file path from DATABASE_URL. */
+/**
+ * Resolve the active SQLite database file path from DATABASE_URL using Prisma's
+ * relative-path semantics (relative URLs resolve against the schema directory,
+ * NOT the server's CWD). Mirrors the F32 backup resolver so backups, restores,
+ * validation, reset, and full-DB packages all agree on the active file.
+ */
 export function resolveActiveDatabasePath(): { dbPath: string; fileName: string } {
   const databaseUrl = process.env.DATABASE_URL ?? '';
   if (!databaseUrl.startsWith('file:')) {
     throw maintenanceErrors.maintenancePathInvalid('Maintenance is only supported for local SQLite file databases');
   }
-  const raw = databaseUrl.slice('file:'.length);
-  const dbPath = path.isAbsolute(raw) ? raw : path.resolve(process.cwd(), raw);
-  const fileName = path.basename(dbPath);
-  return { dbPath, fileName };
+  return resolveSqliteUrlPath(databaseUrl);
 }

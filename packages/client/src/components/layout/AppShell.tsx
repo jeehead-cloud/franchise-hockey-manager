@@ -1,6 +1,7 @@
 import { Outlet, useLocation } from 'react-router-dom';
 import { useServerHealth } from '../../lib/useServerHealth';
 import { CommissionerBanner } from '../ui/CommissionerBanner';
+import { ErrorBoundary } from '../ui/ErrorBoundary';
 import { MAIN_NAV, Sidebar } from './Sidebar';
 import { TopBar } from './TopBar';
 
@@ -36,7 +37,12 @@ export function AppShell() {
         <TopBar title={titleForPath(location.pathname)} />
         <CommissionerBanner />
         <main style={{ flex: 1, overflow: 'auto' }}>
-          <Outlet />
+          {/* ErrorBoundary keeps a render throw in any page from blanking the
+              whole app and resetting global in-memory state (e.g. Commissioner
+              Mode). The shell, sidebar, and banner stay mounted. */}
+          <ErrorBoundary key={location.pathname}>
+            <Outlet />
+          </ErrorBoundary>
         </main>
       </div>
     </div>

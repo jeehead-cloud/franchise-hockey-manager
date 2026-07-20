@@ -1,11 +1,12 @@
 import type { FastifyInstance } from 'fastify';
 import { prisma } from '../db/client.js';
+import { detailResponse } from '../http.js';
 
 /**
  * Public maintenance status — bounded metadata only. Mirrors the F32 public
  * backup-status shape: configured, export count, last-export age, pending
  * restore/maintenance. Never exposes filenames, paths, hashes, or operation
- * details.
+ * details. Wrapped in the standard `{ item }` detail envelope.
  */
 export async function registerMaintenanceRoutes(app: FastifyInstance) {
   app.get('/api/system/maintenance-status', async () => {
@@ -16,19 +17,17 @@ export async function registerMaintenanceRoutes(app: FastifyInstance) {
     } catch {
       configured = false;
     }
-    const completedExports = await prisma.maintenanceExportRun.count({ where: { status: 'COMPLETED' } });
-    const pendingImports = await prisma.maintenanceImportRun.count({
-      where: { status: { in: ['UPLOADED', 'VALIDATING', 'PREVIEW_READY', 'APPLYING'] } },
-    });
-    const latestExport = await prisma.maintenanceExportRun.findFirst({
-      where: { status: 'COMPLETED', exportType: 'FULL_DATABASE_PACKAGE' },
-      orderBy: { completedAt: 'desc' },
-    });
-    const latestValidation = await prisma.maintenanceValidationRun.findFirst({
-      where: { status: 'COMPLETED' },
-      orderBy: { completedAt: 'desc' },
-    });
-    return {
+    const completedExports = await prisma.maintenanceExportRun.count({ where: { status: 'COMPLETED' } }).catch(() => 0);
+    const pendingImports = await prisma.maintenanceImportRun
+      .count({ where: { status: { in: ['UPLOADED', 'VALIDATING', 'PREVIEW_READY', 'APPLYING'] } } })
+      .catch(() => 0);
+    const latestExport = await prisma.maintenanceExportRun
+      .findFirst({ where: { status: 'COMPLETED', exportType: 'FULL_DATABASE_PACKAGE' }, orderBy: { completedAt: 'desc' } })
+      .catch(() => null);
+    const latestValidation = await prisma.maintenanceValidationRun
+      .findFirst({ where: { status: 'COMPLETED' }, orderBy: { completedAt: 'desc' } })
+      .catch(() => null);
+    return detailResponse({
       configured,
       completedExports,
       pendingImports,
@@ -42,6 +41,6 @@ export async function registerMaintenanceRoutes(app: FastifyInstance) {
       lastValidationAgeDays: latestValidation?.completedAt
         ? Math.floor((Date.now() - latestValidation.completedAt.getTime()) / (24 * 60 * 60 * 1000))
         : null,
-    };
+    });
   });
 }

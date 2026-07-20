@@ -202,4 +202,30 @@ describe('F2 read APIs', () => {
     expect(body.status).toBe('ok');
     expect(body.database).toBe('ok');
   });
+
+  // Regression (Defect 4): strict pagination validation. The New Match page
+  // previously sent pageSize=200, which exceeded the 1–100 cap. The fix is
+  // client-side (paginate with pageSize≤100); the server MUST keep rejecting
+  // invalid pageSizes so a buggy/legacy client cannot bypass validation.
+  it.each([
+    ['pageSize=200', 'pageSize=200'],
+    ['pageSize=0', 'pageSize=0'],
+    ['pageSize=-5', 'pageSize=-5'],
+    ['pageSize=abc', 'pageSize=abc'],
+    ['pageSize=101', 'pageSize=101'],
+  ])('rejects invalid %s on /api/teams with 400 (strict pagination preserved)', async (_label, param) => {
+    const res = await app.inject({ method: 'GET', url: `/api/teams?${param}` });
+    expect(res.statusCode).toBe(400);
+    const body = res.json() as { error: string; message: string };
+    expect(body.message).toMatch(/pageSize must be an integer between 1 and 100/);
+  });
+
+  it.each([
+    ['pageSize=1', 'pageSize=1'],
+    ['pageSize=100', 'pageSize=100'],
+    ['pageSize=50', 'pageSize=50'],
+  ])('accepts valid %s on /api/teams (boundary preserved)', async (_label, param) => {
+    const res = await app.inject({ method: 'GET', url: `/api/teams?${param}&sort=name` });
+    expect(res.statusCode).toBe(200);
+  });
 });

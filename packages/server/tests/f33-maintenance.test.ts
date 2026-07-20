@@ -595,9 +595,13 @@ describe('F33 import, export, and database maintenance', () => {
     const res = await app.inject({ method: 'GET', url: '/api/system/maintenance-status' });
     expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body);
-    expect(body).toHaveProperty('configured');
-    expect(body).toHaveProperty('completedExports');
-    expect(body).toHaveProperty('pendingImports');
+    // Standard `{ item }` detail envelope — matches every other read endpoint
+    // and the client's `getJson<{ item: MaintenanceStatusPublic }>` expectation.
+    expect(body).toHaveProperty('item');
+    const item = body.item;
+    expect(item).toHaveProperty('configured');
+    expect(item).toHaveProperty('completedExports');
+    expect(item).toHaveProperty('pendingImports');
     const serialized = JSON.stringify(body);
     expect(serialized).not.toContain(tempDir);
     expect(serialized).not.toContain('.fhm-exports');
